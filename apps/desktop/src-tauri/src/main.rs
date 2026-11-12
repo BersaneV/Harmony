@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod updates;
+
 use tauri::Emitter;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
 
@@ -85,6 +87,8 @@ fn set_push_to_talk(app: tauri::AppHandle, enabled: bool) -> Result<(), String> 
 
 fn main() {
     tauri::Builder::default()
+        .manage(updates::UpdateState::default())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -103,7 +107,12 @@ fn main() {
             store_refresh_token,
             load_refresh_token,
             open_external_url,
-            set_push_to_talk
+            set_push_to_talk,
+            updates::check_update,
+            updates::download_update,
+            updates::cancel_update,
+            updates::install_update,
+            updates::update_status
         ])
         .setup(|app| {
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?

@@ -66,3 +66,29 @@ export async function fetchAttachmentBlob(
     throw new Error("O arquivo recebido está incompleto. Tente novamente.");
   return new Blob(parts, { type: contentType });
 }
+export const mediaStatusLabel = {
+  queued: "Na fila de processamento",
+  processing: "Preparando prévia",
+  ready: "Prévia processada",
+  unsupported: "Original disponível; sem prévia processada",
+  failed: "Falha na prévia; original disponível",
+} as const;
+export function validateDerivative(
+  kind: "thumbnail" | "faststart",
+  value: { content_type: string; size: number },
+  maxBytes: number,
+) {
+  const type = kind === "thumbnail" ? "image/jpeg" : "video/mp4";
+  const limit =
+    kind === "thumbnail"
+      ? Math.min(maxBytes, 4 * 1024 * 1024)
+      : Math.min(maxBytes, 50 * 1024 * 1024);
+  if (
+    value.content_type !== type ||
+    !Number.isSafeInteger(value.size) ||
+    value.size < 1 ||
+    value.size > limit
+  )
+    throw new Error("O derivado recebido tem formato ou tamanho inválido.");
+  return { contentType: type, maxBytes: limit };
+}

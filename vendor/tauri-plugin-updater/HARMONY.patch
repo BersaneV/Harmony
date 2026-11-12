@@ -1,0 +1,87 @@
+--- a/src/error.rs
++++ b/src/error.rs
+@@ -50,6 +50,9 @@
+     /// Download failed
+     #[error("`{0}`")]
+     Network(String),
++    /// The updater response exceeded the caller's buffered byte limit.
++    #[error("Updater download exceeds the configured byte limit")]
++    DownloadTooLarge,
+     /// `minisign_verify` errors.
+     #[error(transparent)]
+     Minisign(#[from] minisign_verify::Error),
+--- a/src/updater.rs
++++ b/src/updater.rs
+@@ -776,6 +776,33 @@
+     /// Use [`Update::install`] to install it
+     pub async fn download<C: FnMut(usize, Option<u64>), D: FnOnce()>(
+         &self,
++        on_chunk: C,
++        on_download_finish: D,
++    ) -> Result<Vec<u8>> {
++        self.download_inner(None, on_chunk, on_download_finish)
++            .await
++    }
++
++    /// Downloads and verifies a package while bounding buffered response bytes.
++    ///
++    /// Rejects an oversized Content-Length before reading the response body and
++    /// checks each chunk before appending it. The existing signature and signed
++    /// version verification are unchanged. This method does not install.
++    ///
++    /// Harmony local extension; see HARMONY-PATCH.md for upstream provenance.
++    pub async fn download_with_limit<C: FnMut(usize, Option<u64>), D: FnOnce()>(
++        &self,
++        max_bytes: u64,
++        on_chunk: C,
++        on_download_finish: D,
++    ) -> Result<Vec<u8>> {
++        self.download_inner(Some(max_bytes), on_chunk, on_download_finish)
++            .await
++    }
++
++    async fn download_inner<C: FnMut(usize, Option<u64>), D: FnOnce()>(
++        &self,
++        max_bytes: Option<u64>,
+         mut on_chunk: C,
+         on_download_finish: D,
+     ) -> Result<Vec<u8>> {
+@@ -824,13 +851,38 @@
+             .and_then(|value| value.to_str().ok())
+             .and_then(|value| value.parse().ok());
+ 
++        if max_bytes.is_some_and(|max| content_length.is_some_and(|length| length > max)) {
++            return Err(Error::DownloadTooLarge);
++        }
+         let mut buffer = Vec::new();
+ 
+         let mut stream = response.bytes_stream();
+         while let Some(chunk) = stream.next().await {
+             let chunk = chunk?;
++            let next_length = buffer
++                .len()
++                .checked_add(chunk.len())
++                .ok_or(Error::DownloadTooLarge)?;
++            if max_bytes.is_some_and(|max| next_length as u64 > max) {
++                return Err(Error::DownloadTooLarge);
++            }
+             on_chunk(chunk.len(), content_length);
+             buffer.extend(chunk);
++            if max_bytes.is_some() {
++                // A ready HTTP stream can otherwise drain in a single poll,
++                // starving callers' cancellation/timeout futures. Yield once
++                // without introducing a particular async runtime dependency.
++                let mut yielded = false;
++                futures_util::future::poll_fn(|cx| {
++                    if std::mem::replace(&mut yielded, true) {
++                        std::task::Poll::Ready(())
++                    } else {
++                        cx.waker().wake_by_ref();
++                        std::task::Poll::Pending
++                    }
++                })
++                .await;
++            }
+         }
+         on_download_finish();
+ 

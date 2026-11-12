@@ -46,7 +46,7 @@ Configure serviços e credenciais descartáveis primeiro. O teste Caddy usa port
 - Validar o host, DNS/certificados e tráfego entre redes diferentes, incluindo UDP bloqueado e TURN/TLS443.
 - Integrar quotas de rede e disco ao host escolhido. O teto do encoder e a cota lógica de anexos não são um bloqueio de cobrança do provedor.
 - Executar backup cifrado e restauração conjunta de banco, objetos e chaves em destino independente.
-- Homologar instalação/remoção e distribuição. O instalador inicial não tem assinatura Authenticode; não há updater automático ativo.
+- Homologar instalação/remoção e distribuição. O instalador inicial não tem assinatura Authenticode; o updater assinado está implementado na versão 0.2.0 e exige ação explícita para instalar; a atualização em máquina física continua sem homologação.
 
 ## Instalador Windows
 
@@ -54,10 +54,20 @@ A execução inicial [43267311874](https://github.com/BersaneV/Harmony/actions/r
 
 ## Dependências
 
-Inventário de 801 versões de pacotes Cargo e npm, com 379 textos distintos de licenças/avisos extraídos dos pacotes, com espaços de fim de linha normalizados somente na cópia gerada. Inclui dependências de build e de outras plataformas por precaução. Todos declararam licença; 45 pacotes não traziam arquivo de aviso na localização inventariada e mantêm link para a fonte. Isso não é uma declaração de revisão jurídica completa. `scripts/license-inventory.py` regenera os arquivos; os avisos são incluídos nos recursos do instalador. Imagens de infraestrutura estão fixadas por digest em `infra/images.lock.json`. Auditoria npm da base: zero vulnerabilidades reportadas.
+Inventário de 825 versões de pacotes Cargo e npm, com 388 textos distintos de licenças/avisos extraídos dos pacotes, com espaços de fim de linha normalizados somente na cópia gerada. Inclui dependências de build e de outras plataformas por precaução. Todos declararam licença; 49 pacotes não traziam arquivo de aviso na localização inventariada e mantêm link para a fonte. Isso não é uma declaração de revisão jurídica completa. `scripts/license-inventory.py` regenera os arquivos; os avisos são incluídos nos recursos do instalador. Imagens de infraestrutura estão fixadas por digest em `infra/images.lock.json`. Auditoria npm da base: zero vulnerabilidades reportadas.
 
 ## Funcionalidades ainda fora desta implementação
 
-O worker FFmpeg/ffprobe, prévias automáticas de links, atualização assinada, fundos/fontes importados, rascunhos persistentes offline, transferência de participante entre salas, menções com notificação dedicada e camadas SVC/simulcast permanecem no roadmap. O cliente usa um encoder VP8 para a transmissão inicial. Threads/fóruns, palco, soundboard, PiP, webhooks, atividade de jogos e E2EE são extensões separadas.
+Prévias automáticas de links, rascunhos persistentes offline, transferência de participante entre salas, menções com notificação dedicada e camadas SVC/simulcast permanecem no roadmap. O cliente usa um encoder VP8 para a transmissão inicial. Threads/fóruns, palco, soundboard, PiP, webhooks, atividade de jogos e E2EE são extensões separadas.
 
 O projeto pode ser desenvolvido e ensaiado localmente sem contratar serviços. Não foi provisionado servidor público nem criada garantia de disponibilidade ou gratuidade permanente.
+
+## Extensão 0.2.0 — worker, atualização e personalização
+
+Os três recortes solicitados foram implementados. [Worker de mídia](MEDIA-WORKER.md), [atualizações assinadas](UPDATES.md), [personalização](PERSONALIZATION.md) e [revisão de segurança](SECURITY-EXTENSIONS.md) descrevem contratos e limites.
+
+- Worker: 51 critérios locais com PostgreSQL/S3/FFmpeg 9.0.2 reais, incluindo imagem/GIF/vídeo/áudio, JPEG privado, MP4 faststart, preservação do original, revogação VIEW, quota de derivados/reservas, disputa entre workers, três retries, lease após kill, fencing de processo antigo e limpeza.
+- Updater: 16 critérios do plugin oficial com extensão local de limite, incluindo adulteração de bytes/assinatura, chave incorreta, versão adulterada, downgrade, mesma versão, Content-Length excessivo, stream sem comprimento e cancelamento. O guard antigo de cancelamento falhou em dois testes de consumo, foi substituído pelo limite antes de acumular bytes e voltou a passar. Testes nativos de URL/versão/concorrrência e Clippy passaram.
+- Frontend: 65 testes, typecheck e build passaram; inclui testes que reproduziram e corrigiram a concorrência entre salvar perfil e renovar sessão. A validação visual real usa dados/arquivos de teste, não dados pessoais. Confirmou importação PNG/TTF, cancelamento, JSON inválido, aplicar/Salvo, exportar/reimportar e persistência após novo login. Anexo PNG enviado pela interface exibiu status processado e metadados640×360 no visualizador; arquivos locais de evidência: `.local/qa/personalizacao-0.2.0.jpg` e `.local/qa/worker-previa-0.2.0.jpg`.
+
+A etapa Linux de CI repete os testes do worker e executa preflight da imagem isolada; a etapa Windows compila o NSIS, testa a política nativa e verifica a assinatura do artefato real antes de criar o draft. Consultar a execução e o SHA da release para o resultado remoto. A verificação criptográfica não executa o instalador e não substitui ensaio físico Windows.

@@ -242,3 +242,22 @@ O repositório pessoal [BersaneV/Harmony](https://github.com/BersaneV/Harmony) �
 | Dependências | Lockfiles, imagens fixadas, vulnerabilidades, licenças, binários ARM64/x64 | Locks e manifests implementados; auditoria npm executada, revisão de distribuição continua necessária |
 
 A implementação de desenvolvimento está disponível na main; a fase de homologação Windows e externa permanece aberta. Não está homologada para afirmar capacidade, latência, gratuidade permanente ou funcionamento integral. Hospedagem elegível, nomes DNS, backup e prova de captura são condições concretas para o piloto público.
+
+## Implementação0.2.0 — fronteiras adicionais
+
+O processo `harmony-media-worker` consome a fila PostgreSQL por lease e publica derivados privados no mesmo S3, sem alterar originais. FFmpeg/ffprobe rodam em subprocessos sem credenciais/rede, com sandbox e limites. Os endpoints de metadados e assinatura de derivados revalidam a ACL do anexo; quota inclui reservas de trabalho e derivados. Backup congela também o worker.
+
+A personalização usa configuração JSON versionada na conta e bytes em IndexedDB por dispositivo/origem/usuário. O updater mantém chave pública, destino e bytes verificados exclusivamente no processo nativo; somente comandos sem argumentos são expostos ao renderer. O canal de atualização hospeda metadados públicos, e cada binário possui assinatura vinculada à versão. Estes recortes não adicionam serviço pago nem dependência obrigatória de nuvem de mídia.
+
+```mermaid
+flowchart LR
+  UI[React / Tauri] -->|JSON do tema| API[API Rust]
+  UI -->|arquivos locais| IDB[IndexedDB por conta e servidor]
+  API --> PG[(PostgreSQL / jobs e leases)]
+  Worker[Worker Rust] --> PG
+  Worker -->|subprocesso isolado| FF[FFmpeg / ffprobe sem rede]
+  Worker -->|derivados privados| S3[(S3)]
+  API -->|ACL e URLs temporárias| S3
+  UI -->|check / download / install| Native[Updater Rust e chave pública fixa]
+  Native -->|HTTPS / assinatura e versão| GH[Releases públicas GitHub]
+```

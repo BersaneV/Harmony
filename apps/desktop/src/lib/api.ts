@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { Session } from "./types";
+import type { Session, User } from "./types";
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -38,6 +38,7 @@ let server = initialServer();
 let session: Session | null = null;
 let sessionNotice = "";
 let epoch = 0;
+let profileRevision = 0;
 let refreshing: Promise<Session> | null = null;
 let storageQueue: Promise<unknown> = Promise.resolve();
 const listeners = new Set<(value: Session | null) => void>();
@@ -79,6 +80,12 @@ export async function saveSession(next: Session | null) {
   if (generation !== epoch || origin !== server) throw changedSession();
   if (next) notify(next);
 }
+export function updateSessionUser(user: User, expectedOrigin: string) {
+  if (!session || user.id !== session.user.id || server !== expectedOrigin)
+    throw changedSession();
+  profileRevision++;
+  notify({ ...session, user });
+}
 export async function setServer(value: string) {
   const normalized = normalizeServer(value);
   if (normalized === server) return;
@@ -102,6 +109,7 @@ export async function refreshSession(): Promise<Session> {
   if (refreshing) return refreshing;
   const origin = server;
   const generation = epoch;
+  const startedProfileRevision = profileRevision;
   let attemptedRefresh = false;
   const flight = (async () => {
     const token =
@@ -117,7 +125,7 @@ export async function refreshSession(): Promise<Session> {
         "Entre na sua conta para continuar.",
       );
     attemptedRefresh = true;
-    const next = await parseResponse<Session>(
+    let next = await parseResponse<Session>(
       await fetch(origin + "/api/auth/refresh", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -129,6 +137,18 @@ export async function refreshSession(): Promise<Session> {
     if (generation !== epoch || origin !== server) throw changedSession();
     await persist(origin, next.refresh_token);
     if (generation !== epoch || origin !== server) throw changedSession();
+    if (
+      profileRevision !== startedProfileRevision &&
+      session?.user.id === next.user.id
+    )
+      next = {
+        ...next,
+        user: {
+          ...next.user,
+          display_name: session.user.display_name,
+          preferences: session.user.preferences,
+        },
+      };
     notify(next);
     return next;
   })().catch(async (error) => {

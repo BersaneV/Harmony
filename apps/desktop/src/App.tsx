@@ -22,10 +22,13 @@ import {
   api,
   errorMessage,
   getSession,
+  getServer,
   onSession,
   refreshSession,
 } from "./lib/api";
-import { applyTheme, normalizeTheme } from "./lib/theme";
+import { normalizeTheme } from "./lib/theme";
+import { activateTheme } from "./lib/themeRuntime";
+import { themeScope } from "./lib/themeAssets";
 import { useRealtime } from "./lib/useRealtime";
 import { initials } from "./lib/messages";
 import type {
@@ -62,6 +65,11 @@ export default function App() {
   const [session, setSession] = useState(getSession());
   const [restoring, setRestoring] = useState(isTauri());
   const cache = useQueryClient();
+  const [appearanceWarning, setAppearanceWarning] = useState("");
+  const appearance = JSON.stringify(session?.user.preferences?.theme ?? null);
+  const appearanceScope = session
+    ? themeScope(getServer(), session.user.id)
+    : null;
   useEffect(
     () =>
       onSession((next) => {
@@ -77,8 +85,18 @@ export default function App() {
       .finally(() => setRestoring(false));
   }, []);
   useEffect(() => {
-    applyTheme(normalizeTheme(session?.user.preferences?.theme));
-  }, [session?.user.preferences]);
+    let active = true;
+    void activateTheme(normalizeTheme(JSON.parse(appearance)), appearanceScope)
+      .then((warnings) => {
+        if (active) setAppearanceWarning(warnings.join(" "));
+      })
+      .catch((error) => {
+        if (active) setAppearanceWarning(errorMessage(error));
+      });
+    return () => {
+      active = false;
+    };
+  }, [appearance, appearanceScope]);
   if (restoring)
     return (
       <main className="restore-screen">
@@ -86,7 +104,21 @@ export default function App() {
         <Loading label="Abrindo seu espaço…" />
       </main>
     );
-  return session ? <Workspace session={session} /> : <Auth />;
+  return (
+    <>
+      {appearanceWarning && session && (
+        <div className="appearance-warning" role="status">
+          {appearanceWarning}
+          <button onClick={() => setAppearanceWarning("")}>Dispensar</button>
+        </div>
+      )}
+      {session ? (
+        <Workspace key={appearanceScope} session={session} />
+      ) : (
+        <Auth />
+      )}
+    </>
+  );
 }
 function Workspace({ session }: { session: Session }) {
   const user = session.user;

@@ -70,6 +70,56 @@ describe("origens e sessão", () => {
     expect(client.getSession()?.access_token).toBe("rotated");
     expect(storage.has("token")).toBe(false);
   });
+  it("salvar preferências durante refresh preserva credenciais novas e perfil salvo", async () => {
+    await client.saveSession(session);
+    let release!: (value: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            release = resolve;
+          }),
+      ),
+    );
+    const pending = client.refreshSession();
+    const saved = {
+      ...user,
+      display_name: "Novo nome",
+      preferences: { theme: { mode: "light" } },
+    };
+    client.updateSessionUser(saved, client.getServer());
+    release(
+      json({
+        ...session,
+        access_token: "new-access",
+        refresh_token: "new-refresh",
+      }),
+    );
+    await expect(pending).resolves.toMatchObject({
+      access_token: "new-access",
+      refresh_token: "new-refresh",
+      user: saved,
+    });
+    expect(client.getSession()?.user.preferences).toEqual(saved.preferences);
+  });
+  it("atualização de perfil não atravessa conta, origem nem logout", async () => {
+    await client.saveSession(session);
+    expect(() =>
+      client.updateSessionUser(
+        { ...user, id: "other-user" },
+        client.getServer(),
+      ),
+    ).toThrow("A sessão mudou");
+    expect(() =>
+      client.updateSessionUser(user, "https://different.example"),
+    ).toThrow("A sessão mudou");
+    await client.saveSession(null);
+    expect(() => client.updateSessionUser(user, client.getServer())).toThrow(
+      "A sessão mudou",
+    );
+    expect(client.getSession()).toBeNull();
+  });
   it("uma resposta de refresh atrasada não restaura uma sessão encerrada", async () => {
     await client.saveSession(session);
     let resolveRefresh!: (value: Response) => void;

@@ -62,6 +62,33 @@ services:
     restart: unless-stopped
     mem_limit: 1g
     logging: *logging
+  media-worker:
+    build: {context: ., dockerfile: infra/Dockerfile.worker}
+    network_mode: host
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Run scripts/configure.py first}
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://127.0.0.1:8333}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-harmony}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Run scripts/configure.py first}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?Run scripts/configure.py first}
+      HARMONY_STORAGE_QUOTA_BYTES: ${HARMONY_STORAGE_QUOTA_BYTES:-1073741824}
+      WORKER_TEMP_DIR: /tmp/harmony-media
+      WORKER_TIMEOUT_SECONDS: "30"
+      WORKER_LEASE_SECONDS: "120"
+      WORKER_MEMORY_BYTES: "536870912"
+    depends_on:
+      api: {condition: service_healthy}
+      storage: {condition: service_started}
+    read_only: true
+    tmpfs: [/tmp/harmony-media:size=128m,mode=0700,uid=10001,gid=10001]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    cpus: 1
+    mem_limit: 768m
+    restart: unless-stopped
+    logging: *logging
   caddy:
     profiles: [public]
     build: {context: ., dockerfile: infra/Dockerfile.caddy}

@@ -218,6 +218,11 @@ pub fn router(s: AppState) -> Router {
         .route("/api/channels/{id}/uploads", post(uploads::reserve))
         .route("/api/uploads/{id}/complete", post(uploads::complete))
         .route("/api/uploads/{id}/download", get(uploads::download))
+        .route("/api/uploads/{id}/media", get(uploads::media_status))
+        .route(
+            "/api/uploads/{id}/derivatives/{kind}",
+            get(uploads::derivative),
+        )
         .route("/api/admin/users", get(admin::users))
         .route("/api/admin/users/{id}", patch(admin::update_user))
         .route("/api/admin/users/{id}/reset", post(admin::reset_user))

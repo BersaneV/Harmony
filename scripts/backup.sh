@@ -14,14 +14,14 @@ mkdir -p "$stage"
 running=$(docker compose ps --status running --services)
 restore_services() {
   for service in $running; do
-    case "$service" in api|caddy|livekit|storage) docker compose --profile public start "$service" >/dev/null || true ;; esac
+    case "$service" in api|caddy|livekit|storage|media-worker) docker compose --profile public start "$service" >/dev/null || true ;; esac
   done
 }
 trap restore_services EXIT
 trap 'exit 130' INT
 trap 'exit 143' HUP TERM
 # Freeze every public writer, including outstanding presigned PUTs, before dumping.
-docker compose --profile public stop caddy api livekit storage
+docker compose --profile public stop caddy api media-worker livekit storage
 docker compose exec -T postgres pg_dump -U harmony -d harmony --format=custom > "$stage/postgres.dump"
 docker compose run --rm --no-deps -T --entrypoint tar storage -C /data -czf - . > "$stage/storage.tar.gz"
 cp .env "$stage/environment"

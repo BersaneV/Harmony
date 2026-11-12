@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: Save Windows installer in a draft release after verification
+        description: Sign Windows installer and save a versioned draft release after verification
         type: boolean
         default: false
 permissions:
@@ -16,7 +16,7 @@ concurrency:
 jobs:
   server:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:18.6-bookworm@sha256:f1ea2a1a4fb7b68d4836be1fdcb8a6466a89b072158bf9d97663600538c294c5
@@ -38,6 +38,8 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Install media fixture tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
       - name: Generate disposable test credentials
         run: |
           python3 scripts/configure.py
@@ -60,12 +62,19 @@ jobs:
           done
           python3 scripts/storage-init.py
           printf 'fs.configure -locationPrefix=/buckets/ -volumeGrowthCount=1 -apply\n' | docker exec -i harmony-storage weed shell -master=127.0.0.1:9333
+      - name: Build the pinned media parsers
+        run: |
+          docker build --target ffmpeg -f infra/Dockerfile.worker -t harmony-ffmpeg:ci .
+          mkdir -p .local/vendor-ci
+          docker create --name harmony-ffmpeg-export harmony-ffmpeg:ci /bin/true
+          docker cp harmony-ffmpeg-export:/opt/ffmpeg .local/vendor-ci/
+          docker rm harmony-ffmpeg-export
       - name: Integration through HTTP and WebSocket
         env:
           HARMONY_TEST_STORAGE: "1"
           HARMONY_TEST_MEDIA: "1"
         run: |
-          cargo build --locked --bin harmony-server
+          cargo build --workspace --locked
           python3 scripts/with-env.py target/debug/harmony-server > .local/server-ci.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
@@ -75,6 +84,12 @@ jobs:
           done
           python3 scripts/with-env.py node scripts/smoke.mjs
           python3 scripts/with-env.py node crates/server/tests/acl.mjs
+          FFMPEG_PATH="$PWD/.local/vendor-ci/ffmpeg/bin/ffmpeg" FFPROBE_PATH="$PWD/.local/vendor-ci/ffmpeg/bin/ffprobe" python3 scripts/with-env.py node scripts/test_worker.mjs
+          python3 scripts/test_worker_sandbox.py --output .local/qa-worker-sandbox/linux-result.json
+      - name: Verify deployed media worker sandbox
+        run: |
+          docker build -f infra/Dockerfile.worker -t harmony-worker:ci .
+          docker run --rm --env-file .env --env WORKER_TEMP_DIR=/tmp/harmony-media --network host --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 768m --cpus 1 --tmpfs /tmp/harmony-media:size=128m,mode=0700,uid=10001,gid=10001 harmony-worker:ci --check-sandbox
       - name: Container diagnostics on failure
         if: failure()
         run: |
@@ -84,7 +99,7 @@ jobs:
   desktop:
     needs: server
     runs-on: windows-2022
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -96,19 +111,52 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npm run desktop:build -- --bundles nsis
+      - run: node node_modules/vitest/vitest.mjs run tools/theme-review.test.ts
+      - name: Test native update policy
+        run: cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - name: Build without distribution signing on ordinary pushes
+        if: github.event_name != 'workflow_dispatch' || !inputs.package
+        shell: pwsh
+        run: |
+          '{"bundle":{"createUpdaterArtifacts":false}}' | Set-Content -Encoding utf8NoBOM apps/desktop/src-tauri/ci-unsigned.json
+          npm run desktop:build -- --bundles nsis --config ci-unsigned.json
+      - name: Build signed distribution on trusted main
+        if: github.event_name == 'workflow_dispatch' && inputs.package && github.ref == 'refs/heads/main'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run desktop:build -- --bundles nsis
+      - name: Verify updater signatures using the official plugin
+        if: github.event_name == 'workflow_dispatch' && inputs.package && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          cargo build --locked --manifest-path tools/updater-check/Cargo.toml
+          $version = (Get-Content apps/desktop/src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          $key = (Get-Content apps/desktop/src-tauri/tauri.conf.json | ConvertFrom-Json).plugins.updater.pubkey
+          $key | Set-Content -Encoding utf8NoBOM updater-public.key
+          $artifact = "apps/desktop/src-tauri/target/release/bundle/nsis/Harmony_" + $version + "_x64-setup.exe"
+          python tools/updater-check/test_updater.py --artifact $artifact --signature "$artifact.sig" --public-key updater-public.key --version $version --output .local/qa-updater/windows-release.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install and remove on disposable Windows runner
+        shell: pwsh
+        run: |
+          $version = (Get-Content apps/desktop/src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          $artifact = "apps/desktop/src-tauri/target/release/bundle/nsis/Harmony_" + $version + "_x64-setup.exe"
+          ./scripts/test_windows_install.ps1 -Path $artifact -Version $version -Output .local/qa-updater/windows-install.json
       - name: Hash the Windows artifacts
         shell: pwsh
         run: |
           Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*.exe | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content -Encoding utf8NoBOM apps/desktop/src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
-      - name: Save installer as a draft development release
-        if: github.event_name == 'workflow_dispatch' && inputs.package
+      - name: Save signed installer as a draft versioned release
+        if: github.event_name == 'workflow_dispatch' && inputs.package && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "build-$env:GITHUB_SHA"
-          $notes = "Build de desenvolvimento vinculado ao commit $env:GITHUB_SHA. Instalador sem Authenticode; captura, áudio e redes Windows ainda exigem validação real. Consulte docs/VALIDATION.md."
+          $version = (Get-Content apps/desktop/src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          $tag = "v$version"
+          $notes = "Harmony $version, commit $env:GITHUB_SHA. Atualizador com assinatura Ed25519 e versão vinculada; não é Authenticode. Worker de mídia e personalização avançada. Captura, áudio e redes Windows exigem homologação física. Consulte docs/VALIDATION.md e docs/UPDATES.md."
           $notes | Out-File -Encoding utf8 release-notes.txt
           $files = (Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*).FullName
-          gh release create $tag @files --draft --prerelease --target $env:GITHUB_SHA --title "Harmony Windows — build de desenvolvimento" --notes-file release-notes.txt
+          gh release create $tag @files .local/qa-updater/windows-release.json .local/qa-updater/windows-install.json --draft --prerelease --target $env:GITHUB_SHA --title "Harmony $version — Windows" --notes-file release-notes.txt

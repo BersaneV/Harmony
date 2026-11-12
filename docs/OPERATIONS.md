@@ -58,3 +58,9 @@ Restaure um snapshot com `restic restore SNAPSHOT --target /destino-independente
 O instalador inicial não tem assinatura Authenticode. Não existem atualizações automáticas sem chave de assinatura configurada; distribuir uma nova versão exige baixar e verificar o instalador. Não inventar chave pública/updater nem reutilizar chaves de outro projeto. Uma compilação Windows bem-sucedida não homologa microfone/captura/eco/atalhos ou desempenho em máquinas reais.
 
 Referências: [LiveKit deployment](https://docs.livekit.io/transport/self-hosting/deployment/), [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [limites de releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases), [restic](https://restic.readthedocs.io/en/stable/).
+
+## Serviço de mídia e manutenção
+
+O Compose inicia `media-worker` após a API saudável. Requer kernelLinux6.2+ com Landlock ABI3 e seccomp disponíveis. Testar `docker compose run --rm media-worker --check-sandbox` antes de liberar uploads em novo host. A imagem compila FFmpeg9.0.2 da fonte oficial com SHA256 fixado, sem suporte de rede, GPL ou nonfree. Worker uid10001, rootfs somente leitura, tmpfs128MiB, memória768MiB, CPU1 e limite64 processos; subprocessos têm restrições adicionais. Consulte MEDIA-WORKER.md para leases/retries/limites.
+
+`backup.sh` agora para o worker junto dos demais escritores; restauração mantém todos parados até inspeção. Não executar um worker externo ao Compose durante backup. A chave de atualização do desktop é custódia do mantenedor e exige backup criptografado próprio; não pertence ao backup de uma instância.

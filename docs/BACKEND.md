@@ -51,3 +51,9 @@ Essas verificações não homologam captura de áudio/vídeo no Windows, TURN ex
 `HARMONY_TEST_STORAGE=1 HARMONY_TEST_MEDIA=1 python3 scripts/with-env.py node crates/server/tests/acl.mjs` executa a matriz real REST/WS/S3/LiveKit: precedência dos overrides, grants e negações, ausência de bypass do administrador global, IDs cruzados, publicação como espectador, limpeza por exclusão de cargo, PUT com tamanho divergente e imutabilidade do objeto publicado. Os testes PostgreSQL também comparam a álgebra do domínio com a função SQL e comprovam a restrição composta contra associação entre comunidades.
 
 As mutações protegidas mantêm lock compartilhado da ACL da comunidade durante a transação; mudanças de cargos/overrides usam lock exclusivo. Locks de sequência de mensagem não alteram as chaves do canal e permanecem compatíveis com a verificação das referências dos overrides.
+
+## Worker de mídia
+
+`crates/media-worker` fornece o binário independente `harmony-media-worker`. Migration 0004 cria fila com leases/tentativas, registro prévio das chaves S3 e contabilização inclusiva de cota. A API enfileira de forma transacional após publicar o original e autoriza status/download de derivados. O worker usa FFmpeg/ffprobe em subprocesso isolado, sem carregar parsers dentro da API.
+
+Contrato e operação: [MEDIA-WORKER.md](MEDIA-WORKER.md). Validação real: `scripts/test_worker.mjs`; sandbox independente: `scripts/test_worker_sandbox.py`. Não confundir prova no macOS com validação Linux do Landlock/seccomp, nem com reprodução no Windows.

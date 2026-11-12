@@ -55,6 +55,8 @@ pub struct Channel {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Attachment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media_status: Option<String>,
     pub id: Uuid,
     pub name: String,
     pub content_type: String,

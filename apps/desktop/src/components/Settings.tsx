@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
@@ -15,10 +15,14 @@ import {
   getServer,
   getSession,
   logout,
-  saveSession,
+  updateSessionUser,
 } from "../lib/api";
 import { enableNotifications } from "../lib/desktop";
-import { applyTheme, normalizeTheme } from "../lib/theme";
+import { normalizeTheme } from "../lib/theme";
+import { activateTheme } from "../lib/themeRuntime";
+import { themeScope } from "../lib/themeAssets";
+import Appearance from "./Appearance";
+import { Updates } from "./Updates";
 import type { AuditEvent, Items, Theme, User } from "../lib/types";
 import { Avatar, ErrorBanner, Field, Loading, Modal } from "./ui";
 export function Settings({
@@ -35,11 +39,29 @@ export function Settings({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [themeWarning, setThemeWarning] = useState("");
+  const origin = getServer();
+  const scope = themeScope(origin, user.id);
+  useEffect(() => {
+    let active = true;
+    const timer = setTimeout(() => {
+      void activateTheme(theme, scope)
+        .then((warnings) => {
+          if (active) setThemeWarning(warnings.join(" "));
+        })
+        .catch((e) => {
+          if (active) setThemeWarning(errorMessage(e));
+        });
+    }, 120);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [theme, scope]);
   function updateTheme(value: Partial<Theme>) {
     setSaved(false);
     const next = normalizeTheme({ ...theme, ...value });
     setTheme(next);
-    applyTheme(next);
   }
   async function save() {
     setBusy(true);
@@ -52,8 +74,7 @@ export function Settings({
           preferences: { ...user.preferences, theme },
         },
       });
-      const session = getSession();
-      if (session) await saveSession({ ...session, user: updated });
+      updateSessionUser(updated, origin);
       setSaved(true);
     } catch (e) {
       setError(errorMessage(e));
@@ -62,7 +83,10 @@ export function Settings({
     }
   }
   function close() {
-    applyTheme(normalizeTheme(getSession()?.user.preferences?.theme));
+    void activateTheme(
+      normalizeTheme(getSession()?.user.preferences?.theme),
+      scope,
+    );
     onClose();
   }
   return (
@@ -94,76 +118,12 @@ export function Settings({
         <Palette size={17} />
         Aparência
       </h3>
-      <div className="theme-options">
-        <button
-          className={`theme-card dark-preview ${theme.mode === "dark" ? "selected" : ""}`}
-          onClick={() => updateTheme({ mode: "dark" })}
-        >
-          <span />
-          <strong>Noturno</strong>
-        </button>
-        <button
-          className={`theme-card light-preview ${theme.mode === "light" ? "selected" : ""}`}
-          onClick={() => updateTheme({ mode: "light" })}
-        >
-          <span />
-          <strong>Claro</strong>
-        </button>
-      </div>
-      <div className="stream-form">
-        <Field label="Cor de destaque">
-          <input
-            type="color"
-            value={theme.accent}
-            onChange={(e) => updateTheme({ accent: e.target.value })}
-          />
-        </Field>
-        <Field label="Fonte">
-          <select
-            value={theme.font}
-            onChange={(e) =>
-              updateTheme({ font: e.target.value as Theme["font"] })
-            }
-          >
-            <option value="system">Sistema</option>
-            <option value="serif">Serifada</option>
-            <option value="mono">Monoespaçada</option>
-          </select>
-        </Field>
-        <Field label={`Tamanho do texto · ${theme.fontSize}px`}>
-          <input
-            type="range"
-            min={12}
-            max={18}
-            step={1}
-            value={theme.fontSize}
-            onChange={(e) => updateTheme({ fontSize: Number(e.target.value) })}
-          />
-        </Field>
-        <Field label="Fundo">
-          <select
-            value={theme.background}
-            onChange={(e) =>
-              updateTheme({ background: e.target.value as Theme["background"] })
-            }
-          >
-            <option value="aurora">Aurora sutil</option>
-            <option value="plain">Cor sólida</option>
-          </select>
-        </Field>
-      </div>
-      <label className="check-field">
-        <input
-          type="checkbox"
-          checked={theme.compact}
-          onChange={(e) => updateTheme({ compact: e.target.checked })}
-        />
-        Mensagens compactas
-      </label>
-      <p className="small-note">
-        Temas usam opções seguras e fontes do sistema. Sua preferência é salva
-        na conta.
-      </p>
+      <Appearance theme={theme} onChange={updateTheme} scope={scope} />
+      {themeWarning && (
+        <p className="appearance-note" role="status">
+          {themeWarning}
+        </p>
+      )}
       <button
         className="button"
         onClick={() =>
@@ -176,6 +136,7 @@ export function Settings({
       >
         Ativar notificações neste dispositivo
       </button>
+      <Updates />
       <ErrorBanner message={error} />
       <div className="modal-actions">
         <button
@@ -184,6 +145,9 @@ export function Settings({
         >
           <LogOut size={16} />
           Sair da conta
+        </button>
+        <button className="button" onClick={close}>
+          Cancelar
         </button>
         <button
           className="button primary"
@@ -198,7 +162,7 @@ export function Settings({
           ) : busy ? (
             "Salvando…"
           ) : (
-            "Salvar preferências"
+            "Aplicar preferências"
           )}
         </button>
       </div>

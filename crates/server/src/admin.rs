@@ -143,7 +143,7 @@ pub async fn audit(State(s): State<AppState>, a: Auth) -> ApiResult<Json<Value>>
 }
 pub async fn stats(State(s): State<AppState>, a: Auth) -> ApiResult<Json<Value>> {
     require_admin(&a)?;
-    let row=sqlx::query("SELECT (SELECT count(*) FROM users) AS users,(SELECT count(*) FROM guilds) AS guilds,(SELECT count(*) FROM channels) AS channels,(SELECT count(*) FROM messages WHERE NOT deleted) AS messages,(SELECT count(*) FROM sessions WHERE revoked_at IS NULL AND expires_at>now()) AS sessions,(SELECT COALESCE(sum(size),0)::bigint FROM uploads WHERE status='ready' OR (status='pending' AND expires_at>now())) AS storage_bytes,(SELECT pg_database_size(current_database())) AS database_bytes").fetch_one(&s.pool).await?;
+    let row=sqlx::query("SELECT (SELECT count(*) FROM users) AS users,(SELECT count(*) FROM guilds) AS guilds,(SELECT count(*) FROM channels) AS channels,(SELECT count(*) FROM messages WHERE NOT deleted) AS messages,(SELECT count(*) FROM sessions WHERE revoked_at IS NULL AND expires_at>now()) AS sessions,(SELECT harmony_storage_used()) AS storage_bytes,(SELECT pg_database_size(current_database())) AS database_bytes").fetch_one(&s.pool).await?;
     Ok(Json(
         json!({"users":row.get::<i64,_>("users"),"guilds":row.get::<i64,_>("guilds"),"channels":row.get::<i64,_>("channels"),"messages":row.get::<i64,_>("messages"),"sessions":row.get::<i64,_>("sessions"),"storage_bytes":row.get::<i64,_>("storage_bytes"),"database_bytes":row.get::<i64,_>("database_bytes"),"storage_quota_bytes":s.config.storage_quota,"max_upload_bytes":s.config.max_upload,"max_video_bitrate":s.config.max_bitrate,"media_configured":s.config.livekit_url.is_some(),"storage_configured":s.config.s3_endpoint.is_some()}),
     ))

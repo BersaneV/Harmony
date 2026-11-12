@@ -98,7 +98,9 @@ pub async fn reserve(
     sqlx::query("SELECT pg_advisory_xact_lock(674622902)")
         .execute(&mut *tx)
         .await?;
-    let used:i64=sqlx::query_scalar("SELECT COALESCE(sum(size),0)::bigint FROM uploads WHERE status='ready' OR (status='pending' AND expires_at>now())").fetch_one(&mut *tx).await?;
+    let used: i64 = sqlx::query_scalar("SELECT harmony_storage_used()")
+        .fetch_one(&mut *tx)
+        .await?;
     if b.size > s.config.storage_quota.saturating_sub(used) {
         return Err(Error::Conflict("Cota de armazenamento esgotada".into()).into());
     }
@@ -224,6 +226,8 @@ pub async fn complete(
         .bind(id)
         .execute(&mut *tx)
         .await?;
+    sqlx::query("INSERT INTO media_jobs(upload_id,status) VALUES($1,CASE WHEN $2 LIKE 'image/%' OR $2 LIKE 'video/%' OR $2 LIKE 'audio/%' THEN 'queued' ELSE 'unsupported' END) ON CONFLICT DO NOTHING")
+        .bind(id).bind(&content_type).execute(&mut *tx).await?;
     tx.commit().await?;
     let _ = store.delete_object(&old_key).await;
     Ok(Json(
@@ -311,6 +315,57 @@ pub async fn cleanup(s: AppState) {
             .execute(&s.pool)
             .await;
     }
+}
+
+// All derivative access shares the authorization of the original, including
+// unattached owner-only uploads and message tombstones. Signed URLs last 60s.
+async fn authorize_media(s: &AppState, user: Uuid, id: Uuid) -> ApiResult<()> {
+    let row = sqlx::query("SELECT u.channel_id,u.user_id,u.message_id,m.deleted FROM uploads u LEFT JOIN messages m ON m.id=u.message_id WHERE u.id=$1 AND u.status='ready'")
+        .bind(id).fetch_one(&s.pool).await?;
+    db::channel_access(&s.pool, row.get("channel_id"), user).await?;
+    if (row.get::<Option<Uuid>, _>("message_id").is_none() && row.get::<Uuid, _>("user_id") != user)
+        || row.get::<Option<bool>, _>("deleted").unwrap_or(false)
+    {
+        return Err(Error::Forbidden.into());
+    }
+    Ok(())
+}
+pub async fn media_status(
+    State(s): State<AppState>,
+    a: Auth,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<Value>> {
+    authorize_media(&s, a.user.id, id).await?;
+    let row = sqlx::query("SELECT status,metadata,error_code FROM media_jobs WHERE upload_id=$1")
+        .bind(id)
+        .fetch_one(&s.pool)
+        .await?;
+    let derivatives:Vec<Value> = sqlx::query_scalar("SELECT jsonb_strip_nulls(jsonb_build_object('kind',d.kind,'content_type',d.content_type,'size',d.size,'width',d.width,'height',d.height)) FROM media_derivatives d JOIN media_jobs j ON j.attempt_id=d.attempt_id WHERE j.upload_id=$1 AND j.status='ready' AND d.ready ORDER BY d.kind").bind(id).fetch_all(&s.pool).await?;
+    Ok(Json(
+        json!({"status":row.get::<String,_>("status"),"metadata":row.get::<Option<Value>,_>("metadata"),"error_code":row.get::<Option<String>,_>("error_code"),"derivatives":derivatives}),
+    ))
+}
+pub async fn derivative(
+    State(s): State<AppState>,
+    a: Auth,
+    Path((id, kind)): Path<(Uuid, String)>,
+) -> ApiResult<Json<Value>> {
+    authorize_media(&s, a.user.id, id).await?;
+    if !matches!(kind.as_str(), "thumbnail" | "faststart") {
+        return Err(Error::NotFound.into());
+    }
+    let row = sqlx::query("SELECT d.object_key,d.content_type,d.size FROM media_derivatives d JOIN media_jobs j ON j.attempt_id=d.attempt_id WHERE j.upload_id=$1 AND j.status='ready' AND d.ready AND d.kind=$2").bind(id).bind(kind).fetch_one(&s.pool).await?;
+    let content_type: String = row.get("content_type");
+    let mut query = HashMap::new();
+    query.insert("response-content-type".into(), content_type.clone());
+    query.insert("response-content-disposition".into(), "inline".into());
+    let url = bucket(&s, true)?
+        .presign_get(row.get::<String, _>("object_key"), 60, Some(query))
+        .await
+        .map_err(|_| unavailable())?;
+    Ok(Json(
+        json!({"url":url,"expires_in":60,"content_type":content_type,"size":row.get::<i64,_>("size")}),
+    ))
 }
 
 #[cfg(test)]

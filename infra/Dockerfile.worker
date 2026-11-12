@@ -1,0 +1,25 @@
+# The parsers share the audited source version with the integration fixtures.
+FROM rust:1.99.1-bookworm@sha256:e6f2cff35d0f309acf8433b4f05878ed77092602c5065cc81801177da0bb3a9c AS build
+WORKDIR /build
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY crates ./crates
+COPY migrations ./migrations
+RUN cargo build --release --locked --bin harmony-media-worker
+
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS ffmpeg
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl xz-utils build-essential nasm zlib1g-dev && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+RUN curl --fail --location --proto '=https' --tlsv1.2 https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz -o ffmpeg.tar.xz \
+ && echo '8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e  ffmpeg.tar.xz' | sha256sum -c - \
+ && tar -xJf ffmpeg.tar.xz --strip-components=1 \
+ && ./configure --prefix=/opt/ffmpeg --disable-autodetect --disable-doc --disable-debug --disable-network --disable-shared --enable-static --disable-programs --enable-ffmpeg --enable-ffprobe --enable-zlib \
+ && make -j2 && make install
+
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates zlib1g && rm -rf /var/lib/apt/lists/* && useradd --uid 10001 --create-home harmony
+COPY --from=build /build/target/release/harmony-media-worker /usr/local/bin/harmony-media-worker
+COPY --from=ffmpeg /opt/ffmpeg/bin/ /usr/local/bin/
+COPY --from=ffmpeg /build/COPYING.LGPLv2.1 /usr/share/doc/harmony/FFmpeg-LICENSE
+ENV FFMPEG_PATH=/usr/local/bin/ffmpeg FFPROBE_PATH=/usr/local/bin/ffprobe
+USER 10001:10001
+ENTRYPOINT ["harmony-media-worker"]

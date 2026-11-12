@@ -19,7 +19,11 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { can, canSendMessage, Permission } from "../lib/permissions";
 import AttachmentViewer from "./AttachmentViewer";
-import { fetchAttachmentBlob, previewKind } from "../lib/attachments";
+import {
+  fetchAttachmentBlob,
+  mediaStatusLabel,
+  previewKind,
+} from "../lib/attachments";
 import { openExternal } from "../lib/desktop";
 import { api, errorMessage } from "../lib/api";
 import { compareSequences, formatBytes, mergeMessages } from "../lib/messages";
@@ -560,6 +564,11 @@ export default function Chat({
                                   </small>
                                 </span>
                               </button>
+                              {a.media_status && (
+                                <small className="attachment-processing-label">
+                                  {mediaStatusLabel[a.media_status]}
+                                </small>
+                              )}
                               {previewKind(a.content_type) && (
                                 <button
                                   className="text-button attachment-preview-button"

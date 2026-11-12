@@ -1,0 +1,18 @@
+[package]
+name = "harmony-updater-check"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[patch.crates-io]
+tauri-plugin-updater = { path = "../../vendor/tauri-plugin-updater" }
+
+[dependencies]
+tauri = { version = "=2.12.5", default-features = false, features = ["test"] }
+tauri-plugin-updater = "=2.13.3"
+serde_json = "1.0"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+tokio-util = "0.7"
+

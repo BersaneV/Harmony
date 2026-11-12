@@ -12,3 +12,8 @@ commands.allow = ["open_external_url"]
 identifier = "allow-push-to-talk"
 description = "Ativa ou libera somente o atalho global fixo F9 para push-to-talk."
 commands.allow = ["set_push_to_talk"]
+
+[[permission]]
+identifier = "allow-signed-updates"
+description = "Consulta o canal fixo Harmony, baixa e verifica assinatura e versão; instala somente após ação explícita. Não aceita URLs, chaves ou bytes do renderer."
+commands.allow = ["check_update", "download_update", "cancel_update", "install_update", "update_status"]

@@ -1,7 +1,45 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchAttachmentBlob, previewKind } from "./attachments";
+import {
+  fetchAttachmentBlob,
+  previewKind,
+  validateDerivative,
+} from "./attachments";
 afterEach(() => vi.unstubAllGlobals());
 describe("mídia autorizada e limitada", () => {
+  it("aceita somente JPEG limitado para miniatura e MP4 para faststart", () => {
+    expect(
+      validateDerivative(
+        "thumbnail",
+        { content_type: "image/jpeg", size: 1024 },
+        8000000,
+      ).contentType,
+    ).toBe("image/jpeg");
+    for (const content_type of ["image/svg+xml", "text/html", "image/png"])
+      expect(() =>
+        validateDerivative("thumbnail", { content_type, size: 1024 }, 8000000),
+      ).toThrow();
+    expect(() =>
+      validateDerivative(
+        "thumbnail",
+        { content_type: "image/jpeg", size: 5 * 1024 * 1024 },
+        8000000,
+      ),
+    ).toThrow();
+    expect(() =>
+      validateDerivative(
+        "faststart",
+        { content_type: "video/mp4", size: Infinity },
+        8000000,
+      ),
+    ).toThrow();
+    expect(() =>
+      validateDerivative(
+        "faststart",
+        { content_type: "video/mp4", size: 2048 },
+        1024,
+      ),
+    ).toThrow();
+  });
   it("permite apenas os formatos passivos/reproduzíveis previstos", () => {
     expect(previewKind("image/gif")).toBe("image");
     expect(previewKind("video/webm")).toBe("video");

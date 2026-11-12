@@ -64,3 +64,7 @@ Os testes de integração exigem serviços locais e usam contas descartáveis. V
 Código próprio sob [Apache-2.0](LICENSE). Dependências mantêm suas licenças. O [inventário de versões/licenças](docs/dependency-licenses.json) e os [avisos de terceiros](apps/desktop/src-tauri/resources/THIRD-PARTY-NOTICES.txt) são gerados a partir dos pacotes fixados; os avisos acompanham o instalador. O projeto não incorpora código ou assets proprietários do Discord/Crystal, não é um cliente alternativo autenticado no Discord e não depende desses serviços para funcionar.
 
 Software sem assinatura não elimina consumo de internet, disco ou energia. Nenhum script provisiona recurso faturável, faz upgrade automático ou contrata hospedagem. Cotas e políticas do host precisam ser aplicadas e medidas antes de liberar o piloto. O conteúdo não é E2EE nesta versão; o administrador da infraestrutura pode acessar dados persistidos. Não há gravação automática de chamadas.
+
+## Worker, personalização e atualizações
+
+A versão0.2.0 acrescenta o worker de mídia privado (miniaturas, metadados e MP4 faststart), temas avançados com imagens/fontes locais e atualizações Windows assinadas com versão vinculada. Consulte [worker](docs/MEDIA-WORKER.md), [personalização](docs/PERSONALIZATION.md) e [updater](docs/UPDATES.md). O serviço `media-worker` acompanha o Compose; requer host Linux com Landlock ABI3 (kernel6.2+) e falha de forma segura se o isolamento não estiver disponível.

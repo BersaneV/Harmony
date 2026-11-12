@@ -1,14 +1,17 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "Janela local Harmony: apenas sessão no cofre, links externos e notificações.",
-  "windows": ["main"],
+  "description": "Janela local Harmony: sess\u00e3o, links HTTP/HTTPS, notifica\u00e7\u00f5es, F9 e atualiza\u00e7\u00f5es assinadas pelo canal fixo.",
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "allow-session-storage",
     "allow-open-external",
     "notification:default",
     "allow-push-to-talk",
     "core:event:allow-listen",
-    "core:event:allow-unlisten"
+    "core:event:allow-unlisten",
+    "allow-signed-updates"
   ]
 }

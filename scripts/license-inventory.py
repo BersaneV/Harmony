@@ -29,12 +29,12 @@ def main():
             "cargo", "metadata", "--locked", "--format-version", "1", "--manifest-path", str(manifest)
         ]))
         for package in data["packages"]:
-            if package.get("source") is None:
+            if package.get("source") is None and package["name"] != "tauri-plugin-updater":
                 continue
             key = "cargo:" + package["name"] + "@" + package["version"]
             packages[key] = {
                 "license": package.get("license"),
-                "source": "https://crates.io/crates/" + package["name"] + "/" + package["version"],
+                "source": ("https://github.com/BersaneV/Harmony/tree/main/vendor/tauri-plugin-updater" if package.get("source") is None else "https://crates.io/crates/" + package["name"] + "/" + package["version"]),
                 "directory": Path(package["manifest_path"]).parent,
             }
     lock = json.loads((ROOT / "package-lock.json").read_text())

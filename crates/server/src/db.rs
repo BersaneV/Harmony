@@ -155,7 +155,7 @@ pub async fn message(pool: &PgPool, id: Uuid, viewer: Uuid) -> Result<Message> {
     let attachments = if deleted {
         vec![]
     } else {
-        sqlx::query("SELECT id,name,content_type,size FROM uploads WHERE message_id=$1 AND status='ready' ORDER BY created_at,id").bind(id).fetch_all(pool).await.map_err(db_error)?.into_iter().map(|r|harmony_domain::Attachment{id:r.get("id"),name:r.get("name"),content_type:r.get("content_type"),size:r.get("size")}).collect()
+        sqlx::query("SELECT u.id,u.name,u.content_type,u.size,j.status AS media_status FROM uploads u LEFT JOIN media_jobs j ON j.upload_id=u.id WHERE u.message_id=$1 AND u.status='ready' ORDER BY u.created_at,u.id").bind(id).fetch_all(pool).await.map_err(db_error)?.into_iter().map(|r|harmony_domain::Attachment{media_status:r.get("media_status"),id:r.get("id"),name:r.get("name"),content_type:r.get("content_type"),size:r.get("size")}).collect()
     };
     Ok(Message {
         id,

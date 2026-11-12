@@ -45,6 +45,26 @@ export interface Attachment {
   name: string;
   content_type: string;
   size: number;
+  media_status?: "queued" | "processing" | "ready" | "unsupported" | "failed";
+}
+export interface AttachmentMedia {
+  status: NonNullable<Attachment["media_status"]>;
+  metadata: null | {
+    kind: "image" | "video" | "audio";
+    width?: number;
+    height?: number;
+    duration_seconds?: number;
+    has_audio: boolean;
+    format: string;
+  };
+  derivatives: {
+    kind: "thumbnail" | "faststart";
+    content_type: string;
+    size: number;
+    width?: number;
+    height?: number;
+  }[];
+  error_code: string | null;
 }
 export interface Message {
   id: string;
@@ -96,18 +116,36 @@ export interface Items<T> {
   items: T[];
 }
 export interface Theme {
+  version: 2;
   mode: "dark" | "light";
   accent: string;
-  font: "system" | "serif" | "mono";
+  baseColor: string | null;
+  contrast: "normal" | "high";
+  font: "system" | "serif" | "mono" | "arial" | "verdana" | "imported";
+  fontAssetId: string | null;
   fontSize: number;
   compact: boolean;
-  background: "plain" | "aurora";
+  density: "comfortable" | "compact" | "spacious";
+  background: "plain" | "aurora" | "image";
+  wallpaperId: string | null;
+  wallpaperOpacity: number;
+  sidebarWidth: number;
+  membersSide: "left" | "right";
 }
 export const defaultTheme: Theme = {
+  version: 2,
   mode: "dark",
   accent: "#9d8aff",
+  baseColor: null,
+  contrast: "normal",
   font: "system",
+  fontAssetId: null,
   fontSize: 14,
   compact: false,
+  density: "comfortable",
   background: "aurora",
+  wallpaperId: null,
+  wallpaperOpacity: 12,
+  sidebarWidth: 240,
+  membersSide: "right",
 };

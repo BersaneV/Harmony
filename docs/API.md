@@ -66,3 +66,14 @@ Máscaras decimais serializadas como strings: VIEW=1, SEND=2, ATTACH=4, REACT=8,
 VIEW filtra canais, histórico, pesquisa, download e eventos WS. SEND rege criação/edição e digitando. ATTACH é exigido na reserva/finalização e ao associar anexos a uma mensagem. REACT rege adicionar/remover reações. A exclusão da própria mensagem continua disponível com VIEW. CONNECT permite entrar em chamada; PUBLISH permite publicar tracks, sem conceder moderação. DM/group mantém máscara63 para seus participantes.
 
 Mudanças de cargos/overrides emitem `{type:"permissions.updated",guild_id}` após commit, somente para membros da comunidade. O cliente deve refazer consultas e remover conteúdo que perdeu VIEW. O servidor não depende desse evento para autorizar requisições. A mídia revalida CONNECT na admissão/reconciliação; PUBLISH revogado interrompe publicação, preservando recepção. A restauração de PUBLISH atualiza a permissão do participante existente, respeitando mute administrativo.
+
+## Processamento assíncrono de anexos
+
+`Message.attachments` inclui `media_status?: "queued"|"processing"|"ready"|"unsupported"|"failed"`. O original continua disponível quando a prévia falha.
+
+- `GET /uploads/{id}/media`: `{status,metadata:null|{kind:"image"|"video"|"audio",format,width?,height?,duration_seconds?,has_audio},derivatives:[{kind:"thumbnail"|"faststart",content_type,size,width?,height?}],error_code:null|string}`. Polling de 2–3s durante queued/processing; sem evento WS obrigatório nessa versão.
+- `GET /uploads/{id}/derivatives/{thumbnail|faststart}`: `{url,expires_in:60,content_type,size}`; 404 se derivado indisponível. JPEG e MP4 são privados. Revalida sessão, VIEW atual e vínculo com mensagem não excluída; anexo sem mensagem é exclusivo do autor.
+- `quota_wait` significa espera por espaço para a reserva dos derivados. Falha da prévia não invalida o original. Metadados não incluem tags arbitrárias do arquivo.
+- `admin/stats.storage_bytes` inclui originais, reservas e derivados, segundo `harmony_storage_used()`.
+
+Pipeline, limites, estados, recuperação e sandbox: [MEDIA-WORKER.md](MEDIA-WORKER.md).
