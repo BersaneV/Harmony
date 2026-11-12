@@ -34,8 +34,11 @@ jobs:
           python3 - <<'PY'
           import json
           with open('.local/compose-ci.json') as source:
-              mounts = json.load(source)['services']['harmony']['tmpfs']
-          assert mounts and all(mount.split(':', 1)[0].startswith('/') for mount in mounts), 'Every tmpfs target must be an absolute path'
+              service = json.load(source)['services']['harmony']
+          targets = {mount.split(':', 1)[0] for mount in service['tmpfs']}
+          assert targets and all(target.startswith('/') for target in targets), 'Every tmpfs target must be an absolute path'
+          for setting in ('SQLITE_TMPDIR', 'WORKER_TEMP_DIR'):
+              assert service['environment'][setting] in targets, f'{setting} must have a writable private tmpfs'
           PY
       - run: python3 scripts/with-env.py cargo test --workspace --locked -- --include-ignored
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
@@ -93,6 +96,23 @@ jobs:
         run: |
           docker rm -f harmony-livekit
           docker compose build harmony
+          docker compose run --no-deps --rm -T --entrypoint python3 harmony - <<'PY'
+          import errno, os, stat, tempfile
+          assert os.geteuid() == 10001
+          for setting in ('SQLITE_TMPDIR', 'WORKER_TEMP_DIR'):
+              directory = os.environ[setting]
+              info = os.stat(directory)
+              assert info.st_uid == os.geteuid() and stat.S_IMODE(info.st_mode) == 0o700
+              with tempfile.TemporaryFile(dir=directory) as scratch:
+                  scratch.write(b'private temporary storage check')
+                  scratch.flush()
+          try:
+              with tempfile.TemporaryFile(dir='/tmp'):
+                  raise AssertionError('The root filesystem must remain read-only')
+          except OSError as error:
+              assert error.errno == errno.EROFS
+          print('Private temporary directories are writable; root filesystem is read-only')
+          PY
           docker compose up -d harmony
           for attempt in $(seq 1 90); do
             if curl -fsS http://127.0.0.1:8080/health > /dev/null; then break; fi

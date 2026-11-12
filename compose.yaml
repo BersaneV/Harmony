@@ -13,6 +13,7 @@ services:
       HARMONY_STORAGE_BACKEND: local
       HARMONY_STORAGE_DIR: /data/files
       HARMONY_WEB_DIR: /srv/harmony
+      SQLITE_TMPDIR: /tmp/harmony-sqlite
       WORKER_TEMP_DIR: /tmp/harmony-media
       WORKER_TIMEOUT_SECONDS: "30"
       WORKER_LEASE_SECONDS: "120"
@@ -20,7 +21,9 @@ services:
     volumes: ["data:/data"]
     depends_on: [livekit]
     read_only: true
-    tmpfs: ["/tmp/harmony-media:size=128m,mode=0700,uid=10001,gid=10001"]
+    tmpfs:
+      - "/tmp/harmony-sqlite:size=128m,mode=0700,uid=10001,gid=10001"
+      - "/tmp/harmony-media:size=128m,mode=0700,uid=10001,gid=10001"
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     pids_limit: 128

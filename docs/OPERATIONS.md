@@ -11,7 +11,7 @@ python3 scripts/configure.py
 docker compose up -d --build
 ```
 
-A API serve o frontend em `http://127.0.0.1:8080`. O gerador cria `.env` e `.local/deploy/` privados, recusa sobrescrita e não contata provedores. A senha inicial está em `HARMONY_BOOTSTRAP_PASSWORD`; só é usada para criar a primeira conta. Não envie `.env` aos participantes. O cadastro é aberto: os participantes criam nome de usuário e senha, sem convite de cadastro. Contas novas não são administradoras. Convites de comunidade continuam opcionais para integrar novos membros a uma comunidade existente.
+A API serve o frontend em `http://127.0.0.1:8080`. O gerador cria `.env` e `.local/deploy/` privados, recusa sobrescrita e não contata provedores. A senha inicial está em `HARMONY_BOOTSTRAP_PASSWORD`; só é usada para criar a primeira conta. Não envie `.env` aos participantes. O cadastro é aberto: os participantes criam nome de usuário e senha, sem convite de cadastro. Contas novas não são administradoras nem entram automaticamente em comunidades. Cada comunidade controla a entrada por seus próprios convites.
 
 Para desenvolvimento nativo, compile o frontend e os binários e use `scripts/with-env.py`. `HARMONY_ENV_FILE` seleciona uma configuração isolada; variáveis já definidas no ambiente prevalecem. O banco e storage nativos usam os caminhos absolutos da configuração. No Compose, os caminhos são sobrescritos por `/data/harmony.db`, `/data/files` e `/srv/harmony`.
 
@@ -36,6 +36,8 @@ Nenhuma hospedagem permanente está validada. O túnel gratuito temporário do e
 ## Recursos e limites
 
 Os limites Compose são tetos, não consumo medido: Harmony 1536 MiB/2 CPUs/128 processos; LiveKit 2 GiB; Caddy 256 MiB. O worker continua separado da API, usa tmpfs de 128 MiB e subprocessos com limites adicionais. Veja [worker](MEDIA-WORKER.md).
+
+O SQLite usa outro tmpfs privado de 128 MiB em `/tmp/harmony-sqlite`, indicado por `SQLITE_TMPDIR`, para migrações e operações que exigem arquivos temporários. Ambos os tmpfs pertencem ao UID/GID 10001 e têm modo 0700; seu consumo entra no limite de memória do contêiner. O restante do filesystem continua somente leitura, e os parsers não recebem acesso à área temporária do banco. Esses diretórios não contêm os dados persistentes do backup. Uma operação que exceda a capacidade temporária falha; dimensione esse teto conforme o banco real, sem remover o limite geral de memória.
 
 `HARMONY_MAX_UPLOAD_BYTES`, `HARMONY_STORAGE_QUOTA_BYTES`, `HARMONY_MAX_VIDEO_BITRATE` e `HARMONY_MAX_ROOM_PARTICIPANTS` limitam admissão lógica. Banco, logs, rede, backups e armazenamento físico também exigem monitoramento. Nenhum script cria VPS, exige cartão, contrata domínio ou ativa upgrade. Cota lógica e bitrate do encoder não são bloqueios de cobrança de um provedor.
 
