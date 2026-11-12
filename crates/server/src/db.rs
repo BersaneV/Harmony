@@ -19,9 +19,61 @@ pub async fn member_role(pool: &PgPool, guild: Uuid, user: Uuid) -> Result<Optio
         .await
         .map_err(db_error)
 }
+pub async fn permissions(pool: &PgPool, channel: Uuid, user: Uuid) -> Result<i64> {
+    sqlx::query_scalar("SELECT harmony_channel_permissions($1,$2)")
+        .bind(channel)
+        .bind(user)
+        .fetch_one(pool)
+        .await
+        .map_err(db_error)
+}
+pub async fn require_permission(
+    pool: &PgPool,
+    channel: Uuid,
+    user: Uuid,
+    required: i64,
+) -> Result<()> {
+    let effective = permissions(pool, channel, user).await?;
+    if effective & required == required {
+        Ok(())
+    } else {
+        Err(Error::Forbidden)
+    }
+}
 pub async fn channel_access(pool: &PgPool, channel: Uuid, user: Uuid) -> Result<()> {
-    let allowed:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM channels c WHERE c.id=$1 AND (EXISTS(SELECT 1 FROM guild_members g WHERE g.guild_id=c.guild_id AND g.user_id=$2) OR EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id=c.id AND cm.user_id=$2)))").bind(channel).bind(user).fetch_one(pool).await.map_err(db_error)?;
-    if allowed {
+    require_permission(pool, channel, user, harmony_domain::permissions::VIEW).await
+}
+pub async fn tx_acl_lock(
+    tx: &mut Transaction<'_, Postgres>,
+    guild: Uuid,
+    exclusive: bool,
+) -> Result<()> {
+    let query = if exclusive {
+        "SELECT pg_advisory_xact_lock(hashtextextended($1::text,674622903))"
+    } else {
+        "SELECT pg_advisory_xact_lock_shared(hashtextextended($1::text,674622903))"
+    };
+    sqlx::query(query)
+        .bind(guild.to_string())
+        .execute(&mut **tx)
+        .await
+        .map_err(db_error)?;
+    Ok(())
+}
+pub async fn tx_require_permission(
+    tx: &mut Transaction<'_, Postgres>,
+    channel: Uuid,
+    user: Uuid,
+    required: i64,
+) -> Result<()> {
+    tx_access(tx, channel, user).await?;
+    let effective: i64 = sqlx::query_scalar("SELECT harmony_channel_permissions($1,$2)")
+        .bind(channel)
+        .bind(user)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(db_error)?;
+    if effective & required == required {
         Ok(())
     } else {
         Err(Error::Forbidden)
@@ -37,6 +89,9 @@ pub async fn tx_access(
         .fetch_one(&mut **tx)
         .await
         .map_err(db_error)?;
+    if let Some(gid) = guild {
+        tx_acl_lock(tx, gid, false).await?;
+    }
     let member: Option<Uuid> = if let Some(gid) = guild {
         sqlx::query_scalar(
             "SELECT user_id FROM guild_members WHERE guild_id=$1 AND user_id=$2 FOR SHARE",
@@ -56,7 +111,16 @@ pub async fn tx_access(
         .await
         .map_err(db_error)?
     };
-    if member.is_some() {
+    if member.is_none() {
+        return Err(Error::Forbidden);
+    }
+    let effective: i64 = sqlx::query_scalar("SELECT harmony_channel_permissions($1,$2)")
+        .bind(channel)
+        .bind(user)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(db_error)?;
+    if effective & harmony_domain::permissions::VIEW != 0 {
         Ok(())
     } else {
         Err(Error::Forbidden)
@@ -69,6 +133,10 @@ pub fn channel(row: sqlx::postgres::PgRow) -> Channel {
         name: row.get("name"),
         kind: row.get("kind"),
         last_seq: row.get::<i64, _>("last_seq").to_string(),
+        effective_permissions: row
+            .try_get::<i64, _>("effective_permissions")
+            .unwrap_or(harmony_domain::permissions::ALL)
+            .to_string(),
         participants: None,
         read_seq: row
             .try_get::<i64, _>("read_seq")

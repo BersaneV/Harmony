@@ -79,7 +79,7 @@ pub async fn members(
     if db::member_role(&s.pool, id, a.user.id).await?.is_none() {
         return Err(Error::Forbidden.into());
     }
-    let items=sqlx::query("SELECT to_jsonb(u)||jsonb_build_object('role',m.role) AS data FROM guild_members m JOIN public_users u ON u.id=m.user_id WHERE guild_id=$1 ORDER BY u.username").bind(id).fetch_all(&s.pool).await?.into_iter().map(|r|r.get::<Value,_>("data")).collect::<Vec<_>>();
+    let items=sqlx::query("SELECT to_jsonb(u)||jsonb_build_object('role',m.role,'role_ids',COALESCE((SELECT jsonb_agg(mr.role_id ORDER BY mr.role_id) FROM guild_member_roles mr WHERE mr.guild_id=m.guild_id AND mr.user_id=m.user_id),'[]'::jsonb)) AS data FROM guild_members m JOIN public_users u ON u.id=m.user_id WHERE guild_id=$1 ORDER BY u.username").bind(id).fetch_all(&s.pool).await?.into_iter().map(|r|r.get::<Value,_>("data")).collect::<Vec<_>>();
     Ok(Json(json!({"items":items})))
 }
 #[derive(Deserialize)]
@@ -166,7 +166,7 @@ pub async fn channels(
     if db::member_role(&s.pool, id, a.user.id).await?.is_none() {
         return Err(Error::Forbidden.into());
     }
-    let items=sqlx::query("SELECT c.*,COALESCE(r.seq,0) AS read_seq FROM channels c LEFT JOIN channel_reads r ON r.channel_id=c.id AND r.user_id=$2 WHERE c.guild_id=$1 ORDER BY c.created_at,c.id").bind(id).bind(a.user.id).fetch_all(&s.pool).await?.into_iter().map(db::channel).collect::<Vec<_>>();
+    let items=sqlx::query("SELECT c.*,harmony_channel_permissions(c.id,$2) AS effective_permissions,COALESCE(r.seq,0) AS read_seq FROM channels c LEFT JOIN channel_reads r ON r.channel_id=c.id AND r.user_id=$2 WHERE c.guild_id=$1 AND (harmony_channel_permissions(c.id,$2) & 1)=1 ORDER BY c.created_at,c.id").bind(id).bind(a.user.id).fetch_all(&s.pool).await?.into_iter().map(db::channel).collect::<Vec<_>>();
     Ok(Json(json!({"items":items})))
 }
 #[derive(Deserialize)]

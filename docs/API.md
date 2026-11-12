@@ -19,7 +19,7 @@ Prefixo `/api`. JSON UTF-8. IDs UUID como strings, sequências BIGINT como strin
 - `GET/POST /api/guilds` body criação `{name}` → Guild `{id,name,owner_id}`.
 - `GET /api/guilds/{id}/members` → User com `role` (owner/admin/member).
 - `PATCH /api/guilds/{id}/members/{user_id}` `{role:"admin"|"member"}`; `DELETE` remove membro. Dono não removível/rebaixável implicitamente.
-- `GET/POST /api/guilds/{id}/channels` body `{name,kind:"text"|"voice"}` → Channel `{id,guild_id,name,kind,last_seq}`.
+- `GET/POST /api/guilds/{id}/channels` body `{name,kind:"text"|"voice"}` → Channel `{id,guild_id,name,kind,last_seq,effective_permissions}`.
 - `POST /api/guilds/{id}/invites` `{expires_hours?:24,max_uses?:1}` → `{token,expires_at}`. `POST /api/invites/accept` `{token}` → Guild.
 - `GET /api/conversations` → Channel (DM/group, guild_id:null, participants User[]). `POST /api/conversations` `{user_ids:string[],name?:string}` → Channel. DM exige amizade aceita; grupos também.
 - `GET /api/users/search?q=` usuários mínimos `{id,username,display_name}`.
@@ -45,3 +45,24 @@ Prefixo `/api`. JSON UTF-8. IDs UUID como strings, sequências BIGINT como strin
 - `GET /api/admin/audit` → eventos sem segredos. `GET /api/admin/stats` → contagens e limites de configuração.
 
 As respostas opcionais/null devem ser toleradas no cliente. Extensões de produto têm contrato adicional antes de aparecer na UI. Serviços ausentes retornam503 com explicação; nunca simular sucesso.
+
+
+## Cargos personalizados e permissões por canal
+
+Máscaras decimais serializadas como strings: VIEW=1, SEND=2, ATTACH=4, REACT=8, CONNECT=16 e PUBLISH=32. Bits fora de0–63 são rejeitados. `Channel.effective_permissions` contém a máscara efetiva do usuário. O membro retornado em `/guilds/{id}/members` inclui `role_ids:string[]`; os papéis administrativos `owner/admin/member` continuam separados dos cargos personalizados.
+
+- `GET /api/guilds/{id}/roles` → `{items:Role[]}`, disponível aos membros.
+- `POST /api/guilds/{id}/roles` `{name,permissions:string}` → Role; no máximo50 por comunidade.
+- `PATCH /api/roles/{id}` `{name?,permissions?}` → Role.
+- `DELETE /api/roles/{id}` →204; remove também atribuições e overrides daquele cargo.
+- `PUT /api/guilds/{id}/members/{user_id}/roles/{role_id}` →204; atribuição idempotente.
+- `DELETE` na mesma rota →204; remove atribuição.
+- `GET /api/channels/{id}/permissions` → `{items:[{role_id:null|string,allow:string,deny:string}]}`, disponível a owner/admin da comunidade.
+- `PUT /api/channels/{id}/permissions` `{role_id:null|string,allow:string,deny:string}` →204. `role_id:null` representa todos os membros. `allow=0,deny=0` remove o override; o mesmo bit não pode constar em allow e deny do mesmo override. IDs de outro canal/comunidade são rejeitados.
+- Role: `{id,guild_id,name,permissions:string}`. Todas as escritas exigem owner/admin da comunidade; administrador global não recebe bypass implícito.
+
+Álgebra: owner/admin da comunidade têm63. Para member, a base inicial é63 e recebe OR das permissões base dos cargos; aplica-se `(base & ~everyoneDeny) | everyoneAllow`, depois `(resultado & ~OR(roleDeny)) | OR(roleAllow)`. Permissões permitidas vencem negações entre cargos personalizados. Se VIEW ficar negado, a máscara inteira torna-se0. Como a base padrão é63, os overrides de canal são o mecanismo de restrição efetivo desta versão; a permissão base de um cargo não reduz a base herdada.
+
+VIEW filtra canais, histórico, pesquisa, download e eventos WS. SEND rege criação/edição e digitando. ATTACH é exigido na reserva/finalização e ao associar anexos a uma mensagem. REACT rege adicionar/remover reações. A exclusão da própria mensagem continua disponível com VIEW. CONNECT permite entrar em chamada; PUBLISH permite publicar tracks, sem conceder moderação. DM/group mantém máscara63 para seus participantes.
+
+Mudanças de cargos/overrides emitem `{type:"permissions.updated",guild_id}` após commit, somente para membros da comunidade. O cliente deve refazer consultas e remover conteúdo que perdeu VIEW. O servidor não depende desse evento para autorizar requisições. A mídia revalida CONNECT na admissão/reconciliação; PUBLISH revogado interrompe publicação, preservando recepção. A restauração de PUBLISH atualiza a permissão do participante existente, respeitando mute administrativo.

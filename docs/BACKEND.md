@@ -34,7 +34,7 @@ A remoção/reconciliação de conexões já abertas complementa a admissão. N�
 
 O limite de armazenamento contabiliza bytes lógicos reservados e prontos, não todo uso físico do disco. Cópia temporária de finalização, banco, logs, volumes SeaweedFS e derivados consomem espaço adicional; a proteção de disco do host é indispensável. Assinaturas GET têm60s e permanecem válidas até expirar mesmo após revogação de ACL. Tipos por magic bytes não equivalem a antimalware. Downloads usam disposition attachment; processamento multimídia deve rodar no worker isolado.
 
-O gerenciamento inicial usa três papéis por comunidade. Cargos arbitrários, overrides específicos de canal e permissões granulares além dessa hierarquia não estão implementados. O registro de outbox e auditoria ainda exige política operacional de retenção. A API não calcula sozinha tráfego real faturado pelo provedor. Não há E2EE, entrega de reset por e-mail, recuperação automática, gravação ou transcrição de chamadas.
+O gerenciamento possui os papéis administrativos owner/admin/member, cargos personalizados e overrides por canal com seis permissões (VIEW, SEND, ATTACH, REACT, CONNECT e PUBLISH). Há validação de IDs da mesma comunidade, precedência definida, filtragem de leitura e fiscalização no servidor. O contrato e a álgebra estão em docs/API.md. Permissões administrativas adicionais e hierarquias de cargos fora desses seis bits não fazem parte desta versão. O registro de outbox e auditoria ainda exige política operacional de retenção. A API não calcula sozinha tráfego real faturado pelo provedor. Não há E2EE, entrega de reset por e-mail, recuperação automática, gravação ou transcrição de chamadas.
 
 Verificações locais:
 
@@ -44,3 +44,10 @@ Verificações locais:
 - `HARMONY_TEST_STORAGE=1 HARMONY_TEST_MEDIA=1 python3 scripts/with-env.py node scripts/smoke.mjs`: valida as rotas HTTP/WS contra PostgreSQL, S3 e LiveKit reais. Cria contas e mensagens descartáveis no banco configurado.
 
 Essas verificações não homologam captura de áudio/vídeo no Windows, TURN externo, capacidade de usuários nem recuperação em outra máquina. Consulte o relatório de validação da execução para os resultados efetivamente observados.
+
+
+## Matriz de autorização
+
+`HARMONY_TEST_STORAGE=1 HARMONY_TEST_MEDIA=1 python3 scripts/with-env.py node crates/server/tests/acl.mjs` executa a matriz real REST/WS/S3/LiveKit: precedência dos overrides, grants e negações, ausência de bypass do administrador global, IDs cruzados, publicação como espectador, limpeza por exclusão de cargo, PUT com tamanho divergente e imutabilidade do objeto publicado. Os testes PostgreSQL também comparam a álgebra do domínio com a função SQL e comprovam a restrição composta contra associação entre comunidades.
+
+As mutações protegidas mantêm lock compartilhado da ACL da comunidade durante a transação; mudanças de cargos/overrides usam lock exclusivo. Locks de sequência de mensagem não alteram as chaves do canal e permanecem compatíveis com a verificação das referências dos overrides.

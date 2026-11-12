@@ -1,3 +1,4 @@
+mod acl;
 mod admin;
 mod auth;
 mod chat;
@@ -170,6 +171,22 @@ pub fn router(s: AppState) -> Router {
         )
         .route("/api/guilds/{id}/invites", post(community::guild_invite))
         .route("/api/invites/accept", post(community::accept_invite))
+        .route(
+            "/api/guilds/{id}/roles",
+            get(acl::roles).post(acl::create_role),
+        )
+        .route(
+            "/api/roles/{id}",
+            patch(acl::update_role).delete(acl::delete_role),
+        )
+        .route(
+            "/api/guilds/{id}/members/{user_id}/roles/{role_id}",
+            put(acl::assign_role).delete(acl::unassign_role),
+        )
+        .route(
+            "/api/channels/{id}/permissions",
+            get(acl::overrides).put(acl::set_override),
+        )
         .route("/api/users/search", get(community::users_search))
         .route(
             "/api/friends",

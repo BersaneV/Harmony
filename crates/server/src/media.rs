@@ -6,6 +6,7 @@ use axum::{
     http::StatusCode,
 };
 use chrono::Utc;
+use harmony_domain::permissions as p;
 use harmony_domain::{self as domain, Error};
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde::Deserialize;
@@ -84,7 +85,7 @@ pub async fn token(
     a: Auth,
     Path(cid): Path<Uuid>,
 ) -> ApiResult<Json<Value>> {
-    db::channel_access(&s.pool, cid, a.user.id).await?;
+    db::require_permission(&s.pool, cid, a.user.id, p::CONNECT).await?;
     let kind: String = sqlx::query_scalar("SELECT kind FROM channels WHERE id=$1")
         .bind(cid)
         .fetch_one(&s.pool)
@@ -113,16 +114,22 @@ pub async fn token(
     .bind(a.user.id)
     .fetch_one(&s.pool)
     .await?;
+    crate::auth::recheck(&s, &a.claims).await?;
+    let effective = db::permissions(&s.pool, cid, a.user.id).await?;
+    if effective & p::CONNECT == 0 {
+        return Err(Error::Forbidden.into());
+    }
+    let can_publish = !muted && effective & p::PUBLISH != 0;
     let token = jwt(
         &s,
         Some(&identity),
         Some(&a.user.display_name),
-        json!({"roomJoin":true,"room":room,"canPublish":!muted,"canSubscribe":true,"canPublishData":false,"canUpdateOwnMetadata":false}),
+        json!({"roomJoin":true,"room":room,"canPublish":can_publish,"canSubscribe":true,"canPublishData":false,"canUpdateOwnMetadata":false}),
     )?;
     sqlx::query("INSERT INTO media_members(channel_id,user_id,session_id,identity) VALUES($1,$2,$3,$4) ON CONFLICT(channel_id,session_id) DO UPDATE SET issued_at=now(),identity=EXCLUDED.identity").bind(cid).bind(a.user.id).bind(a.sid).bind(identity).execute(&s.pool).await?;
     let (_, _, url, _) = credentials(&s)?;
     Ok(Json(
-        json!({"token":token,"url":url,"room":room,"max_video_bitrate":s.config.max_bitrate,"expires_in":60,"muted":muted}),
+        json!({"token":token,"url":url,"room":room,"max_video_bitrate":s.config.max_bitrate,"expires_in":60,"muted":muted,"effective_permissions":effective.to_string()}),
     ))
 }
 #[derive(Deserialize)]
@@ -197,7 +204,7 @@ pub async fn moderate(
             )
             .await?;
         } else {
-            rpc(&s,"UpdateParticipant",&room,json!({"room":room,"identity":identity,"permission":{"canPublish":b.action=="unmute","canSubscribe":true,"canPublishData":false}})).await?;
+            rpc(&s,"UpdateParticipant",&room,json!({"room":room,"identity":identity,"permission":{"canPublish":b.action=="unmute" && db::permissions(&s.pool,cid,b.user_id).await?&p::PUBLISH!=0,"canSubscribe":true,"canPublishData":false}})).await?;
         }
     }
     Ok(StatusCode::NO_CONTENT)
@@ -243,6 +250,15 @@ pub async fn revoke_guild_user(s: &AppState, gid: Uuid, uid: Uuid) {
         .await;
     }
 }
+// Twirp's default marshaler emits protobuf snake_case names. Some clients opt
+// into lowerCamelCase; accept both without treating a present true as absent.
+fn participant_can_publish(participant: &Value) -> bool {
+    participant
+        .pointer("/permission/can_publish")
+        .or_else(|| participant.pointer("/permission/canPublish"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
 async fn reconcile_room(s: &AppState, room: String, cid: Uuid) {
     let Ok(response) = rpc(s, "ListParticipants", &room, json!({"room":room})).await else {
         return;
@@ -258,14 +274,15 @@ async fn reconcile_room(s: &AppState, room: String, cid: Uuid) {
             .split_once(':')
             .and_then(|(u, se)| Some((u.parse::<Uuid>().ok()?, se.parse::<Uuid>().ok()?)));
         let mut allowed = false;
-        let mut muted = false;
+        let mut can_publish = false;
         if let Some((uid, sid)) = parsed {
             let active=sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM sessions ss JOIN users u ON u.id=ss.user_id WHERE ss.id=$1 AND u.id=$2 AND ss.revoked_at IS NULL AND ss.expires_at>now() AND NOT u.disabled)")
                 .bind(sid).bind(uid).fetch_one(&s.pool).await.unwrap_or(false);
             let banned=sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM media_bans WHERE channel_id=$1 AND user_id=$2 AND until_at>now())")
                 .bind(cid).bind(uid).fetch_one(&s.pool).await.unwrap_or(true);
-            allowed = active && !banned && db::channel_access(&s.pool, cid, uid).await.is_ok();
-            muted = sqlx::query_scalar::<_, bool>(
+            let effective = db::permissions(&s.pool, cid, uid).await.unwrap_or(0);
+            allowed = active && !banned && effective & p::CONNECT != 0;
+            let muted = sqlx::query_scalar::<_, bool>(
                 "SELECT EXISTS(SELECT 1 FROM media_mutes WHERE channel_id=$1 AND user_id=$2)",
             )
             .bind(cid)
@@ -273,6 +290,7 @@ async fn reconcile_room(s: &AppState, room: String, cid: Uuid) {
             .fetch_one(&s.pool)
             .await
             .unwrap_or(true);
+            can_publish = effective & p::PUBLISH != 0 && !muted;
         }
         if !allowed {
             let _ = rpc(
@@ -282,13 +300,8 @@ async fn reconcile_room(s: &AppState, room: String, cid: Uuid) {
                 json!({"room":room,"identity":identity}),
             )
             .await;
-        } else if muted
-            && participant
-                .pointer("/permission/canPublish")
-                .and_then(Value::as_bool)
-                != Some(false)
-        {
-            let _=rpc(s,"UpdateParticipant",&room,json!({"room":room,"identity":identity,"permission":{"canPublish":false,"canSubscribe":true,"canPublishData":false}})).await;
+        } else if participant_can_publish(participant) != can_publish {
+            let _=rpc(s,"UpdateParticipant",&room,json!({"room":room,"identity":identity,"permission":{"canPublish":can_publish,"canSubscribe":true,"canPublishData":false}})).await;
         }
     }
 }
@@ -379,7 +392,7 @@ pub async fn admit(
     if !active {
         return Err(Error::Unauthorized.into());
     }
-    db::channel_access(&s.pool, cid, uid).await?;
+    db::require_permission(&s.pool, cid, uid, p::CONNECT).await?;
     let banned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM media_bans WHERE channel_id=$1 AND user_id=$2 AND until_at>now())").bind(cid).bind(uid).fetch_one(&s.pool).await?;
     if banned {
         return Err(Error::Forbidden.into());
@@ -391,8 +404,34 @@ pub async fn admit(
     .bind(uid)
     .fetch_one(&s.pool)
     .await?;
-    if muted && video.get("canPublish").and_then(Value::as_bool) != Some(false) {
+    let effective = db::permissions(&s.pool, cid, uid).await?;
+    if (muted || effective & p::PUBLISH == 0)
+        && video.get("canPublish").and_then(Value::as_bool) != Some(false)
+    {
         return Err(Error::Forbidden.into());
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn twirp_participant_permissions_support_proto_names_and_camel_case() {
+        // Canonical response shape observed from LiveKit 1.13.11 ListParticipants.
+        let canonical = json!({"permission":{"can_subscribe":true,"can_publish":true,"can_publish_data":false}});
+        assert!(participant_can_publish(&canonical));
+        assert!(participant_can_publish(
+            &json!({"permission":{"canPublish":true}})
+        ));
+        assert!(!participant_can_publish(
+            &json!({"permission":{"can_publish":false}})
+        ));
+        assert!(!participant_can_publish(
+            &json!({"permission":{"canPublish":false}})
+        ));
+        assert!(!participant_can_publish(
+            &json!({"permission":{"can_subscribe":true}})
+        ));
+    }
 }

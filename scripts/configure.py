@@ -85,20 +85,26 @@ def configuration(domain=None):
                 {"handle": [{"handler": "static_response", "status_code": 404}]},
             ],
         }
-        for server in ("web", "media"):
+        caddy["apps"]["http"]["servers"]["files"] = {
+            "listen": ["127.0.0.1:18083"],
+            "routes": [{"handle": [
+                {"handler": "request_body", "max_size": int(env["HARMONY_MAX_UPLOAD_BYTES"])},
+                proxy(8333),
+            ]}],
+        }
+        for server in ("web", "media", "files"):
             caddy["apps"]["http"]["servers"][server]["listener_wrappers"] = [
                 {"wrapper": "proxy_protocol", "allow": ["127.0.0.1/32", "::1/128"], "fallback_policy": "reject"}
             ]
         names = [f"{prefix}.{domain}" for prefix in ("app", "media", "files", "turn")]
         caddy["apps"]["tls"] = {"certificates": {"automate": names}}
         routes = []
-        for prefix, port in [("app", 18081), ("media", 18082), ("files", 8333), ("turn", 5349)]:
+        for prefix, port in [("app", 18081), ("media", 18082), ("files", 18083), ("turn", 5349)]:
             tls = {"handler": "tls"}
             if prefix != "turn":
                 tls["connection_policies"] = [{"alpn": ["http/1.1"]}]
             transport = {"handler": "proxy", "upstreams": [{"dial": [f"127.0.0.1:{port}"]}]}
-            if prefix in ("turn", "app", "media"):
-                transport["proxy_protocol"] = "v2"
+            transport["proxy_protocol"] = "v2"
             routes.append({"match": [{"tls": {"sni": [f"{prefix}.{domain}"]}}], "handle": [tls, transport]})
         caddy["apps"]["layer4"] = {"servers": {"main": {"listen": [":443"], "routes": routes}}}
     return env, storage, livekit, caddy

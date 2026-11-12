@@ -47,6 +47,7 @@ pub struct Channel {
     pub name: String,
     pub kind: String,
     pub last_seq: String,
+    pub effective_permissions: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub participants: Option<Vec<User>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -201,5 +202,70 @@ mod tests {
         assert!(message(&c).is_ok());
         c.attachment_ids.push(id);
         assert!(message(&c).is_err());
+    }
+}
+
+pub mod permissions {
+    use super::{Error, Result};
+    pub const VIEW: i64 = 1;
+    pub const SEND: i64 = 2;
+    pub const ATTACH: i64 = 4;
+    pub const REACT: i64 = 8;
+    pub const CONNECT: i64 = 16;
+    pub const PUBLISH: i64 = 32;
+    pub const ALL: i64 = 63;
+    pub fn parse(value: &str) -> Result<i64> {
+        value
+            .parse::<i64>()
+            .ok()
+            .filter(|v| *v >= 0 && *v <= ALL)
+            .ok_or_else(|| {
+                Error::Invalid("Permissões devem ser uma máscara decimal entre0 e63".into())
+            })
+    }
+    pub fn effective(
+        bypass: bool,
+        role_base: i64,
+        everyone: (i64, i64),
+        roles: &[(i64, i64)],
+    ) -> i64 {
+        if bypass {
+            return ALL;
+        }
+        let base = ALL | role_base;
+        let with_everyone = (base & !everyone.1) | everyone.0;
+        let (allow, deny) = roles
+            .iter()
+            .fold((0, 0), |(a, d), (ra, rd)| (a | ra, d | rd));
+        let result = ((with_everyone & !deny) | allow) & ALL;
+        if result & VIEW == 0 { 0 } else { result }
+    }
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn view_gates_all_capabilities() {
+            assert_eq!(effective(false, 0, (0, VIEW), &[]), 0);
+            assert_eq!(effective(false, ALL, (SEND | PUBLISH, VIEW), &[]), 0);
+        }
+        #[test]
+        fn custom_channel_allow_wins_between_roles() {
+            assert_eq!(
+                effective(false, 0, (0, SEND | PUBLISH), &[(SEND, 0), (0, SEND)]),
+                ALL & !PUBLISH
+            );
+        }
+        #[test]
+        fn admin_bypass_and_default_preserve_existing_rooms() {
+            assert_eq!(effective(true, 0, (0, ALL), &[]), ALL);
+            assert_eq!(effective(false, 0, (0, 0), &[]), ALL);
+        }
+        #[test]
+        fn reject_unknown_and_negative_permission_bits() {
+            for value in ["64", "128", "-1", "1.0", "9007199254740993"] {
+                assert!(parse(value).is_err())
+            }
+            assert_eq!(parse("63").unwrap(), ALL);
+        }
     }
 }

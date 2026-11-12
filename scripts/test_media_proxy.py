@@ -31,6 +31,11 @@ SPEC.loader.exec_module(configure)
 
 
 class ControlledBackend(http.server.BaseHTTPRequestHandler):
+    def do_PUT(self):
+        self.rfile.read(int(self.headers.get("Content-Length", "0")))
+        self.send_response(200)
+        self.end_headers()
+
     def do_GET(self):
         authorization = self.headers.get("Authorization")
         token = (authorization.removeprefix("Bearer ") if authorization is not None
@@ -70,7 +75,7 @@ def proxy_header(port, source="203.0.113.77"):
             + struct.pack("!HH", 43210, port))
 
 
-def request(port, host, path, headers=None, *, tls=False, proxy=False):
+def request(port, host, path, headers=None, *, tls=False, proxy=False, method="GET", body=b""):
     raw = socket.create_connection(("127.0.0.1", port), timeout=4)
     try:
         if proxy:
@@ -81,8 +86,8 @@ def request(port, host, path, headers=None, *, tls=False, proxy=False):
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
             raw = ctx.wrap_socket(raw, server_hostname=host)
-        fields = {"Host": host, "Connection": "close", **(headers or {})}
-        raw.sendall((f"GET {path} HTTP/1.1\r\n" + "".join(f"{key}: {value}\r\n" for key, value in fields.items()) + "\r\n").encode())
+        fields = {"Host": host, "Connection": "close", "Content-Length": str(len(body)), **(headers or {})}
+        raw.sendall((f"{method} {path} HTTP/1.1\r\n" + "".join(f"{key}: {value}\r\n" for key, value in fields.items()) + "\r\n").encode() + body)
         response = http.client.HTTPResponse(raw)
         response.begin()
         return response.status, response.read().decode()
@@ -111,10 +116,11 @@ class MediaProxyIntegration(unittest.TestCase):
         upstream = start_backend("upstream", events)
         process = None
         used = {admission.server_port, upstream.server_port}
-        ports = {18081: free_port(used), 18082: free_port(used),
-                 8080: admission.server_port, 7880: upstream.server_port}
+        ports = {18081: free_port(used), 18082: free_port(used), 18083: free_port(used),
+                 8080: admission.server_port, 7880: upstream.server_port, 8333: upstream.server_port}
         edge = free_port(used)
         config = copy.deepcopy(configure.configuration("example.test")[3])
+        config["apps"]["http"]["servers"]["files"]["routes"][0]["handle"][0]["max_size"] = 128
         config["admin"] = {"disabled": True}
         config["apps"]["tls"]["automation"] = {"policies": [{"issuers": [{"module": "internal"}]}]}
         for server in config["apps"]["http"]["servers"].values():
@@ -163,6 +169,10 @@ class MediaProxyIntegration(unittest.TestCase):
                         checks.append("media path blocked " + blocked)
                     self.assertEqual(request(edge, "app.example.test", "/api/internal/media-admit", tls=True)[0], 404)
                     checks.append("app internal endpoint hidden")
+                    self.assertEqual(request(edge, "files.example.test", "/bucket/object", tls=True, method="PUT", body=b"x" * 128)[0], 200)
+                    checks.append("storage accepts body at configured limit")
+                    self.assertEqual(request(edge, "files.example.test", "/bucket/object", tls=True, method="PUT", body=b"x" * 129)[0], 413)
+                    checks.append("storage rejects body exceeding configured limit")
                     for key, host, route in [(18081, "app.example.test", "/api/test"),
                                              (18082, "media.example.test", "/rtc?access_token=allowed")]:
                         events.clear()

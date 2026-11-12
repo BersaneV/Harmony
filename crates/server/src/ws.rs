@@ -29,7 +29,10 @@ async fn typing(s: &AppState, a: &auth::Auth, text: &str) {
     else {
         return;
     };
-    if db::channel_access(&s.pool, cid, a.user.id).await.is_ok() {
+    if db::require_permission(&s.pool, cid, a.user.id, harmony_domain::permissions::SEND)
+        .await
+        .is_ok()
+    {
         s.events
             .send(json!({"type":"typing","channel_id":cid,"user_id":a.user.id}))
             .ok();
@@ -38,6 +41,16 @@ async fn typing(s: &AppState, a: &auth::Auth, text: &str) {
 async fn permitted_event(s: &AppState, a: &auth::Auth, mut event: Value) -> Option<Value> {
     if event.get("type").and_then(Value::as_str) == Some("session.revoked") {
         return None;
+    }
+    if let Some(gid) = event
+        .get("guild_id")
+        .and_then(Value::as_str)
+        .and_then(|v| v.parse().ok())
+    {
+        db::member_role(&s.pool, gid, a.user.id)
+            .await
+            .ok()
+            .flatten()?;
     }
     if let Some(cid) = event
         .get("channel_id")

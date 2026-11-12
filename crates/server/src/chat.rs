@@ -11,6 +11,7 @@ use axum::{
     http::StatusCode,
 };
 use harmony_application::{ChatService, ConversationRepository};
+use harmony_domain::permissions as p;
 use harmony_domain::{self as domain, Error, Message, SendMessage};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -28,7 +29,18 @@ impl ConversationRepository for PgConversations {
     ) -> domain::Result<Message> {
         let mut tx = self.0.begin().await.map_err(db_error)?;
         lock_channel(&mut tx, channel).await?;
-        db::tx_access(&mut tx, channel, actor).await?;
+        db::tx_require_permission(
+            &mut tx,
+            channel,
+            actor,
+            p::SEND
+                | if b.attachment_ids.is_empty() {
+                    0
+                } else {
+                    p::ATTACH
+                },
+        )
+        .await?;
         let mut attachments = b.attachment_ids.clone();
         attachments.sort();
         let request_hash =
@@ -66,7 +78,7 @@ impl ConversationRepository for PgConversations {
     }
 }
 async fn lock_channel(tx: &mut Transaction<'_, Postgres>, id: Uuid) -> domain::Result<()> {
-    sqlx::query("SELECT id FROM channels WHERE id=$1 FOR UPDATE")
+    sqlx::query("SELECT id FROM channels WHERE id=$1 FOR NO KEY UPDATE")
         .bind(id)
         .fetch_one(&mut **tx)
         .await
@@ -204,7 +216,7 @@ pub async fn edit(
     }
     let mut tx = s.pool.begin().await?;
     lock_channel(&mut tx, cid).await?;
-    db::tx_access(&mut tx, cid, a.user.id).await?;
+    db::tx_require_permission(&mut tx, cid, a.user.id, p::SEND).await?;
     let seq = next_seq(&mut tx, cid).await?;
     let n = sqlx::query(
         "UPDATE messages SET content=$1,edited_at=now(),change_seq=$2 WHERE id=$3 AND NOT deleted",
@@ -292,7 +304,7 @@ async fn reaction(
             .await?;
     let mut tx = s.pool.begin().await?;
     lock_channel(&mut tx, cid).await?;
-    db::tx_access(&mut tx, cid, a.user.id).await?;
+    db::tx_require_permission(&mut tx, cid, a.user.id, p::REACT).await?;
     let changed = if add {
         sqlx::query("INSERT INTO reactions(message_id,user_id,emoji) VALUES($1,$2,$3) ON CONFLICT DO NOTHING").bind(id).bind(a.user.id).bind(&emoji).execute(&mut *tx).await?.rows_affected()
     } else {
@@ -352,7 +364,7 @@ pub async fn search(
     if q.q.trim().is_empty() || q.q.len() > 200 {
         return Err(Error::Invalid("Busca deve ter de1 a200 bytes".into()).into());
     }
-    let ids:Vec<Uuid>=sqlx::query_scalar("SELECT m.id FROM messages m JOIN channels c ON c.id=m.channel_id WHERE NOT m.deleted AND ($1::uuid IS NULL OR m.channel_id=$1) AND to_tsvector('simple',m.content) @@ plainto_tsquery('simple',$2) AND (EXISTS(SELECT 1 FROM guild_members gm WHERE gm.guild_id=c.guild_id AND gm.user_id=$3) OR EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id=c.id AND cm.user_id=$3)) ORDER BY m.created_at DESC LIMIT 50").bind(q.channel_id).bind(q.q).bind(a.user.id).fetch_all(&s.pool).await?;
+    let ids:Vec<Uuid>=sqlx::query_scalar("SELECT m.id FROM messages m JOIN channels c ON c.id=m.channel_id WHERE NOT m.deleted AND ($1::uuid IS NULL OR m.channel_id=$1) AND to_tsvector('simple',m.content) @@ plainto_tsquery('simple',$2) AND (EXISTS(SELECT 1 FROM guild_members gm WHERE gm.guild_id=c.guild_id AND gm.user_id=$3) OR EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id=c.id AND cm.user_id=$3)) AND (harmony_channel_permissions(c.id,$3) & 1)=1 ORDER BY m.created_at DESC LIMIT 50").bind(q.channel_id).bind(q.q).bind(a.user.id).fetch_all(&s.pool).await?;
     let mut items = vec![];
     for id in ids {
         items.push(db::message(&s.pool, id, a.user.id).await?)

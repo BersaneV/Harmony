@@ -56,7 +56,7 @@ pub async fn reserve(
     Path(cid): Path<Uuid>,
     Json(b): Json<Upload>,
 ) -> ApiResult<Json<Value>> {
-    db::channel_access(&s.pool, cid, a.user.id).await?;
+    db::require_permission(&s.pool, cid, a.user.id, harmony_domain::permissions::ATTACH).await?;
     s.limit(&format!("upload:{}", a.user.id), 30, 3600)?;
     let store = bucket(&s, true)?;
     if b.size <= 0 || b.size > s.config.max_upload {
@@ -94,6 +94,7 @@ pub async fn reserve(
         .into());
     }
     let mut tx = s.pool.begin().await?;
+    db::tx_require_permission(&mut tx, cid, a.user.id, harmony_domain::permissions::ATTACH).await?;
     sqlx::query("SELECT pg_advisory_xact_lock(674622902)")
         .execute(&mut *tx)
         .await?;
@@ -141,16 +142,20 @@ pub async fn complete(
 ) -> ApiResult<Json<Value>> {
     let store = bucket(&s, false)?;
     let mut tx = s.pool.begin().await?;
+    let cid: Uuid = sqlx::query_scalar("SELECT channel_id FROM uploads WHERE id=$1 AND user_id=$2")
+        .bind(id)
+        .bind(a.user.id)
+        .fetch_one(&mut *tx)
+        .await?;
+    db::tx_require_permission(&mut tx, cid, a.user.id, harmony_domain::permissions::ATTACH).await?;
+    sqlx::query("SELECT pg_advisory_xact_lock(674622902)")
+        .execute(&mut *tx)
+        .await?;
     let row = sqlx::query("SELECT * FROM uploads WHERE id=$1 AND user_id=$2 FOR UPDATE")
         .bind(id)
         .bind(a.user.id)
         .fetch_one(&mut *tx)
         .await?;
-    sqlx::query("SELECT pg_advisory_xact_lock(674622902)")
-        .execute(&mut *tx)
-        .await?;
-    let cid = row.get("channel_id");
-    db::tx_access(&mut tx, cid, a.user.id).await?;
     let status: String = row.get("status");
     let name: String = row.get("name");
     let expected: i64 = row.get("size");
