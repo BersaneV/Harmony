@@ -77,6 +77,7 @@ jobs:
           python3 scripts/with-env.py .local/rtc-venv/bin/python scripts/test_media_rtc.py
           FFMPEG_PATH="$PWD/.local/vendor-ci/ffmpeg/bin/ffmpeg" FFPROBE_PATH="$PWD/.local/vendor-ci/ffmpeg/bin/ffprobe" python3 scripts/with-env.py node scripts/test_worker.mjs
           python3 scripts/test_worker_sandbox.py --output .local/qa-worker-sandbox/linux-result.json
+          python3 scripts/with-env.py node scripts/test_p2p_discovery.mjs
           python3 scripts/with-env.py node scripts/p2p-browser-test.mjs
       - name: Build and exercise the supervised deployment
         run: |

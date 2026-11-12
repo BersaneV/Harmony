@@ -7,16 +7,12 @@ import {
   onSession,
 } from "../lib/api";
 import { P2PProbe, probeLimitations } from "../lib/p2p";
+import { useP2PDiscovery } from "../lib/useP2PDiscovery";
+import type { AvailableProbe } from "../lib/useP2PDiscovery";
 import type { ProbeProfile, ProbeReport, ProbeSnapshot } from "../lib/p2p";
 import { frameRates, resolutions } from "../lib/stream";
 import { ErrorBanner, Field, Modal } from "./ui";
 
-interface Info {
-  enabled: boolean;
-  duration_seconds: number;
-  stun_configured: boolean;
-  relay_configured: boolean;
-}
 const metric = (value: number | null | undefined, suffix: string) =>
   value === null || value === undefined
     ? "Indisponível"
@@ -24,18 +20,18 @@ const metric = (value: number | null | undefined, suffix: string) =>
 
 export default function P2PDiagnostics({
   channelId,
+  initialProbe,
   onClose,
 }: {
   channelId: string;
+  initialProbe?: AvailableProbe | null;
   onClose: () => void;
 }) {
-  const [info, setInfo] = useState<Info | null>(null);
   const [error, setError] = useState("");
-  const [status, setStatus] = useState("Preparando diagnóstico");
-  const [consent, setConsent] = useState(false);
-  const [code, setCode] = useState("");
-  const [joinCode, setJoinCode] = useState("");
+  const [status, setStatus] = useState("Pronto para testar");
   const [active, setActive] = useState(false);
+  const discovery = useP2PDiscovery(channelId, !active);
+  const info = discovery.data;
   const [busy, setBusy] = useState(false);
   const [snapshot, setSnapshot] = useState<ProbeSnapshot | null>(null);
   const [report, setReport] = useState<ProbeReport | null>(null);
@@ -51,20 +47,6 @@ export default function P2PDiagnostics({
 
   useEffect(() => {
     mounted.current = true;
-    const controller = new AbortController();
-    void api<Info>(`/api/channels/${channelId}/p2p-probes`, {
-      signal: controller.signal,
-    })
-      .then((value) => {
-        setInfo(value);
-        setStatus("Pronto para testar");
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted)
-          setError(
-            `Diagnóstico indisponível ou não autorizado. ${errorMessage(e)}`,
-          );
-      });
     const user = getSession()?.user.id;
     const origin = getServer();
     const unsubscribe = onSession((session) => {
@@ -73,7 +55,6 @@ export default function P2PDiagnostics({
     });
     return () => {
       mounted.current = false;
-      controller.abort();
       unsubscribe();
       probe.current?.stop();
     };
@@ -109,6 +90,7 @@ export default function P2PDiagnostics({
           setReport(value);
           setActive(false);
           setRemote(null);
+          void discovery.refetch();
         }
       },
     });
@@ -122,7 +104,6 @@ export default function P2PDiagnostics({
         { method: "POST" },
       );
       if (!mounted.current) return;
-      setCode(result.probe_id);
       run(result.probe_id);
     } catch (e) {
       setActive(false);
@@ -131,14 +112,21 @@ export default function P2PDiagnostics({
       if (mounted.current) setBusy(false);
     }
   }
-  function join() {
+  function join(available: AvailableProbe) {
     try {
-      run(joinCode.trim());
+      run(available.id);
     } catch (e) {
       setActive(false);
       setError(errorMessage(e));
     }
   }
+  useEffect(() => {
+    if (!initialProbe) return;
+    // A committed user click starts the invitation. Cleanup cancels StrictMode's
+    // discarded mount before a network connection is made.
+    const timer = setTimeout(() => join(initialProbe), 0);
+    return () => clearTimeout(timer);
+  }, [channelId, initialProbe?.id]);
   function download() {
     if (!report) return;
     const url = URL.createObjectURL(
@@ -161,7 +149,11 @@ export default function P2PDiagnostics({
         Os dois participantes precisam estar autorizados neste canal. As
         chamadas normais continuam usando o servidor de mídia.
       </p>
-      <ErrorBanner message={error} />
+      <ErrorBanner
+        message={
+          error || (discovery.error ? errorMessage(discovery.error) : "")
+        }
+      />
       {info && (
         <>
           <p>
@@ -170,16 +162,33 @@ export default function P2PDiagnostics({
               : "Sem STUN configurado: a conexão pode funcionar apenas na mesma rede."}{" "}
             Nenhum serviço TURN pago será acionado.
           </p>
-          <label className="check-field">
-            <input
-              type="checkbox"
-              checked={consent}
-              disabled={active}
-              onChange={(e) => setConsent(e.target.checked)}
-            />
-            Aceito testar uma conexão direta; o outro participante pode conhecer
-            meu endereço IP.
-          </label>
+          <p className="muted">
+            Ao iniciar ou participar, você abre uma conexão direta com o outro
+            participante; os endereços de rede podem ficar visíveis entre vocês.
+          </p>
+          {!active && !discovery.error && info.available.length > 0 && (
+            <div
+              className="p2p-invitations"
+              aria-label="Testes disponíveis neste canal"
+            >
+              {info.available.map((available) => (
+                <div className="p2p-invitation" key={available.id}>
+                  <div>
+                    <strong>{available.host_name}</strong>
+                    <span> está aguardando você neste canal</span>
+                  </div>
+                  <button
+                    className="button primary"
+                    disabled={busy}
+                    onClick={() => join(available)}
+                    aria-label={`Participar do teste de ${available.host_name}`}
+                  >
+                    Participar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="stream-form">
             <Field label="Resolução do vídeo de teste">
               <select
@@ -236,48 +245,36 @@ export default function P2PDiagnostics({
           <div className="diagnostic-actions">
             <button
               className="button primary"
-              disabled={!consent || active || busy}
+              disabled={active || busy || !!discovery.error}
               onClick={() => void create()}
             >
-              Criar teste
+              Iniciar teste no canal
             </button>
-            <button className="button" disabled={!active} onClick={() => probe.current?.stop()}>
+            <button
+              className="button"
+              disabled={!active}
+              onClick={() => probe.current?.stop()}
+            >
               Encerrar teste
             </button>
           </div>
-          {code && (
-            <Field label="Código para o outro participante deste canal">
-              <input
-                readOnly
-                value={code}
-                onFocus={(event) => event.currentTarget.select()}
-              />
-            </Field>
+          {!active && !discovery.error && info.available.length === 0 && (
+            <p className="muted">
+              Inicie o teste; a outra pessoa verá o convite automaticamente ao
+              abrir este canal.
+            </p>
           )}
-          <Field label="Entrar com o código recebido">
-            <input
-              value={joinCode}
-              disabled={active}
-              maxLength={64}
-              autoComplete="off"
-              onChange={(e) => setJoinCode(e.target.value)}
-            />
-          </Field>
-          <button
-            className="button"
-            disabled={
-              !consent ||
-              active ||
-              busy ||
-              !/^[a-f0-9]{64}$/.test(joinCode.trim())
-            }
-            onClick={join}
-          >
-            Entrar no teste
-          </button>
+          {active && !remote && !initialProbe && (
+            <p className="muted">
+              O convite aparece neste canal para os outros participantes
+              autorizados.
+            </p>
+          )}
         </>
       )}
-      <p className="diagnostic-status" role="status">{status}</p>
+      <p className="diagnostic-status" role="status">
+        {status}
+      </p>
       {remote && (
         <video
           ref={video}

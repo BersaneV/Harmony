@@ -1,5 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import P2PDiagnostics from "./P2PDiagnostics";
+import { useP2PDiscovery } from "../lib/useP2PDiscovery";
+import type { AvailableProbe } from "../lib/useP2PDiscovery";
 import { registerGlobalPtt } from "../lib/desktop";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -318,6 +320,13 @@ export default function CallPanel({
   const [ptt, setPtt] = useState(false);
   const [settings, setSettings] = useState(false);
   const [p2pDiagnostics, setP2pDiagnostics] = useState(false);
+  const [p2pInvitation, setP2pInvitation] = useState<AvailableProbe | null>(
+    null,
+  );
+  const p2pDiscovery = useP2PDiscovery(
+    channel.id,
+    channelAllowsPublishing && !p2pDiagnostics,
+  );
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [sharing, setSharing] = useState(false);
   const [preview, setPreview] = useState<LocalTrack[]>([]);
@@ -704,7 +713,11 @@ export default function CallPanel({
       {p2pDiagnostics && (
         <P2PDiagnostics
           channelId={channel.id}
-          onClose={() => setP2pDiagnostics(false)}
+          initialProbe={p2pInvitation}
+          onClose={() => {
+            setP2pDiagnostics(false);
+            setP2pInvitation(null);
+          }}
         />
       )}
       <header className="call-header">
@@ -720,7 +733,10 @@ export default function CallPanel({
           <button
             className="text-button"
             disabled={!can(channel, Permission.Publish)}
-            onClick={() => setP2pDiagnostics(true)}
+            onClick={() => {
+              setP2pInvitation(null);
+              setP2pDiagnostics(true);
+            }}
           >
             Testar P2P
           </button>
@@ -733,6 +749,39 @@ export default function CallPanel({
           </IconButton>
         </div>
       </header>
+      {channelAllowsPublishing &&
+        !p2pDiagnostics &&
+        !p2pDiscovery.error &&
+        (p2pDiscovery.data?.available.length ?? 0) > 0 && (
+          <aside
+            className="p2p-invitations"
+            aria-label="Convites de teste neste canal"
+          >
+            <p className="muted">
+              Teste com vídeo gerado, sem câmera ou microfone. Participar abre
+              uma conexão direta; os endereços de rede podem ficar visíveis
+              entre vocês.
+            </p>
+            {p2pDiscovery.data!.available.map((invitation) => (
+              <div className="p2p-invitation" key={invitation.id}>
+                <div>
+                  <strong>{invitation.host_name}</strong>
+                  <span> iniciou um teste neste canal</span>
+                </div>
+                <button
+                  className="button primary"
+                  aria-label={`Participar do teste de ${invitation.host_name}`}
+                  onClick={() => {
+                    setP2pInvitation(invitation);
+                    setP2pDiagnostics(true);
+                  }}
+                >
+                  Participar
+                </button>
+              </div>
+            ))}
+          </aside>
+        )}
       {expanded && (
         <>
           {connecting ? (

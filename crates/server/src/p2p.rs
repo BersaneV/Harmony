@@ -36,6 +36,7 @@ struct Peer {
 }
 struct Probe {
     channel: Uuid,
+    host_name: String,
     expires: Instant,
     owner: Peer,
     guest: Option<Peer>,
@@ -43,7 +44,7 @@ struct Probe {
     answered: bool,
 }
 impl ProbeRegistry {
-    fn close(&self, id: &str, reason: &str) {
+    fn close(&self, id: &str, reason: &str) -> Option<Uuid> {
         if let Ok(mut probes) = self.0.lock()
             && let Some(probe) = probes.remove(id)
         {
@@ -52,7 +53,22 @@ impl ProbeRegistry {
                     let _ = tx.try_send(json!({"type":"closed","reason":reason}));
                 }
             }
+            return Some(probe.channel);
         }
+        None
+    }
+}
+
+fn changed(s: &AppState, cid: Uuid) {
+    // Discovery details require a fresh authenticated GET, not a broadcast.
+    let _ = s
+        .events
+        .send(json!({"type":"p2p.changed","channel_id":cid}));
+}
+
+fn close(s: &AppState, id: &str, reason: &str) {
+    if let Some(cid) = s.p2p.close(id, reason) {
+        changed(s, cid);
     }
 }
 
@@ -83,8 +99,46 @@ pub async fn info(
     Path(cid): Path<Uuid>,
 ) -> ApiResult<Json<Value>> {
     eligible(&s, cid, &a.claims).await?;
+    s.limit(&format!("p2p-discovery:{}", a.user.id), 90, 60)?;
+    let candidates = {
+        let probes = s.p2p.0.lock().map_err(|_| Error::Internal)?;
+        probes
+            .iter()
+            .filter(|(_, probe)| {
+                probe.channel == cid
+                    && probe.expires > Instant::now()
+                    && probe.guest.is_none()
+                    && probe.owner.claims.sub != a.user.id
+                    && probe.owner.tx.as_ref().is_some_and(|tx| !tx.is_closed())
+            })
+            .map(|(id, probe)| {
+                (
+                    id.clone(),
+                    probe.owner.claims.clone(),
+                    probe.host_name.clone(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let mut available = Vec::new();
+    for (id, owner, host_name) in candidates {
+        if eligible(&s, cid, &owner).await.is_err() {
+            continue;
+        }
+        // The creator may leave or another participant may take the seat during
+        // the database check. Never hold the registry mutex across an await.
+        let probes = s.p2p.0.lock().map_err(|_| Error::Internal)?;
+        if let Some(probe) = probes.get(&id)
+            && probe.expires > Instant::now()
+            && probe.guest.is_none()
+            && probe.owner.tx.as_ref().is_some_and(|tx| !tx.is_closed())
+        {
+            available.push(json!({"id":id,"host_name":host_name,
+                "expires_in":probe.expires.saturating_duration_since(Instant::now()).as_secs()}));
+        }
+    }
     Ok(Json(
-        json!({"enabled":true,"duration_seconds":LIFETIME.as_secs(),"stun_configured":!s.config.p2p_stun_urls.is_empty(),"relay_configured":false}),
+        json!({"enabled":true,"duration_seconds":LIFETIME.as_secs(),"stun_configured":!s.config.p2p_stun_urls.is_empty(),"relay_configured":false,"available":available}),
     ))
 }
 
@@ -116,6 +170,7 @@ pub async fn create(
         id.clone(),
         Probe {
             channel: cid,
+            host_name: a.user.display_name.clone(),
             expires: Instant::now() + LIFETIME,
             owner: Peer {
                 claims: a.claims,
@@ -180,33 +235,60 @@ async fn session(mut socket: WebSocket, s: AppState) {
         reject(&mut socket).await;
         return;
     }
+    let owner_claims = s.p2p.0.lock().ok().and_then(|probes| {
+        probes
+            .get(&join.probe_id)
+            .map(|probe| probe.owner.claims.clone())
+    });
+    let Some(owner_claims) = owner_claims else {
+        reject(&mut socket).await;
+        return;
+    };
+    if eligible(&s, join.channel_id, &owner_claims).await.is_err() {
+        reject(&mut socket).await;
+        return;
+    }
     let (tx, mut rx) = mpsc::channel::<Value>(32);
     let admitted = {
         if let Ok(mut probes) = s.p2p.0.lock() {
-            probes.get_mut(&join.probe_id).and_then(|probe| {
-                if probe.channel != join.channel_id || probe.expires <= Instant::now() {
-                    return None;
-                }
-                let owner = probe.owner.claims.sub == a.user.id && probe.owner.claims.sid == a.sid;
-                if owner {
-                    if probe.owner.tx.is_some() {
+            let already_busy = probes.iter().any(|(id, probe)| {
+                id != &join.probe_id
+                    && probe.expires > Instant::now()
+                    && (probe.owner.claims.sub == a.user.id
+                        || probe
+                            .guest
+                            .as_ref()
+                            .is_some_and(|peer| peer.claims.sub == a.user.id))
+            });
+            if already_busy {
+                None
+            } else {
+                probes.get_mut(&join.probe_id).and_then(|probe| {
+                    if probe.channel != join.channel_id || probe.expires <= Instant::now() {
                         return None;
                     }
-                    probe.owner.tx = Some(tx.clone());
-                } else {
-                    if probe.owner.claims.sub == a.user.id
-                        || probe.guest.is_some()
-                        || probe.owner.tx.is_none()
-                    {
-                        return None;
+                    let owner =
+                        probe.owner.claims.sub == a.user.id && probe.owner.claims.sid == a.sid;
+                    if owner {
+                        if probe.owner.tx.is_some() {
+                            return None;
+                        }
+                        probe.owner.tx = Some(tx.clone());
+                    } else {
+                        if probe.owner.claims.sub == a.user.id
+                            || probe.guest.is_some()
+                            || !probe.owner.tx.as_ref().is_some_and(|tx| !tx.is_closed())
+                        {
+                            return None;
+                        }
+                        probe.guest = Some(Peer {
+                            claims: a.claims.clone(),
+                            tx: Some(tx.clone()),
+                        });
                     }
-                    probe.guest = Some(Peer {
-                        claims: a.claims.clone(),
-                        tx: Some(tx.clone()),
-                    });
-                }
-                Some((owner, probe.expires))
-            })
+                    Some((owner, probe.expires))
+                })
+            }
         } else {
             None
         }
@@ -221,9 +303,10 @@ async fn session(mut socket: WebSocket, s: AppState) {
         .await
         .is_err()
     {
-        s.p2p.close(&join.probe_id, "Participante desconectado");
+        close(&s, &join.probe_id, "Participante desconectado");
         return;
     }
+    changed(&s, join.channel_id);
     if !owner
         && let Ok(probes) = s.p2p.0.lock()
         && let Some(peer) = probes.get(&join.probe_id).and_then(|p| p.owner.tx.as_ref())
@@ -286,7 +369,8 @@ async fn session(mut socket: WebSocket, s: AppState) {
         }
     };
     let _ = tokio::time::timeout_at(expires.into(), exchange).await;
-    s.p2p.close(
+    close(
+        &s,
         &join.probe_id,
         "Teste encerrado, expirado ou permissão alterada",
     );

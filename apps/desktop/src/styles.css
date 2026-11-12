@@ -3111,3 +3111,10 @@ strong {
     max-width: calc(100vw - 100px);
   }
 }
+
+.p2p-invitations { display: grid; gap: 10px; padding: 12px; min-width: 0; }
+.p2p-invitations > p { margin: 0; font-size: .85rem; }
+.p2p-invitation { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; }
+.p2p-invitation > div { min-width: 0; overflow-wrap: anywhere; }
+.p2p-invitation .button { flex-shrink: 0; min-height: 44px; }
+@media (max-width: 480px) { .p2p-invitation { flex-wrap: wrap; } .p2p-invitation .button { width: 100%; } }

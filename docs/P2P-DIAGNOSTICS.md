@@ -11,24 +11,29 @@ STUN ajuda a descobrir o endereço acessível; não transporta o vídeo. O diagn
 ## Como testar
 
 1. Duas pessoas entram no mesmo canal de voz com contas diferentes e permissões de conexão e publicação. Não podem estar silenciadas ou temporariamente removidas por moderação.
-2. Abrir **Testar P2P**. Cada pessoa confirma explicitamente o teste; uma conexão direta pode revelar seu IP ao outro participante.
-3. A primeira pessoa seleciona resolução/FPS/bitrate e cria o teste. Ela envia o código ao segundo participante, que o insere no painel do mesmo canal. O código não substitui login nem permissão de acesso.
+2. A primeira pessoa abre **Testar P2P**, seleciona resolução/FPS/bitrate e toca em **Iniciar teste no canal**.
+3. A outra pessoa vê automaticamente um cartão com o nome de quem iniciou e toca em **Participar**. O clique abre o painel e conecta; não é preciso copiar ou colar identificadores. O aviso sobre conexão direta e visibilidade dos endereços de rede aparece antes da ação.
 4. Acompanhar RTT P2P, RTT até o servidor, caminho ICE, FPS/bitrate efetivos, jitter e pacotes perdidos disponíveis. Apenas quem cria transmite o vídeo sintético. Para testar o outro sentido, encerrar e inverter quem cria.
 5. Encerrar e baixar o JSON. O relatório contém estatísticas, sem tokens, SDP, candidatos completos, IPs ou identificadores de usuário/canal. Para comparação WAN, registrar separadamente que os participantes estavam efetivamente em redes distintas.
 
 O teste expira em até 120 segundos. Fechar o painel, trocar de conta, perder a sinalização ou perder uma permissão fecha os recursos do cliente oficial. Estatística não fornecida pelo navegador aparece como indisponível, e não como zero. Resolução e FPS selecionados são solicitações; os valores efetivos vêm de `RTCPeerConnection.getStats()`.
 
+A navegação por canal e participação com um clique segue a referência pública do [Discord Go Live](https://support.discord.com/hc/en-us/articles/360040816151-Go-Live-and-Screen-Share) e das salas do [Crystal](https://crystal.lat/). A implementação é própria e mantém este recurso como diagnóstico temporário.
+
 ## Controles de sinalização
 
-- `GET /api/channels/{id}/p2p-probes`: metadados para participante autorizado.
-- `POST /api/channels/{id}/p2p-probes`: cria um código aleatório temporário; no máximo um teste ativo por criador e 64 testes residentes.
+- `GET /api/channels/{id}/p2p-probes`: metadados e convites disponíveis do mesmo canal, somente para participante autorizado. Retorna apenas testes não expirados, sem convidado e com criador conectado e ainda autorizado.
+- `POST /api/channels/{id}/p2p-probes`: cria um identificador interno aleatório temporário; no máximo um teste ativo por pessoa e 64 testes residentes. O identificador não aparece na interface.
 - `GET /api/p2p/ws`: WebSocket com autenticação no primeiro frame, sem token na URL. O frame `auth` contém `token`, `probe_id` e `channel_id`.
-- Somente duas identidades distintas podem participar. Oferta e resposta têm papéis fixos e não aceitam destinatário arbitrário. SDP com áudio é recusado. Sinalização, candidatos, tamanho de mensagens e ping são limitados.
+- O evento `p2p.changed` contém somente o canal, sem identificador do teste, token ou SDP; invalida somente a consulta de convites. Reconexão e consulta periódica recuperam alterações perdidas. Falha de autorização oculta convites anteriores e impede iniciar outro teste na interface.
+- Somente duas identidades distintas podem participar. A reserva da vaga é atômica, incluindo entradas simultâneas. A entrada revalida também a sessão e as permissões do criador. Oferta e resposta têm papéis fixos e não aceitam destinatário arbitrário. SDP com áudio é recusado. Sinalização, candidatos, tamanho de mensagens e ping são limitados.
 - Sessão, CONNECT/PUBLISH, mute e ban são verificados na entrada, em sinalização e a cada dois segundos. Fechamento de qualquer lado encerra o teste inteiro. Estado, SDP e ICE não são persistidos nem registrados em log.
 
 Uma vez estabelecida conexão direta, um servidor não controla o tráfego de clientes modificados da mesma maneira que um SFU. Por isso o experimento permanece restrito ao diagnóstico e não substitui o caminho de chamadas/moderação. O cliente oficial não captura mídia privada, para e libera todas as tracks/conexões quando o teste termina.
 
 ## Verificação automatizada
+
+`scripts/test_p2p_discovery.mjs` verifica a descoberta pela API/WS real: isolamento, convite somente após conexão do criador, disputa pela vaga, revogação de sessão/permissão, moderação, fechamento e expiração real de 120 segundos. Usa somente loopback e cria dados descartáveis; configure `HARMONY_TEST_URL` e execute por `scripts/with-env.py` como o teste abaixo.
 
 `scripts/p2p-browser-test.mjs` executa dois processos Chromium separados, com perfis descartáveis, contra a API real e o módulo de diagnóstico servido pelo Vite. Usa o Chrome já instalado; não acessa perfis pessoais. Aceita somente servidores em loopback para evitar criar contas de teste no destino errado.
 

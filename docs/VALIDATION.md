@@ -94,7 +94,7 @@ SQLite e arquivos locais substituem os serviços PostgreSQL/S3 na execução nor
 - Backup/restauração: 7 testes; supervisor: 2; configuração: 5. Gateway Caddy real: 16 critérios de proxy/admission/limites. Revisão independente identificou e levou à correção da ordem das variáveis no CI e da execução dos scripts via `sh`.
 - P2P: 34 verificações em dois processos Chromium no mesmo computador, vídeo sintético 720p/1440p a 30 FPS e RTT local mediano de 0,9 ms. Esse número não mede a rede móvel, não representa captura de jogo e não comprova redução dos 137 ms externos. O ensaio WAN posterior está registrado abaixo.
 
-A publicação 0.3.0, execução Linux/Windows dessa versão, restauração Docker real, teste WAN e homologação física Windows devem receber seus resultados próprios. Não herdam automaticamente PASS da versão 0.2.0.
+A publicação 0.3.0, execução Linux/Windows dessa versão, restauração Docker real e homologação física Windows devem receber seus resultados próprios. Não herdam automaticamente PASS da versão 0.2.0.
 
 ### Ensaio WAN com celular 5G
 
@@ -111,3 +111,11 @@ A seleção repetida da comunidade agora preserva canal, componente de chat e ra
 Depois da integração0.3.0:69testesVitest,4testesindependentesdetema,typecheck/build,33testesRust eClippy PASS. Inventário regenerado:816pacotes,392textosdeavisos,48semarquivolocal,nenhumsemdeclaraçãodelicença; parserPostgreSQL incluídoexplicitamentecomhasheseCOPYRIGHT.
 
 Integração de mídia repetida em0.3.0/SQLite:9critérios do gateway de admissão e17critérios RTC PASS, com137frames de áudio sintético e10framesVP8 decodificados; reset desconectou o emissor em0,336s e impediu reconexão. O primeiro ensaio retornou403 porque a configuração isolada não havia habilitado o proxy local confiável; o controle foi mantido e a configuração de teste corrigida.28testesPython (incluindoCaddyreal) PASS. Docker/Windows remoto desta versão permanecem pendentes até o gateCI correspondente.
+
+### Participação P2P sem código
+
+O convite agora aparece automaticamente para quem abre o mesmo canal autorizado. A interface mostra o nome de quem iniciou e o botão Participar; o identificador fica restrito ao protocolo. CUA confirmou duas contas reais no mesmo Mac: iniciar, convite automático, um clique para entrar, vídeo recebido em 1280×720 a 29–30 FPS, encerramento de ambos e remoção do convite. Em 390×844 não houve excesso de largura e não havia campo de código. É uma prova local de interface/RTC, sem substituir o ensaio WAN anterior ou homologação física Windows.
+
+A revisão independente identificou cache antigo após HTTP 403: a interface passou a ocultar convites quando perde permissão ou a consulta falha, e desabilita iniciar outro teste nesse estado. O botão de encerrar continua disponível durante o teste ativo. As chamadas normais continuam LiveKit.
+
+A suíte independente de descoberta passou em 30 critérios contra a API/WS real, incluindo disputa simultânea pela vaga, isolamento entre canais, revogação de PUBLISH, mute, reset administrativo e prazo real de 120 segundos (observado 120.017 ms). Os eventos não expõem identificadores de teste e não chegam a quem está fora do canal. Frontend: 69 testes, typecheck e build passaram após a mudança.

@@ -29,6 +29,7 @@ export function useRealtime(userId: string) {
     let refreshing = false;
     const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
     const invalidate = () => {
+      void client.invalidateQueries({ queryKey: ["p2p"] });
       void client.invalidateQueries({ queryKey: ["messages"] });
       void client.invalidateQueries({ queryKey: ["channels"] });
       void client.invalidateQueries({ queryKey: ["conversations"] });
@@ -62,6 +63,13 @@ export function useRealtime(userId: string) {
               readyRef.current = true;
               setState("connected");
               invalidate();
+            } else if (
+              event.type === "p2p.changed" &&
+              typeof event.channel_id === "string"
+            ) {
+              void client.invalidateQueries({
+                queryKey: ["p2p", event.channel_id],
+              });
             } else if (event.type === "typing") {
               if (
                 typeof event.channel_id === "string" &&
