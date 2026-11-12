@@ -21,10 +21,13 @@ services:
     logging: *logging
   storage:
     image: chrislusf/seaweedfs:4.53@sha256:ccad23e18639c8b98cee17e7100b95830a06077b56d8e5b006d6dcf8ec5e94a0
-    command: [server, "-dir=/data", "-ip=storage", "-volume.max=16", "-master.volumeSizeLimitMB=1024", "-s3", "-s3.config=/etc/seaweed/s3.json"]
+    entrypoint: [/bin/sh, /etc/harmony/storage-entrypoint.sh]
+    command: [server, "-dir=/data", "-ip=storage", "-volume.max=16", "-master.volumeSizeLimitMB=1024", "-s3", "-s3.config=/run/harmony/s3.json"]
     volumes:
       - storage:/data
-      - ./.local/deploy/s3.json:/etc/seaweed/s3.json:ro
+      - ./.local/deploy/s3.json:/etc/harmony/s3-source.json:ro
+      - ./infra/seaweed-entrypoint.sh:/etc/harmony/storage-entrypoint.sh:ro
+    tmpfs: [/run/harmony:size=1m,mode=0700]
     ports: ["127.0.0.1:8333:8333"]
     restart: unless-stopped
     mem_limit: 1g
