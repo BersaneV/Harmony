@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1810" height="1810" viewBox="0 0 1810 1810" role="img" aria-labelledby="title desc">
+<title id="title">Arquitetura v1 da plataforma de comunicação self-hosted</title>
+<desc id="desc">Cliente Windows Tauri React, servidor Rust com PostgreSQL, LiveKit TURN e SeaweedFS, processamento assíncrono e backup independente. Orçamento operacional de zero reais com limites.</desc>
+<defs>
+  <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#356dc6"/></marker>
+  <marker id="green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#168572"/></marker>
+  <marker id="gold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#ac7926"/></marker>
+  <marker id="gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#7b879b"/></marker>
+</defs>
+<rect width="1810" height="1810" fill="#f5f7fc"/>
+<g transform="translate(185,0)">
+
+<text x="80" y="65" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#356dc6" text-anchor="start">ARQUITETURA V1</text>
+<text x="80" y="112" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" fill="#122341" text-anchor="start">Comunicação sob nosso controle</text>
+<text x="80" y="147" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="400" fill="#354762" text-anchor="start">Windows · Rust + React · self-hosted · sem assinatura obrigatória</text>
+<rect x="80" y="195" width="1280" height="185" rx="18" fill="#eaf0ff" stroke="#9eafe0" stroke-width="2"/>
+<text x="110" y="237" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#263d78" text-anchor="start">01  CLIENTE WINDOWS  .exe</text>
+<text x="110" y="282" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" fill="#142549" text-anchor="start">Tauri 2 + React + TypeScript</text>
+<text x="110" y="321" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Interface, temas e notificações</text>
+<text x="110" y="350" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Cache local + cofre de credenciais</text>
+<text x="610" y="282" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" fill="#142549" text-anchor="start">Painel do Victor</text>
+<text x="610" y="321" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Contas, sessões e reset</text>
+<text x="610" y="350" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Permissões e cotas de uso</text>
+<text x="1010" y="282" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" fill="#142549" text-anchor="start">LiveKit Client</text>
+<text x="1010" y="321" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Resolução, FPS e bitrate</text>
+<text x="1010" y="350" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">144p → 1440p / 2160p*</text>
+<rect x="50" y="490" width="1340" height="945" rx="24" fill="#eef3fb" stroke="#c5d3e8" stroke-width="2"/>
+<text x="85" y="530" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#263d78" text-anchor="start">02  SERVIDOR LINUX · UM NÓ NO PILOTO</text>
+<text x="85" y="564" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Docker Engine + Compose · componentes portáveis</text>
+<rect x="100" y="595" width="1240" height="125" rx="18" fill="#fff" stroke="#9fbbdf" stroke-width="2"/>
+<text x="130" y="639" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#173d72" text-anchor="start">Caddy + camada 4</text>
+<text x="130" y="678" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="400" fill="#354762" text-anchor="start">HTTPS / WSS · certificados · TURN TLS por SNI na porta 443</text>
+<text x="130" y="703" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" fill="#354762" text-anchor="start">Entradas públicas controladas; banco e administração da infraestrutura em rede privada.</text>
+<rect x="100" y="850" width="740" height="240" rx="18" fill="#fff" stroke="#9fbbdf" stroke-width="2"/>
+<text x="130" y="894" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="700" fill="#173d72" text-anchor="start">Rust · monólito modular</text>
+<text x="130" y="928" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#356dc6" text-anchor="start">Axum · Tokio · SQLx</text>
+<text x="130" y="967" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="400" fill="#354762" text-anchor="start">Identidade, comunidades, canais e mensagens</text>
+<text x="130" y="1002" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="400" fill="#354762" text-anchor="start">Permissões, moderação e reset de acesso</text>
+<text x="130" y="1037" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="400" fill="#354762" text-anchor="start">API REST + WebSocket + controle de recursos</text>
+<rect x="950" y="850" width="390" height="240" rx="18" fill="#e3f4ef" stroke="#8ebeb0" stroke-width="2"/>
+<text x="980" y="894" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#176957" text-anchor="start">LiveKit SFU + TURN</text>
+<text x="980" y="938" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Voz, câmera e tela</text>
+<text x="980" y="973" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Encaminha mídia entre usuários</text>
+<text x="980" y="1008" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Camadas e bitrate adaptativos</text>
+<text x="980" y="1043" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Sem transcodificação ao vivo</text>
+<rect x="100" y="1190" width="360" height="165" rx="18" fill="#fff5e4" stroke="#d6ba7a" stroke-width="2"/>
+<text x="125" y="1230" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" fill="#76521e" text-anchor="start">PostgreSQL</text>
+<text x="125" y="1268" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Contas, mensagens e sessões</text>
+<text x="125" y="1298" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Permissões, busca e auditoria</text>
+<text x="125" y="1328" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Jobs + outbox persistentes</text>
+<rect x="500" y="1190" width="360" height="165" rx="18" fill="#fff5e4" stroke="#d6ba7a" stroke-width="2"/>
+<text x="525" y="1230" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" fill="#76521e" text-anchor="start">Worker + FFmpeg</text>
+<text x="525" y="1268" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Jobs persistidos no banco</text>
+<text x="525" y="1298" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Validação e prévias de arquivos</text>
+<text x="525" y="1328" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">CPU e memória limitadas</text>
+<rect x="900" y="1190" width="440" height="165" rx="18" fill="#fff5e4" stroke="#d6ba7a" stroke-width="2"/>
+<text x="925" y="1230" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" fill="#76521e" text-anchor="start">SeaweedFS · S3</text>
+<text x="925" y="1268" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Anexos, avatares, temas e derivados</text>
+<text x="925" y="1298" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Objetos privados · URLs curtas</text>
+<text x="925" y="1328" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Disco persistente com cotas</text>
+<text x="100" y="1407" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="400" fill="#50617d" text-anchor="start">Presença em memória · sem Valkey no piloto · logs locais · limites de disco e tráfego</text>
+<rect x="100" y="1540" width="1240" height="135" rx="18" fill="#fff" stroke="#9caabd" stroke-width="2"/>
+<text x="130" y="1584" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#354762" text-anchor="start">03  BACKUP INDEPENDENTE · RESTIC</text>
+<text x="130" y="1624" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="400" fill="#354762" text-anchor="start">Dumps consistentes + objetos + configuração · cópia criptografada fora do servidor</text>
+<text x="130" y="1653" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">Destino ainda a definir; restauração deve ser testada antes de guardar dados importantes.</text>
+<path d="M470 380 V480 H850 V595" fill="none" stroke="#356dc6" stroke-width="3" stroke-linejoin="round" marker-end="url(#blue)"/>
+<text x="490" y="429" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700" fill="#356dc6" text-anchor="start">HTTPS / WSS</text>
+<text x="490" y="459" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400" fill="#354762" text-anchor="start">Chat, contas e arquivos</text>
+<path d="M1250 380 V420 H1370 V970 H1340" fill="none" stroke="#168572" stroke-width="3" stroke-linejoin="round" marker-end="url(#green)"/>
+<text x="1070" y="448" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#168572" text-anchor="start">WebRTC direto</text>
+<text x="1070" y="475" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400" fill="#168572" text-anchor="start">Áudio, vídeo e tela</text>
+<path d="M470 720 V850" fill="none" stroke="#356dc6" stroke-width="3" stroke-linejoin="round" marker-end="url(#blue)"/>
+<text x="490" y="789" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#356dc6" text-anchor="start">API + eventos</text>
+<path d="M1145 720 V850" fill="none" stroke="#356dc6" stroke-width="3" stroke-linejoin="round" marker-end="url(#blue)"/>
+<text x="1130" y="770" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400" fill="#356dc6" text-anchor="end">Sinalização</text>
+<text x="1130" y="797" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400" fill="#356dc6" text-anchor="end">+ TURN TLS</text>
+<path d="M890 720 V1272 H900" fill="none" stroke="#ac7926" stroke-width="3" stroke-linejoin="round" marker-end="url(#gold)"/>
+<text x="868" y="1146" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#9a6b22" text-anchor="end">Arquivos via HTTPS / URLs assinadas</text>
+<path d="M840 1002 H950" fill="none" stroke="#f0f4fb" stroke-width="12"/>
+<path d="M840 1002 H950" fill="none" stroke="#356dc6" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8 6" marker-end="url(#blue)"/>
+<text x="881" y="935" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#356dc6" text-anchor="end">Tokens</text>
+<text x="881" y="960" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#356dc6" text-anchor="end">e controle</text>
+<path d="M280 1090 V1190" fill="none" stroke="#356dc6" stroke-width="3" stroke-linejoin="round" marker-end="url(#blue)"/>
+<text x="300" y="1150" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#356dc6" text-anchor="start">SQL transacional</text>
+<path d="M460 1272 H500" fill="none" stroke="#ac7926" stroke-width="3" stroke-linejoin="round" marker-end="url(#gold)"/>
+<path d="M860 1308 H900" fill="none" stroke="#f0f4fb" stroke-width="12"/>
+<path d="M860 1308 H900" fill="none" stroke="#ac7926" stroke-width="3" stroke-linejoin="round" marker-end="url(#gold)"/>
+<path d="M280 1355 V1378 H75 V1488 H280 V1540" fill="none" stroke="#7b879b" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8 6" marker-end="url(#gray)"/>
+<path d="M1120 1355 V1378 H1365 V1488 H1120 V1540" fill="none" stroke="#7b879b" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8 6" marker-end="url(#gray)"/>
+<text x="720" y="1484" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400" fill="#677791" text-anchor="middle">Backup de dados + configuração; infraestrutura em um só host não é alta disponibilidade.</text>
+<text x="80" y="1730" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#263d78" text-anchor="start">Hospedagem candidata: Oracle Always Free, condicionada à elegibilidade e à disponibilidade.</text>
+<text x="80" y="1764" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#354762" text-anchor="start">* Qualidade depende da captura, do equipamento e da rede. Orçamento R$ 0 exige limites de uso.</text>
+<text x="80" y="1794" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" fill="#677791" text-anchor="start">12 NOV 2026 · DESENHO DE ARQUITETURA · HOSPEDAGEM E DESEMPENHO AINDA NÃO VALIDADOS</text>
+</g></svg>

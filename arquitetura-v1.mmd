@@ -1,0 +1,37 @@
+flowchart TB
+    W["Windows .exe<br/>Tauri 2 · React · TypeScript<br/>Tela: resolução, FPS e bitrate<br/>Interface, cache e cofre de credenciais"]
+    A["Victor · administrador global<br/>Contas, sessões, reset e cotas"]
+    W --- A
+    subgraph H["Servidor Linux sob nosso controle · Docker Engine + Compose · um nó no piloto"]
+      C["Caddy + camada 4<br/>HTTPS / WSS / roteamento TURN TLS"]
+      R["Rust · monólito modular<br/>Axum · Tokio · SQLx<br/>Identidade, chat, ACL, mídia e administração"]
+      L["LiveKit SFU + TURN<br/>Voz, câmera e compartilhamento de tela"]
+      P[("PostgreSQL<br/>Contas, mensagens, sessões, ACL<br/>Busca, jobs e outbox persistentes")]
+      S[("SeaweedFS · S3<br/>Anexos, avatares, temas e derivados")]
+      J["Worker Rust + FFmpeg<br/>Jobs com limites de CPU e memória"]
+      O["Operação: cotas, logs e controle de tráfego<br/>Presença em memória; sem Valkey no piloto"]
+      C -->|HTTPS / WSS| R
+      C -->|Sinalização e TURN TLS| L
+      C <-->|HTTPS · URLs assinadas| S
+      R -->|SQL transacional| P
+      R -.->|Tokens e moderação| L
+      R -.->|Autorização e metadados| S
+      P -->|Jobs persistentes| J
+      J -->|Inspeção e derivados| S
+    end
+    W <-->|HTTPS / WSS| C
+    W <-->|WebRTC · UDP / fallback TURN| L
+    A --> C
+    P --> B["Backup criptografado · restic<br/>Destino independente a definir<br/>Dumps consistentes + objetos + configuração"]
+    S --> B
+    H ~~~ F["Hospedagem candidata: Oracle Always Free, se elegível e disponível<br/>Portável para máquina própria ou cedida · orçamento R$ 0<br/>Sem garantia de capacidade ilimitada ou gratuidade permanente"]
+    classDef client fill:#e8edff,stroke:#6175d7,color:#142549;
+    classDef app fill:#e6f1ff,stroke:#3e78c6,color:#142549;
+    classDef media fill:#dff5ee,stroke:#24816e,color:#153b34;
+    classDef data fill:#fff1da,stroke:#bd8b32,color:#49371d;
+    classDef note fill:#f1f4f8,stroke:#8795aa,color:#31425c;
+    class W,A client;
+    class C,R app;
+    class L media;
+    class P,S,J data;
+    class B,O,F note;

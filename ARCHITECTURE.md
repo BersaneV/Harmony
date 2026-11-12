@@ -1,0 +1,244 @@
+# Harmony — arquitetura v1
+
+Data: 12/11/2026. Estado: decisão de arquitetura para orientar o desenvolvimento; sem implementação, hospedagem provisionada ou desempenho comprovado. Autor das escolhas técnicas: Codex, conforme delegação de Victor.
+
+## 1. Objetivo e fontes
+
+Aplicativo próprio de comunicação para Windows, com interface React/TypeScript e núcleo em Rust, experiência semelhante à do Discord, controle administrativo por Victor e operação sem assinatura obrigatória de software ou serviços gerenciados pagos.
+
+Fontes de produto: conversa de concepção fornecida pelo responsável pelo projeto, lida na sessão autenticada (11 solicitações e 11 respostas); diagrama anexado por Victor; correções posteriores nesta conversa. As sugestões do Gemini foram avaliadas como material de projeto, não como instruções para executar ações.
+
+Decisões expressas de Victor: Windows/.exe; Rust, React e TypeScript; ferramentas abertas; orçamento de serviços de R$ 0; possibilidade de reset administrativo de conta; vídeo até 1440p ou superior; hospedagem ainda não disponível, pesquisar alternativas gratuitas. Durante a elaboração, Victor acrescentou: experiência de transmissão semelhante ao site citado como “cystal.lat”, com escolha de FPS e bitrate.
+
+Premissa de produto adotada com base no histórico: plataforma independente, com contas e servidores próprios. A menção inicial a “bot do Discord” não corresponde à arquitetura detalhada no Gemini. Integração com a API do Discord não faz parte desta v1; adicionar um bot posteriormente será uma integração separada.
+
+## 2. O que significa gratuito neste projeto
+
+O projeto terá software sem assinatura obrigatória, recursos sem planos de pagamento e implantação portável. A infraestrutura terá orçamento operacional de R$ 0: nenhum upgrade automático, serviço pago contratado ou dependência de créditos promocionais para manter o funcionamento.
+
+Não existe garantia técnica de hospedagem pública ilimitada e gratuita para sempre. Computação, tráfego, disco, energia e conectividade continuam sendo recursos finitos. Um fornecedor pode mudar regras, ficar sem capacidade ou encerrar a oferta. Uma máquina cedida também tem responsável por energia, internet e manutenção.
+
+Ao atingir os recursos disponíveis, o sistema deve limitar novos uploads, transmissões e admissões, preservando os dados existentes. Se não existir hospedagem gratuita compatível, o piloto ficará local ou temporariamente indisponível. Não converteremos indisponibilidade em cobrança automática. Alertas financeiros não equivalem a bloqueio de faturamento.
+
+O código próprio e os serviços escolhidos podem ser abertos. Windows e WebView2 são dependências proprietárias do ambiente Windows; isso não transforma o conjunto inteiro, incluindo o sistema operacional, em software livre. O aplicativo não exigirá compra adicional de licença do nosso produto.
+
+## 3. Hospedagem: decisão e alternativas
+
+| Alternativa | Avaliação | Decisão |
+|---|---|---|
+| Oracle Cloud Always Free, VM Ampere A1 | Documentação consultada: equivalente a 2 OCPUs/12 GB; 200 GB de volumes no total e 10 TB/mês de saída. Capacidade e limites da conta precisam ser conferidos; instâncias ociosas podem ser recolhidas. | Primeira candidata para piloto, sem mudar a conta para plano pago. |
+| Equipamento existente ou cedido por um participante | Exige máquina ligada, conexão adequada e acesso externo viável. Sem aluguel, mas com energia, internet e manutenção. CGNAT pode impedir acesso direto. | Alternativa futura de self-hosting; equipamento ainda não informado. |
+| Google Compute Engine Free Tier | A franquia da e2-micro inclui somente 1 GB/mês de saída nas condições documentadas. | Insuficiente para o servidor de voz/vídeo; não dividir a stack entre fornecedores para disfarçar esse limite. |
+| Render Free | Serviço com disco efêmero; banco gratuito expira em 30 dias. | Inadequado para o núcleo persistente da plataforma. |
+| Créditos temporários de provedores | Acabam e não sustentam a exigência de gratuidade continuada. | Não usar como base operacional. |
+
+Fontes: [Oracle Always Free](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm), [Google Free Tier](https://docs.cloud.google.com/free/docs/free-cloud-features), [Render Free](https://render.com/docs/free).
+
+A Oracle exige verificação de cartão e pode fazer reserva temporária de autorização, segundo sua [FAQ oficial](https://www.oracle.com/cloud/free/faq/). Nenhuma conta foi criada, acessada ou provisionada nesta avaliação. Não prometemos elegibilidade, vaga ou ausência de bloqueios na conta do usuário.
+
+No provisionamento, conferir cada recurso no console, inclusive volumes, backups, IP, região e tráfego; somente recursos elegíveis ao plano gratuito. Escolher a região disponível com menor latência medida para os participantes. Nome DNS e certificados são necessários: usar domínio já disponível ou nomes de DDNS gratuitos compatíveis com ACME; a permanência de um nome gratuito também depende de terceiros.
+
+## 4. Arquitetura escolhida
+
+![Arquitetura v1](arquitetura-v1.png)
+
+Uma implantação Linux, inicialmente com um único nó, executará Docker Engine e Compose. O cliente Windows se conecta a essa implantação; não carrega um banco e um servidor completos na máquina de cada participante.
+
+| Componente | Escolha | Responsabilidade |
+|---|---|---|
+| Cliente desktop | Tauri 2, React, TypeScript, Vite e Tailwind CSS | Interface, atalhos, notificações, cache e integração Windows. |
+| Cliente de mídia | LiveKit Client SDK + WebRTC/Web Audio | Microfone, câmera, tela, reprodução e qualidade adaptativa. |
+| Entrada pública | Caddy com suporte a camada 4 | HTTPS/WSS, certificados e encaminhamento TLS para TURN no mesmo IP. |
+| Aplicação | Rust, Tokio, Axum, SQLx | API, WebSocket, regras de negócio, autenticação, ACL, mídia e administração. |
+| Persistência | PostgreSQL | Contas, mensagens, permissões, sessões, auditoria, busca, tarefas e outbox. |
+| Arquivos | SeaweedFS com API S3 | Anexos, avatares, temas, derivados e objetos privados. |
+| Voz/vídeo/tela | LiveKit Server self-hosted + TURN embutido | Encaminhar mídia entre participantes. |
+| Processamento | Worker Rust + FFmpeg/ffprobe | Inspeção, miniaturas e conversões assíncronas com limites. |
+| Backup | Dumps consistentes + restic | Cópia criptografada de dados e configuração para destino independente. |
+
+LiveKit e SeaweedFS são processos externos; não serão reescritos em Rust. A stack do produto será Rust/React, mas não todos os executáveis de infraestrutura. Docker Engine no Linux dispensa Docker Desktop nos usuários finais. Referências: [Docker Engine](https://docs.docker.com/engine/), [SeaweedFS](https://github.com/seaweedfs/seaweedfs), [implantação LiveKit em VM](https://docs.livekit.io/transport/self-hosting/vm/).
+
+### Alternativas consideradas
+
+1. **Monólito modular próprio + LiveKit, escolhido:** atende à stack desejada e permite personalização, com operação inicial em um host.
+2. **Plataforma pronta de terceiros:** poderia reduzir desenvolvimento, mas sua estrutura de conta, permissões e interface passaria a governar o produto. Não foi escolhida como base da stack própria pedida.
+3. **Serviços gerenciados/serverless:** simplificam algumas tarefas, mas acrescentam limites externos e possibilidade de cobrança. Não atendem ao orçamento como base permanente.
+
+### Simplificações deliberadas frente ao diagrama original
+
+- Sem Valkey/Redis no piloto de uma instância: presença/digitação em memória; mensagens, tarefas e eventos recuperáveis no PostgreSQL. A configuração single-node do LiveKit será validada. Se houver múltiplas instâncias, incluir coordenação compatível após prova específica.
+- Sem Kubernetes, Elasticsearch, broker de mensagens dedicado ou pg_cron inicial. Busca FTS no PostgreSQL; tarefas agendadas pelo worker com leasing no banco.
+- SeaweedFS escolhido; não executar simultaneamente Garage e SeaweedFS.
+- Sem transcodificação de cada chamada no servidor. FFmpeg atende arquivos enviados, não o vídeo ao vivo.
+- Sem promessa de 50 MB no cliente/30 MB no backend. Medir o conjunto real, inclusive processos WebView2, codecs, banco e SFU.
+
+## 5. Fronteiras e contratos
+
+O monólito terá módulos de Identidade, Comunidades/Canais, Mensagens, Permissões/Moderação, Mídia, Arquivos, Personalização e Administração. Domínio e Aplicação não dependem de Axum, SQLx, S3 ou LiveKit. Portas internas definem persistência, relógio, objetos e controle de mídia; adaptadores implementam essas portas.
+
+O cliente chama HTTPS para operações e WSS para eventos. A mídia usa o transporte WebRTC diretamente com LiveKit/TURN. PostgreSQL e interfaces administrativas de infraestrutura não ficam públicos. O controle de mídia passa pelo backend: nunca embutir a chave secreta do LiveKit ou credenciais S3 no .exe.
+
+Contrato HTTP versionado com OpenAPI e tipos TypeScript gerados. Eventos têm versão, ID, cursor de recuperação e chave de idempotência. Identificadores de entidades serão UUIDv7, serializados como strings; ordenação explícita por campos indexados, nunca ordem física presumida. Permissões serão nomes estáveis no contrato; representação numérica interna, se útil, terá conversão explícita sem depender de precisão de Number em JavaScript.
+
+### Mensagens confiáveis
+
+1. Cliente envia comando com identificador idempotente.
+2. Aplicação autoriza a operação e grava mensagem + evento outbox na mesma transação.
+3. Cliente recebe confirmação somente após persistência.
+4. Dispatcher publica o evento aos sockets; falha/retry pode repetir, e o cliente deduplica.
+5. Após desconexão, o cliente recupera eventos persistentes por cursor. Cursor expirado exige sincronização completa do recorte.
+
+A ordenação do cursor será garantida na persistência por escopo de conversa, com sequenciamento transacional; não usar UUIDv7 ou sequência alocada antes de commit como prova de ordem de entrega. Cursor por usuário de notificações também deve obedecer à ordem de confirmação persistida. O contrato não promete exactly-once de transporte.
+
+Presença e “digitando” podem desaparecer ao reiniciar e são reconstruídos. Decisão de permissão nunca depende só de presença, cache ou interface. O servidor revalida inscrição, leitura de histórico, busca, anexos e cada comando. Mudanças de cargos removem inscrições incompatíveis imediatamente no app e disparam reconciliação de mídia.
+
+### Hierarquia e permissões
+
+Separar administrador global da instância, proprietário de comunidade, cargos e exceções de canal. Permissões calculadas por função pura, com precedência documentada e testes de negação, sobreposição e hierarquia. Não copiar números de bits ou regras universais sugeridas pelo Gemini como se fossem a especificação do Discord.
+
+Moderação guarda estado desejado persistente e envia comandos idempotentes ao LiveKit. Self-mute e server-mute são estados distintos. O usuário não poderá se desmutar contra um bloqueio do servidor. Falhas no SFU devem aparecer como aplicação pendente/falha, nunca sucesso presumido.
+
+## 6. Conta e reset administrativo
+
+Cadastro fechado por convite no piloto, usuário + senha, sem obrigação de e-mail ou SSO. Nome de login normalizado com regra única no servidor; nome de exibição separado. Senhas armazenadas como hash Argon2id com salt; parâmetros calibrados no host e concorrência limitada para não esgotar memória no login.
+
+Sessão: token de acesso curto, refresh token opaco aleatório armazenado como hash no servidor, rotação e detecção de reutilização. O token de acesso identifica a sessão e sua versão; cada requisição autenticada e comando WebSocket revalida no servidor se essa sessão e versão continuam ativas. Revogação/reset atualiza esse estado transacionalmente, sem esperar o JWT expirar; no piloto não haverá cache de autorização que reabra essa janela. No Windows, guardar o refresh token no cofre de credenciais do sistema; acesso de curta duração em memória. Tokens, códigos de reset e senha nunca entram nos logs.
+
+Victor será administrador global e verá contas, estado, bloqueios, sessões e auditoria. Essa função pode iniciar redefinição, suspender conta e revogar acesso; não vê nem recupera a senha antiga. Moderador de uma comunidade não ganha poder de reset global.
+
+Fluxo padrão escolhido:
+
+1. Victor reautentica no painel e seleciona “Redefinir acesso”.
+2. O sistema invalida o reset anterior, registra a ação e cria código aleatório de uso único, hash persistido e expiração de 15 minutos.
+3. O código aparece uma única vez para Victor, que o entrega ao usuário por contato previamente confirmado. Nenhum serviço de envio pago é necessário.
+4. Usuário informa o código na tela de recuperação e escolhe a nova senha. Consumo do código e atualização de credenciais são atômicos.
+5. Sessões anteriores são revogadas; WebSockets são encerrados; chamadas existentes são removidas; o usuário entra novamente.
+
+Oferecer opção de bloquear/revogar imediatamente ao iniciar o reset, útil em suspeita de comprometimento. Não mostrar uma senha temporária como senha definitiva. Limitar tentativas por origem e conta sem revelar se um usuário existe. Auditoria registra autor, alvo, horário e resultado, sem segredos. Recuperação da conta do administrador exige acesso ao servidor e procedimento local auditável; não haverá senha mestra embutida no cliente.
+
+### Revogação em chamadas
+
+Remover um participante não invalida automaticamente todo token LiveKit já emitido no self-hosted. Tokens de ingresso serão curtos e vinculados à sessão/identidade; toda nova emissão revalida o estado. A reconciliação remove ingressos incompatíveis e registra rejeições. Expiração, reconexão e permissões devem ser testadas; essa solução reduz, mas não zera, a janela de reutilização do token já emitido. Revogação instantânea absoluta exigiria uma camada adicional de admissão. Fonte: [tokens LiveKit](https://docs.livekit.io/frontends/reference/tokens-grants/).
+
+## 7. Qualidade de vídeo e áudio
+
+Menu de publicação: **Automático, 144p, 240p, 360p, 480p, 720p, 1080p, 1440p e 2160p**. Preservar proporção da fonte, sem prometer criar detalhes por upscale. **FPS: Auto, 15, 24, 30 e 60**, com 30 padrão; 60 e alta resolução condicionados ao dispositivo, captura, codec e política de capacidade do host. Perfis de 120 FPS ou mais serão experimentais, habilitados somente após evidência na pipeline real; não prometemos 250 FPS por existir essa opção anunciada em outro produto. Não há paywall para 1440p/2160p.
+
+**Bitrate: Automático ou Manual**, com presets de 0,5 / 1 / 2 / 4 / 6 / 8 / 12 / 16 / 24 / 32 Mb/s e campo numérico dentro do limite autorizado da instância. Este é o catálogo proposto; o teto operacional do host será explícito e ajustado por medição. Não será um plano pago. Mostrar Mb/s na UI e converter explicitamente para bits/s no SDK, sem confundir MB/s.
+
+O controle manual define o teto agregado de vídeo publicado pela transmissão, somando camadas simultâneas e eventual codec de compatibilidade. Distribuir esse orçamento entre encoders; não aplicar o valor integral a cada camada e multiplicar o upload sem avisar. Áudio e overhead são medidos à parte e aparecem no consumo total. O teto não força bitrate constante: conteúdo parado e congestionamento podem diminuir o valor real. Não desabilitar o controle de congestionamento para satisfazer um número na tela.
+
+### Referência de experiência: Crystal
+
+O endereço `cystal.lat` não abriu na pesquisa; foi encontrado [Crystal.lat](https://crystal.lat/), correspondente ao nome e à descrição. Esta correspondência é uma inferência explícita. Foram consultadas a página inicial, a FAQ e a [tabela de recursos Prisma](https://crystal.lat/prisma), sem login, criação de sala ou transmissão de conteúdo. A referência pública reúne tela com som, câmera/voz e chat, com limites de resolução/FPS/bitrate por plano. Não foram verificados latência, qualidade real, codecs ou controles internos de uma sala.
+
+A página declara envio direto entre computadores. Isso não comprova toda a topologia do produto; tampouco obriga nossa plataforma a copiar essa implementação. Mantemos SFU para evitar que cada publicador tenha de enviar uma cópia para cada espectador. O custo de tráfego migra para o host; essa consequência entra nas cotas. A semelhança será na experiência de assistir e controlar a transmissão. Não haverá dependência operacional do Crystal, cópia de assets, catálogo de terceiros ou assinatura Prisma.
+
+Fluxo definido para nosso aplicativo:
+
+1. Dentro do canal, usuário escolhe “Compartilhar tela”. Seleciona monitor ou janela e a captura de áudio disponível. A opção de aba não será prometida no .exe sem prova do seletor Windows.
+2. Painel mostra prévia, resolução, FPS, bitrate e perfil “Texto/nitidez” ou “Movimento”; opções avançadas ficam acessíveis, sem exigir que todo usuário as configure.
+3. Usuário inicia explicitamente; indicador persistente mostra o que está transmitindo e oferece parar imediatamente. Não capturar nem publicar sem essa ação.
+4. Espectador escolhe transmissão, fixa uma como principal, usa tela cheia, ajusta volume e alterna grade/foco, mantendo acesso ao chat e à voz. PiP permanece extensão dependente da plataforma.
+5. Durante a transmissão, publicador pode alterar FPS/bitrate e solicitar nova resolução/fonte. Aplicar sem sair da chamada; se o SDK exigir republicação breve, sinalizar a reconexão e manter o áudio independente quando possível.
+6. Mostrar configuração solicitada e medição efetiva: resolução, FPS e bitrate de envio; recepção mede suas próprias estatísticas. Informar quando captura, codec, rede ou cota do host limitarem a seleção.
+
+Guardar preferências por usuário/dispositivo; revalidar na próxima captura, pois trocar monitor/GPU pode invalidar o perfil. Nunca iniciar compartilhamento automaticamente ao recuperar a sessão. Captura protegida/DRM pode retornar imagem bloqueada e não será contornada.
+
+1440p e 2160p fazem parte do catálogo, mas só serão anunciados como disponíveis quando a captura e a publicação reais forem verificadas. Monitores maiores poderão ser capturados e reduzidos; não prometemos 8K nesta v1. O SDK documenta presets de [1440p e 2160p](https://docs.livekit.io/reference/client-sdk-js/variables/VideoPresets.html).
+
+Cada espectador escolhe Auto ou um teto de qualidade. O receptor recebe a melhor camada disponível dentro do teto, quando existir; a interface mostra a qualidade efetiva. Um teto de 240p não cria sozinho uma camada 240p no SFU. Se nenhuma camada couber, pedir perfil menor ao publicador ou pausar o vídeo com explicação, sem ignorar silenciosamente o teto.
+
+Política de codec: VP8 como caminho de compatibilidade; VP9/SVC habilitado para clientes homologados após medição de CPU, estabilidade e interoperabilidade. H.264/AV1 não serão dependências obrigatórias da primeira entrega. Simulcast/SVC publica um conjunto limitado de camadas; não codificar nove resoluções simultaneamente. Dynacast com SVC não deve ser tratado como pausa independente de cada camada. Referência: [codecs e camadas LiveKit](https://docs.livekit.io/transport/media/advanced/).
+
+Áudio Opus, cancelamento de eco e supressão disponíveis no WebRTC, volume por participante, seleção de dispositivos e push-to-talk. RNNoise poderá ser ativado como processamento local substituto após comparação; não empilhar supressores indiscriminadamente. Silero VAD fica fora do caminho obrigatório inicial, pois detectar fala no SDK pode atender à UI sem outra inferência. Essa escolha será revista com evidência de qualidade, não por promessa de “IA”.
+
+Manter microfone e áudio da tela em tracks independentes, com mute/volume separados. Não aplicar supressão de ruído de voz indiscriminadamente a música/áudio do sistema. A prova Windows deve verificar se a captura inclui a própria reprodução da chamada e provoca eco/loop; excluir o áudio do próprio app por mecanismo suportado ou limitar a opção com explicação. Não prometer essa exclusão sem verificar o caminho WebView2/nativo escolhido.
+
+Múltiplas telas: priorizar a tela em foco, reduzir miniaturas e suspender assinaturas invisíveis quando possível. Controlar resolução, bitrate, quantidade de publicadores e assinaturas em conjunto. Diminuir resolução sozinho não estabelece um limite de tráfego.
+
+Exemplo de dimensionamento, não benchmark: dez espectadores recebendo efetivamente 8 Mb/s de vídeo cada demandam aproximadamente 80 Mb/s de saída do SFU, ou 36 GB/h, antes de overhead, retransmissões e outros fluxos. Com camadas/qualidades diferentes, somar o bitrate efetivo entregue a cada espectador; não confundir essa soma com o teto agregado publicado. Simulcast acrescenta uso no emissor. Usar limites medidos; não prometer quantidade ilimitada de usuários nem 1440p60 em qualquer computador.
+
+## 8. Rede, Windows e segurança do cliente
+
+Baseline de rede: HTTPS/WSS e TURN/TLS externos em TCP 443, separados pelo nome TLS (SNI) em Caddy com módulo de camada 4; destinos internos separados. UDP 7882 para ICE mux, TCP 7881 para fallback e UDP 3478 para TURN. TCP 80 apenas para redirecionamento/ACME conforme configuração. Banco, API de administração do storage e métricas só em rede privada.
+
+O build comum de Caddy não basta para tratar TURN como HTTP. Usar configuração inspirada no [deploy oficial com Caddy L4](https://github.com/livekit/deploy), revisar e fixar versões. Não executar scripts remotos sem leitura. Na infraestrutura Docker, LiveKit terá rede do host conforme recomendação, com firewall explícito. Referências: [portas](https://docs.livekit.io/transport/self-hosting/ports-firewall/) e [deployment](https://docs.livekit.io/transport/self-hosting/deployment/). Validar do lado externo UDP, TURN/TLS e SNI; nenhum desenho garante atravessar toda rede corporativa.
+
+Windows 11 x64 é a plataforma inicial escolhida; Windows ARM64 será etapa posterior. Windows 10 não recebe promessa de suporte nesta definição. O servidor pode ser ARM64 (Oracle A1) sem alterar o executável Windows x64. Verificar imagens e dependências nativas para ambos os ambientes.
+
+Tauri usa WebView2; capturar tela, áudio do sistema/janela, trocar monitor, atalhos globais e retomar após suspensão exigem POC no .exe real. Existe API de captura no WebView2, mas isso não comprova todos os cenários de áudio e Tauri. Fonte: [Microsoft ScreenCaptureStarting](https://learn.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.screencapturestarting).
+
+Plano de contingência: se a captura via WebView2 falhar nos cenários requeridos, desenvolver adaptador nativo usando APIs Windows e integrar a pipeline de mídia, com prova de custo/desempenho. Não decidir migração de framework nem afirmar que a integração nativa já está resolvida. Esse é o principal risco técnico antes do restante do produto.
+
+Capabilities Tauri mínimas, sem shell genérico exposto; conteúdo remoto não ganha IPC. Temas como dados estruturados com variáveis permitidas, assets validados e fontes locais/importadas com limites. Sem JavaScript ou CSS arbitrário de terceiros executado com privilégios. Mensagens renderizadas com Markdown restrito, sem HTML ativo. URL previews em worker isolado, bloqueando endereços privados e revalidando DNS/redirecionamentos para reduzir SSRF.
+
+## 9. Arquivos, privacidade e operação
+
+Upload: backend autoriza, reserva cota e emite URL curta para objeto temporário privado. Finalização valida tamanho real, tipo por conteúdo e associação ao dono antes de publicar. Magic bytes são só uma checagem, não prova de arquivo seguro. Worker isolado sem acesso livre à rede processa arquivos com tempo, memória, CPU e saída limitados. Miniaturas/derivados têm chave própria; original preservado conforme política. Downloads revalidam autorização e recebem URL curta; URLs assinadas já emitidas não são revogadas instantaneamente por mudança de cargo.
+
+Plano inicial de privacidade escolhido: TLS no transporte de aplicação e criptografia de mídia no transporte WebRTC; **sem E2EE de conteúdo nesta v1**. Isso mantém busca e moderação no servidor. Administrador da infraestrutura pode tecnicamente acessar conteúdo persistido; não vender promessa de inacessibilidade. E2EE é evolução separada que exigiria desenho de chaves, pesquisa e recuperação; reset de senha sozinho não recupera chaves antigas. A ausência de E2EE é escolha desta arquitetura, não requisito previamente aprovado pelo usuário.
+
+Sem gravação automática de chamadas, transcrição ou envio de conteúdo para APIs de IA. Telemetria de terceiros não é requisito. Logs locais estruturados e métricas de CPU/RAM/disco/tráfego, filas, erros, perdas de pacotes e tempo de resposta; nunca incluir conteúdo de chat ou segredos por padrão.
+
+### Limites de operação de R$ 0
+
+- Cotas por conta/comunidade, tamanho de anexos e upload simultâneo definidos em configuração antes do piloto.
+- Admissão de chamadas e publicadores limitada; bitrate e assinaturas controlados pelo servidor. Nenhum autoscaling que cria recurso faturável.
+- Worker com um job pesado por vez inicialmente; limites ajustados por medição para não prejudicar chamadas.
+- Margem reservada no disco; ponto inicial de bloqueio de novos uploads em 85% de ocupação, escolhido como proteção e ainda não calibrado. Banco e logs também têm limites e rotação.
+- Próximo da franquia de tráfego: avisar usuários, bloquear novas transmissões, reduzir fluxos ativos e, no limite conservador, encerrar chamadas e transferências em andamento. Revogar novas URLs não interrompe downloads já abertos: o controle também precisa atuar na borda/rede. Orçamento inclui anexos, backups, overhead e margem para atraso de contabilização. Reservar tráfego para administração/recuperação e bloquear mídia até a renovação efetiva da franquia. Contadores do app não substituem a medição e as regras de cobrança do provedor.
+- Não apagar automaticamente mensagens/originais para abrir espaço. Limpar temporários expirados, uploads abandonados e derivados regeneráveis; exclusões e retenção de conteúdo são políticas explícitas.
+
+### Backup e recuperação
+
+Dumps PostgreSQL consistentes, objetos e configuração serão incluídos em backups criptografados com restic. Obter um ponto recuperável entre banco e storage: manifestos de objetos, janela de proteção contra exclusão e procedimento de manutenção quando necessário. Não copiar arquivos de um PostgreSQL ativo como se isso fosse backup consistente.
+
+Destino em máquina/disco independente, com chave fora do servidor. Uma cópia no mesmo disco não protege da perda da VM. Destino externo ainda não está disponível: isso impede declarar o piloto pronto para dados importantes. Alvo inicial proposto: backup diário (perda máxima pretendida de 24h), com tempo de restauração medido antes de prometer disponibilidade. Recuperação exige ensaio real de banco, anexos, contas, chaves e configuração.
+
+Um único host é ponto único de falha. Atualizações de servidor podem interromper chamadas; janelas avisadas e migrations compatíveis são necessárias. O projeto será migrável para outra máquina por configuração e restauração, mas portabilidade não é migração sem indisponibilidade.
+
+## 10. Funcionalidades e ordem de entrega
+
+| Entrega | Funcionalidades preservadas no plano | Critério de saída |
+|---|---|---|
+| 0 — provas técnicas | .exe Windows, captura/tela/áudio, LiveKit local e remoto, 1440p/2160p, TURN, teste ARM64 do host | Evidência real por cenário, versões, máquina e rede. |
+| 1 — núcleo | Convites, contas, reset admin, comunidades, canais, cargos, ACL, mensagens, histórico, DMs/grupos, amigos, leitura/não lidas | Persistência, autorização, retries, reconexão e reset comprovados. |
+| 2 — mídia e interação | Voz/câmera/tela, múltiplas telas, autoqualidade, mute/deafen/mover, push-to-talk, volume individual, anexos, GIFs/stickers, emojis/reações, menções, busca e notificações | Jornadas completas em Windows e redes diferentes, incluindo perda/reconexão. |
+| 3 — personalização e operação | Fundos/fontes/cores/tamanhos, layout persistido, temas acessíveis, painel admin/cotas, backup/restauração, atualizações | Uso prolongado, acessibilidade, consumo medido e recuperação de falhas. |
+| Extensões do histórico | Threads/fóruns, palco, soundboard, PiP, webhooks, atividade de jogos, cliente web completo e E2EE | Cada uma mantém registro de escopo e recebe contrato antes de implementação; não declaradas prontas na v1. |
+
+Extensões acima apareceram como sugestões no Gemini; não foram eliminadas silenciosamente, mas não têm especificação suficiente para compor o aceite inicial. Personalização segura não inclui execução de CSS/JS arbitrário. GIFs/stickers podem ser enviados e hospedados pela própria plataforma; uma API comercial de catálogo não é necessária. Notificações do Windows funcionam enquanto app/tray está ativo; notificação com app totalmente fechado exige desenho adicional e não está prometida.
+
+## 11. Bibliotecas selecionadas e repositório
+
+Lista de integração, não instrução para clonar tudo. Usar dependências publicadas, versões fixadas e lockfiles; forks somente quando houver necessidade comprovada.
+
+| Área | Bibliotecas/projetos |
+|---|---|
+| UI | React, Vite, TypeScript, Tailwind CSS, Zustand, TanStack Query, TanStack Virtual, Lexical, react-markdown + remark-gfm; Shiki sob demanda. |
+| Desktop | Tauri 2; plugins oficiais para atalhos, notificações e updater; integração com Windows Credential Manager por adaptador restrito. |
+| Mídia cliente | livekit-client e APIs WebRTC/Web Audio; RNNoise como opção posterior homologada. |
+| Backend | axum, tokio, tower-http, serde, sqlx, uuid, argon2, jsonwebtoken, tracing; livekit-api e SDK S3 pelo adaptador. |
+| Infraestrutura | PostgreSQL, LiveKit Server, SeaweedFS, Caddy + módulo L4, Docker Engine/Compose, FFmpeg/ffprobe e restic. |
+
+Licença proposta para o código próprio: Apache-2.0, ainda não aplicada a um repositório. Dependências preservam seus avisos/licenças. Antes de distribuir, inventariar dependências transitivas, assets, modelos, plugins e flags dos binários. FFmpeg varia de licença conforme o build; não tratar todos os componentes como MIT/Apache. Referências: [licença SeaweedFS](https://github.com/seaweedfs/seaweedfs/blob/master/LICENSE), [FFmpeg](https://ffmpeg.org/legal.html).
+
+O repositório pessoal [BersaneV/Harmony](https://github.com/BersaneV/Harmony) é a origem do projeto. Releases poderão ser publicadas após validação dos artefatos. Não há dependência obrigatória de Actions/Codespaces pagos. Builds Windows poderão rodar localmente. Assinar updates com a chave do updater Tauri; isso é diferente de assinatura Authenticode e não garante ausência de avisos do Windows. [Updater Tauri](https://v2.tauri.app/plugin/updater/) e [instalador Windows](https://v2.tauri.app/distribute/windows-installer/).
+
+## 12. Validação antes de liberar usuários
+
+| Risco | Teste obrigatório | Situação atual |
+|---|---|---|
+| Captura/áudio do Windows | Tela/janela, áudio, permissão negada, cancelamento, mudança de monitor/dispositivo, suspensão e PTT em .exe real | Não executado |
+| Qualidade e escala | 144p a 2160p disponíveis; seleção de FPS/bitrate antes e durante a transmissão; soma de camadas respeita orçamento; bitrate efetivo sob congestionamento; CPU/RAM/GPU por máquina e múltiplos espectadores | Não executado |
+| Conectividade externa | Rede residencial e móvel; UDP bloqueado; TURN/TLS 443 e DNS/SNI reais | Não executado |
+| Autorização | Negativas de acesso em REST, WS, busca, anexos e mídia; troca de cargos/bloqueio durante chamada | Não executado |
+| Reset de senha | Código expirado/usado, concorrência, limitação de tentativas, revogação de sessões e janela de token de mídia | Não executado |
+| Persistência | Retry sem duplicação, queda após commit, outbox, cursor, reconexão e reinício de host | Não executado |
+| Recursos gratuitos | Conta/shape elegível, todos os limites efetivos, esgotamento de cotas e disco sem recurso pago criado | Não verificado na conta |
+| Recuperação | Restore integral em outro ambiente com anexos e chaves | Sem destino de backup |
+| Distribuição | Instalador, WebView2, atualização assinada válida/inválida e falha durante update | Não executado |
+| Dependências | Lockfiles, imagens fixadas, vulnerabilidades, licenças, binários ARM64/x64 | Sem implementação |
+
+Esta arquitetura está suficientemente definida para iniciar a fase 0. Não está homologada para afirmar capacidade, latência, gratuidade permanente ou funcionamento integral. Hospedagem elegível, nomes DNS, backup e prova de captura são condições concretas para o piloto público.
