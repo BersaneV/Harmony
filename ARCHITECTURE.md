@@ -92,7 +92,7 @@ Moderação guarda estado desejado persistente e envia comandos idempotentes ao 
 
 ## 6. Conta e reset administrativo
 
-Cadastro fechado por convite no piloto, usuário + senha, sem obrigação de e-mail ou SSO. Nome de login normalizado com regra única no servidor; nome de exibição separado. Senhas armazenadas como hash Argon2id com salt; parâmetros calibrados no host e concorrência limitada para não esgotar memória no login.
+Cadastro aberto com usuário + senha, sem obrigação de convite, e-mail ou SSO. Decisão de Victor em 12/11/2026 substitui o cadastro fechado do desenho inicial. O cadastro cria uma conta comum; permissões e associação a comunidades continuam explícitas. Nome de login normalizado com regra única no servidor; nome de exibição separado. Senhas armazenadas como hash Argon2id com salt; parâmetros calibrados no host e concorrência limitada para não esgotar memória no login.
 
 Sessão: token de acesso curto, refresh token opaco aleatório armazenado como hash no servidor, rotação e detecção de reutilização. O token de acesso identifica a sessão e sua versão; cada requisição autenticada e comando WebSocket revalida no servidor se essa sessão e versão continuam ativas. Revogação/reset atualiza esse estado transacionalmente, sem esperar o JWT expirar; no piloto não haverá cache de autorização que reabra essa janela. No Windows, guardar o refresh token no cofre de credenciais do sistema; acesso de curta duração em memória. Tokens, códigos de reset e senha nunca entram nos logs.
 

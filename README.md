@@ -6,7 +6,7 @@ Comunidades, conversas e compartilhamento de tela em uma plataforma open source,
 
 ## O que já funciona
 
-- Cadastro por convite, login, sessões rotativas e recuperação administrada, com revogação de sessões.
+- Cadastro aberto com usuário e senha, login, sessões rotativas e recuperação administrada, com revogação de sessões.
 - Comunidades, canais de texto/voz, membros, cargos personalizados, permissões por canal, amigos, conversas diretas e grupos.
 - Chat com histórico persistente SQLite, atualização ao vivo, edição, exclusão, busca, reações, leitura e retry sem mensagens duplicadas.
 - Anexos privados com upload/download autorizados e prévia de imagens, GIFs, áudio e vídeo por clique.

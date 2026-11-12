@@ -14,7 +14,7 @@ Configure o `.env` com o gerador do projeto. Execute `python3 scripts/with-env.p
 
 ## Garantias implementadas
 
-- Senhas Argon2id, concorrência limitada a duas operações de hash, nomes de login normalizados, cadastro por convite com consumo transacional e expiração.
+- Senhas Argon2id, concorrência limitada a duas operações de hash, nomes de login normalizados, cadastro aberto com nome de usuário e senha. Convites opcionais continuam com consumo transacional e expiração; novos cadastros não recebem privilégio administrativo nem associação automática a comunidades.
 - Access JWT HS256 de10min; refresh aleatório, somente hash persistido, rotação, detecção de reuso e revogação. Cada operação autenticada reconsulta sessão e usuário. Reset aumenta versão, revoga sessões e desconecta WebSockets. A senha verificada no login é conferida novamente por hash/versão sob lock antes da criação da sessão, cobrindo a corrida com reset.
 - Logout reconhece o refresh atual e os tokens consumidos da mesma sessão. O código administrativo de reset é de uso único, expira em15min e só é emitido após reautenticação. Não há recuperação da senha anterior.
 - Comunidades, canais text/voice, hierarquia owner/admin/member, convites, amigos e conversas DM/group persistidos. Administrador global não ganha acesso automático ao conteúdo de uma comunidade pela API.

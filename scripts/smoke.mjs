@@ -34,9 +34,20 @@ for (const name of ['alice', 'bob', 'eve']) {
 }
 let [alice, bob, eve] = sessions;
 await call('POST', '/auth/register', { username: `over_${suffix}`, display_name: 'Over', password, invite_token: invite.token }, null, [400, 403, 409, 410]);
+assert.equal((await call('GET', '/instance')).registration, 'open');
+const publicName = `public_${suffix}`;
+const publicUser = await call('POST', '/auth/register', { username: publicName, password }, null, [200, 201]);
+assert.equal(publicUser.user.display_name, publicName);
+assert.equal(publicUser.user.is_admin, false);
+assert.equal((await call('POST', '/auth/login', { username: publicName, password })).user.id, publicUser.user.id);
+await call('POST', '/auth/register', { username: publicName.toUpperCase(), password }, null, 409);
+await call('POST', '/auth/register', { username: `weak_${suffix}`, password: 'short' }, null, 400);
+await call('POST', '/auth/register', { username: `admin_${suffix}`, password, is_admin: true }, null, 422);
+await call('GET', '/admin/users', null, publicUser.access_token, 403);
 await call('GET', '/admin/users', null, alice.access_token, 403);
 const guild = await call('POST', '/guilds', { name: `Integration ${suffix}` }, alice.access_token, [200, 201]);
 const channel = await call('POST', `/guilds/${guild.id}/channels`, { name: 'general', kind: 'text' }, alice.access_token, [200, 201]);
+await call('GET', `/guilds/${guild.id}/channels`, null, publicUser.access_token, [403, 404]);
 await call('GET', `/guilds/${guild.id}/channels`, null, eve.access_token, [403, 404]);
 const join = await call('POST', `/guilds/${guild.id}/invites`, { max_uses: 1, expires_hours: 1 }, alice.access_token, [200, 201]);
 await call('POST', '/invites/accept', { token: join.token }, bob.access_token, [200, 201]);

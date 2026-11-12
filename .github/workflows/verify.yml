@@ -166,7 +166,7 @@ jobs:
         run: |
           $version = (Get-Content apps/desktop/src-tauri/tauri.conf.json | ConvertFrom-Json).version
           $tag = "v$version"
-          $notes = "Harmony $version, commit $env:GITHUB_SHA. Atualizador com assinatura Ed25519 e versão vinculada; não é Authenticode. SQLite, arquivos locais, worker isolado, personalização e diagnóstico P2P. Captura, áudio e redes Windows exigem homologação física; P2P permanece diagnóstico temporário. Consulte docs/VALIDATION.md e docs/UPDATES.md."
+          $notes = "Harmony $version, commit $env:GITHUB_SHA. Atualizador com assinatura Ed25519 e versão vinculada; não é Authenticode. Cadastro aberto, participação P2P pelo canal sem códigos, SQLite, arquivos locais, worker isolado e personalização. Captura, áudio e redes Windows exigem homologação física; P2P permanece diagnóstico temporário. Consulte docs/VALIDATION.md e docs/UPDATES.md."
           $notes | Out-File -Encoding utf8 release-notes.txt
           $files = (Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*).FullName
           gh release create $tag @files .local/qa-updater/windows-release.json .local/qa-updater/windows-install.json --draft --prerelease --target $env:GITHUB_SHA --title "Harmony $version — Windows" --notes-file release-notes.txt

@@ -119,3 +119,17 @@ O convite agora aparece automaticamente para quem abre o mesmo canal autorizado.
 A revisão independente identificou cache antigo após HTTP 403: a interface passou a ocultar convites quando perde permissão ou a consulta falha, e desabilita iniciar outro teste nesse estado. O botão de encerrar continua disponível durante o teste ativo. As chamadas normais continuam LiveKit.
 
 A suíte independente de descoberta passou em 30 critérios contra a API/WS real, incluindo disputa simultânea pela vaga, isolamento entre canais, revogação de PUBLISH, mute, reset administrativo e prazo real de 120 segundos (observado 120.017 ms). Os eventos não expõem identificadores de teste e não chegam a quem está fora do canal. Frontend: 69 testes, typecheck e build passaram após a mudança.
+
+### Cadastro aberto
+
+A orientação de 12/11/2026 abriu o cadastro com usuário e senha, sem convite. O nome de exibição é opcional e usa o login quando omitido. Convites fornecidos explicitamente continuam sujeitos à validade e podem associar o usuário à comunidade; cadastro aberto não dá acesso administrativo nem entrada automática em comunidades privadas.
+
+A suíte HTTP/WS passou em 71 critérios (antes63), incluindo cadastro anônimo sem convite, login posterior, rejeição de nome duplicado normalizado, senha curta e campo administrativo injetado, além de negar acesso administrativo e ao canal privado para a conta nova. CUA criou uma conta pelo formulário real sem convite/nome de exibição, recarregou e entrou novamente com a senha cadastrada. Frontend69 testes, typecheck e build passaram.
+
+### Moderação com sessões antigas
+
+O teste real reproduziu HTTP503 ao silenciar um usuário que tinha uma identidade antiga emitida, ausente do LiveKit, além de uma sessão ativa. A política já havia sido persistida, mas a resposta404 da identidade antiga interrompia a atualização das seguintes. A correção aceita como ausência somente HTTP404 com erro Twirp `not_found` em UpdateParticipant/RemoveParticipant; falhas genéricas, autenticação e demais operações continuam como erro.
+
+Regressão RTC posterior: 26 critérios passaram com LiveKit/Caddy reais, incluindo mute/unmute, mudança de permissão no SDK, remoção da publicação e publicação novamente, além de áudio/vídeo e reset/reconexão. A primeira repetição detectou uma leitura imediata antes de ListParticipants refletir a republicação; o harness passou a aguardar o SID exato, mantendo o critério e preservando o resultado intermediário.
+
+A revisão independente acrescentou seis verificações HTTP de cadastro: conta comum e nome canônico, convite explícito inválido sem criar conta, rollback do consumo do convite ao colidir nome, convite opcional válido associado à comunidade certa, convite esgotado sem criar usuário/associação e isolamento de contas públicas. Resultado PASS.

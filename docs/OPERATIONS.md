@@ -11,7 +11,7 @@ python3 scripts/configure.py
 docker compose up -d --build
 ```
 
-A API serve o frontend em `http://127.0.0.1:8080`. O gerador cria `.env` e `.local/deploy/` privados, recusa sobrescrita e não contata provedores. A senha inicial está em `HARMONY_BOOTSTRAP_PASSWORD`; só é usada para criar a primeira conta. Não envie `.env` aos participantes. Não há cadastro aberto: o administrador emite convites.
+A API serve o frontend em `http://127.0.0.1:8080`. O gerador cria `.env` e `.local/deploy/` privados, recusa sobrescrita e não contata provedores. A senha inicial está em `HARMONY_BOOTSTRAP_PASSWORD`; só é usada para criar a primeira conta. Não envie `.env` aos participantes. O cadastro é aberto: os participantes criam nome de usuário e senha, sem convite de cadastro. Contas novas não são administradoras. Convites de comunidade continuam opcionais para integrar novos membros a uma comunidade existente.
 
 Para desenvolvimento nativo, compile o frontend e os binários e use `scripts/with-env.py`. `HARMONY_ENV_FILE` seleciona uma configuração isolada; variáveis já definidas no ambiente prevalecem. O banco e storage nativos usam os caminhos absolutos da configuração. No Compose, os caminhos são sobrescritos por `/data/harmony.db`, `/data/files` e `/srv/harmony`.
 

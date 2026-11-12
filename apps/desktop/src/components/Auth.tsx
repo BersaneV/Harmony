@@ -51,7 +51,7 @@ export default function Auth() {
           body:
             mode === "login"
               ? { username, password }
-              : { username, display_name: name, password, invite_token: token },
+              : { username, display_name: name.trim() || username, password },
         });
         await saveSession(next);
       }
@@ -116,7 +116,7 @@ export default function Auth() {
             {mode === "login"
               ? "Conecte-se à sua instância e encontre sua comunidade."
               : mode === "register"
-                ? "Use o convite enviado pelo administrador da instância."
+                ? "Escolha seu nome de usuário e senha. Não precisa de convite."
                 : "Peça um código de recuperação ao administrador da instância."}
           </p>
           <form onSubmit={submit}>
@@ -137,7 +137,14 @@ export default function Auth() {
               </div>
             </Field>
             {mode !== "reset" && (
-              <Field label="Nome de usuário">
+              <Field
+                label="Nome de usuário"
+                hint={
+                  mode === "register"
+                    ? "De 3 a 32 letras, números, _ ou -."
+                    : undefined
+                }
+              >
                 <input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -145,29 +152,25 @@ export default function Auth() {
                   minLength={3}
                   maxLength={32}
                   autoComplete="username"
-                  placeholder="seu.usuario"
+                  placeholder="seu_usuario"
                 />
               </Field>
             )}
             {mode === "register" && (
-              <Field label="Como quer ser chamado?">
+              <Field
+                label="Como quer ser chamado?"
+                hint="Opcional. Se preferir, usaremos seu nome de usuário."
+              >
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required
                   maxLength={64}
                   autoComplete="nickname"
                 />
               </Field>
             )}
-            {mode !== "login" && (
-              <Field
-                label={
-                  mode === "reset"
-                    ? "Código de recuperação"
-                    : "Código de convite"
-                }
-              >
+            {mode === "reset" && (
+              <Field label="Código de recuperação">
                 <input
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
@@ -218,7 +221,7 @@ export default function Auth() {
             {mode === "login" ? (
               <>
                 <button onClick={() => switchMode("register")}>
-                  Tenho um convite
+                  Criar uma conta
                 </button>
                 <button onClick={() => switchMode("reset")}>
                   Esqueci minha senha

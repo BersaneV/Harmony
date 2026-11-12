@@ -227,19 +227,24 @@ pub async fn login(State(state): State<AppState>, Json(b): Json<Login>) -> ApiRe
 #[serde(deny_unknown_fields)]
 pub struct Register {
     username: String,
-    display_name: String,
+    display_name: Option<String>,
     password: String,
-    invite_token: String,
+    invite_token: Option<String>,
 }
 pub async fn register(
     State(state): State<AppState>,
     Json(b): Json<Register>,
 ) -> ApiResult<Json<Value>> {
     let username = domain::username(&b.username)?;
-    let display_name = domain::name(&b.display_name)?;
+    let display_name = domain::name(b.display_name.as_deref().unwrap_or(&username))?;
     let encoded = password_hash(&state, b.password).await?;
     let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
-    let invite = consume_invite(&mut tx, &b.invite_token).await?;
+    // Creating an account is public. An optional onboarding invitation still
+    // joins its community atomically and must be valid when explicitly sent.
+    let invite = match b.invite_token.as_deref() {
+        Some(token) => consume_invite(&mut tx, token).await?,
+        None => None,
+    };
     let id = Uuid::now_v7();
     sqlx::query("INSERT INTO users(id,username,display_name,password_hash) VALUES($1,$2,$3,$4)")
         .bind(id)

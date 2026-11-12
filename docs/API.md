@@ -5,9 +5,9 @@ Prefixo `/api`. JSON UTF-8. IDs UUID como strings, sequências BIGINT como strin
 ## Autenticação
 
 - `GET /health`: `{status:"ok"}` (fora de /api).
-- `GET /api/instance`: `{name,registration:"invite",max_upload_bytes,max_video_bitrate,version}`. Bootstrap feito por variáveis de ambiente no primeiro start, nunca por endpoint público.
+- `GET /api/instance`: `{name,registration:"open",max_upload_bytes,max_video_bitrate,version}`. Bootstrap feito por variáveis de ambiente no primeiro start, nunca por endpoint público.
 - `POST /api/auth/login`: `{username,password}` → `{access_token,refresh_token,user}`.
-- `POST /api/auth/register`: `{username,display_name,password,invite_token}` → sessão como login.
+- `POST /api/auth/register`: `{username,password,display_name?,invite_token?}` → sessão como login. Cadastro sem convite é permitido e não concede acesso automático a comunidades nem privilégios administrativos. Nome de exibição ausente usa o login normalizado. Convite explícito é opcional e deve ser válido; quando vinculado a comunidade, adiciona a pessoa como membro na mesma transação.
 - `POST /api/auth/refresh`: `{refresh_token}` → sessão rotacionada.
 - `POST /api/auth/logout`: `{refresh_token}` → 204.
 - `POST /api/auth/reset`: `{token,password}` → 204, revoga sessões.

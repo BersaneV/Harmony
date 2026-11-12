@@ -133,7 +133,7 @@ async fn health(State(s): State<AppState>) -> ApiResult<Json<Value>> {
 }
 async fn instance(State(s): State<AppState>) -> Json<Value> {
     Json(
-        json!({"name":s.config.instance_name,"registration":"invite","max_upload_bytes":s.config.max_upload,"max_video_bitrate":s.config.max_bitrate,"version":env!("CARGO_PKG_VERSION")}),
+        json!({"name":s.config.instance_name,"registration":"open","max_upload_bytes":s.config.max_upload,"max_video_bitrate":s.config.max_bitrate,"version":env!("CARGO_PKG_VERSION")}),
     )
 }
 pub fn router(s: AppState) -> Router {
