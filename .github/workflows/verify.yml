@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 25
     services:
       postgres:
-        image: postgres:18.7-bookworm
+        image: postgres:18.6-bookworm@sha256:f1ea2a1a4fb7b68d4836be1fdcb8a6466a89b072158bf9d97663600538c294c5
         env:
           POSTGRES_USER: harmony
           POSTGRES_PASSWORD: ci-disposable-database
@@ -52,8 +52,8 @@ jobs:
         run: python3 scripts/with-env.py cargo test --workspace --locked -- --include-ignored
       - name: Start private storage and media
         run: |
-          docker run -d --name harmony-storage --network host -v "$PWD/.local/deploy/s3.json:/etc/s3.json:ro" chrislusf/seaweedfs:4.53 server -ip=127.0.0.1 -ip.bind=127.0.0.1 -volume.port=8082 -s3 -s3.config=/etc/s3.json -master.volumeSizeLimitMB=256
-          docker run -d --name harmony-livekit --network host -v "$PWD/.local/deploy/livekit.yaml:/etc/livekit.yaml:ro" livekit/livekit-server:v1.13.11 --config /etc/livekit.yaml
+          docker run -d --name harmony-storage --network host -v "$PWD/.local/deploy/s3.json:/etc/s3.json:ro" chrislusf/seaweedfs:4.53@sha256:ccad23e18639c8b98cee17e7100b95830a06077b56d8e5b006d6dcf8ec5e94a0 server -ip=127.0.0.1 -ip.bind=127.0.0.1 -volume.port=8082 -s3 -s3.config=/etc/s3.json -master.volumeSizeLimitMB=256
+          docker run -d --name harmony-livekit --network host -v "$PWD/.local/deploy/livekit.yaml:/etc/livekit.yaml:ro" livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20 --config /etc/livekit.yaml
           for attempt in $(seq 1 30); do
             if python3 scripts/storage-init.py; then break; fi
             sleep 1

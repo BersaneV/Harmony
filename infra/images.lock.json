@@ -1,0 +1,82 @@
+{
+  "checked_at": "2026-11-12",
+  "source": "Docker Hub tag API",
+  "images": {
+    "postgres:18.6-bookworm": {
+      "digest": "sha256:f1ea2a1a4fb7b68d4836be1fdcb8a6466a89b072158bf9d97663600538c294c5",
+      "linux_architectures": [
+        "386",
+        "amd64",
+        "arm",
+        "arm64",
+        "ppc64le"
+      ]
+    },
+    "rust:1.99.1-bookworm": {
+      "digest": "sha256:e6f2cff35d0f309acf8433b4f05878ed77092602c5065cc81801177da0bb3a9c",
+      "linux_architectures": [
+        "386",
+        "amd64",
+        "arm",
+        "arm64",
+        "ppc64le"
+      ]
+    },
+    "debian:bookworm-slim": {
+      "digest": "sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc",
+      "linux_architectures": [
+        "386",
+        "amd64",
+        "arm",
+        "arm64",
+        "ppc64le"
+      ]
+    },
+    "node:26.13.0-bookworm-slim": {
+      "digest": "sha256:add5c17c14752c54d2f3d519ec46a3815684d41c33f198bcb09fb998f7dcbf68",
+      "linux_architectures": [
+        "amd64",
+        "arm64",
+        "ppc64le"
+      ]
+    },
+    "caddy:2.11.9-builder": {
+      "digest": "sha256:345264d8c6b50f44f4a4d507d4e6b6bcae40eef2f210d70f76e717fd8cc31baf",
+      "linux_architectures": [
+        "amd64",
+        "arm",
+        "arm64",
+        "ppc64le",
+        "s390x"
+      ]
+    },
+    "caddy:2.11.9": {
+      "digest": "sha256:e40b94d0a43b5ff69cb20568d73f10c70703df7b0ffc2298eb3d723cdc9d0bd1",
+      "linux_architectures": [
+        "amd64",
+        "arm",
+        "arm64",
+        "ppc64le",
+        "s390x"
+      ]
+    },
+    "livekit/livekit-server:v1.13.11": {
+      "digest": "sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20",
+      "linux_architectures": [
+        "amd64",
+        "arm64"
+      ]
+    },
+    "chrislusf/seaweedfs:4.53": {
+      "digest": "sha256:ccad23e18639c8b98cee17e7100b95830a06077b56d8e5b006d6dcf8ec5e94a0",
+      "linux_architectures": [
+        "386",
+        "amd64",
+        "arm",
+        "arm64",
+        "ppc64le",
+        "s390x"
+      ]
+    }
+  }
+}
