@@ -94,7 +94,6 @@ jobs:
           docker rm -f harmony-livekit
           docker compose build harmony
           docker compose up -d harmony
-          trap 'docker compose down' EXIT
           for attempt in $(seq 1 90); do
             if curl -fsS http://127.0.0.1:8080/health > /dev/null; then break; fi
             sleep 1
@@ -116,6 +115,9 @@ jobs:
           docker ps -a --format '{{.Names}} {{.Status}}'
           docker compose logs --tail 40 harmony livekit 2>&1 || true
           tail -60 .local/server-ci.log 2>/dev/null || true
+      - name: Stop the disposable deployment after diagnostics
+        if: always()
+        run: docker compose down --remove-orphans
   desktop:
     needs: server
     runs-on: windows-2022
