@@ -55,7 +55,8 @@ def main():
     for key, entry in sorted(packages.items()):
         notices = []
         for path in notice_files(entry.pop("directory")):
-            content = path.read_text(errors="replace")
+            # Normalize only trailing whitespace in the generated display copy.
+            content = "\n".join(line.rstrip() for line in path.read_text(errors="replace").splitlines()).rstrip() + "\n"
             digest = hashlib.sha256(content.encode()).hexdigest()
             texts[digest] = content
             notices.append({"name": path.name, "sha256": digest})
@@ -77,7 +78,7 @@ def main():
         body.append(f"\n===== Notice SHA256 {digest} =====\n{content}\n")
     destination = ROOT / "apps/desktop/src-tauri/resources"
     destination.mkdir(exist_ok=True)
-    (destination / "THIRD-PARTY-NOTICES.txt").write_text("".join(body))
+    (destination / "THIRD-PARTY-NOTICES.txt").write_text("".join(body).rstrip() + "\n")
     (ROOT / "docs/dependency-licenses.json").write_text(json.dumps(inventory, indent=2) + "\n")
     print(json.dumps({"packages": len(inventory), "unique_notice_texts": len(texts),
                       "no_bundled_notice": sum(not p["notices"] for p in inventory),

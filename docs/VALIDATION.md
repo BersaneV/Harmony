@@ -54,7 +54,7 @@ A execução inicial [43267311874](https://github.com/BersaneV/Harmony/actions/r
 
 ## Dependências
 
-Inventário de 801 versões de pacotes Cargo e npm, com 393 textos distintos de licenças/avisos extraídos dos pacotes. Inclui dependências de build e de outras plataformas por precaução. Todos declararam licença; 45 pacotes não traziam arquivo de aviso na localização inventariada e mantêm link para a fonte. Isso não é uma declaração de revisão jurídica completa. `scripts/license-inventory.py` regenera os arquivos; os avisos são incluídos nos recursos do instalador. Imagens de infraestrutura estão fixadas por digest em `infra/images.lock.json`. Auditoria npm da base: zero vulnerabilidades reportadas.
+Inventário de 801 versões de pacotes Cargo e npm, com 379 textos distintos de licenças/avisos extraídos dos pacotes, com espaços de fim de linha normalizados somente na cópia gerada. Inclui dependências de build e de outras plataformas por precaução. Todos declararam licença; 45 pacotes não traziam arquivo de aviso na localização inventariada e mantêm link para a fonte. Isso não é uma declaração de revisão jurídica completa. `scripts/license-inventory.py` regenera os arquivos; os avisos são incluídos nos recursos do instalador. Imagens de infraestrutura estão fixadas por digest em `infra/images.lock.json`. Auditoria npm da base: zero vulnerabilidades reportadas.
 
 ## Funcionalidades ainda fora desta implementação
 
