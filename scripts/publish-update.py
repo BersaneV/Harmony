@@ -33,7 +33,11 @@ def main():
     if cfg["version"] != args.version or gh("api", "user", "--jq", ".login") != "BersaneV":
         raise SystemExit("Version or authenticated personal account does not match")
     tag = "v" + args.version
-    release = gh("api", "repos/" + REPO + "/releases/tags/" + tag, json_output=True)
+    # Draft tags need not exist as Git refs yet; /releases/tags can return404.
+    releases = gh("api", "repos/" + REPO + "/releases?per_page=100", json_output=True)
+    release = next((item for item in releases if item["tag_name"] == tag), None)
+    if release is None:
+        raise SystemExit("Versioned release not found; run the signed package workflow first")
     directory = ROOT / ".local/releases" / tag
     directory.mkdir(parents=True, exist_ok=True)
     name = "Harmony_" + args.version + "_x64-setup.exe"

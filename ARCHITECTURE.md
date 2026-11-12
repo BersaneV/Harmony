@@ -238,7 +238,7 @@ O repositório pessoal [BersaneV/Harmony](https://github.com/BersaneV/Harmony) �
 | Persistência | Retry sem duplicação, queda após commit, outbox, cursor, reconexão e reinício de host | Não executado |
 | Recursos gratuitos | Conta/shape elegível, todos os limites efetivos, esgotamento de cotas e disco sem recurso pago criado | Não verificado na conta |
 | Recuperação | Restore integral em outro ambiente com anexos e chaves | Sem destino de backup |
-| Distribuição | Instalador, WebView2, atualização assinada válida/inválida e falha durante update | Não executado |
+| Distribuição | Instalador, WebView2, atualização assinada válida/inválida e falha durante update | Release0.2.0: assinatura/versão/download e instalação/remoção Windows CI passaram; upgrade de instalação usada e homologação física pendentes. Ver docs/VALIDATION.md. |
 | Dependências | Lockfiles, imagens fixadas, vulnerabilidades, licenças, binários ARM64/x64 | Locks e manifests implementados; auditoria npm executada, revisão de distribuição continua necessária |
 
 A implementação de desenvolvimento está disponível na main; a fase de homologação Windows e externa permanece aberta. Não está homologada para afirmar capacidade, latência, gratuidade permanente ou funcionamento integral. Hospedagem elegível, nomes DNS, backup e prova de captura são condições concretas para o piloto público.

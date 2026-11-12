@@ -17,3 +17,7 @@ Pushes comuns executam testes e empacotamento sem assinatura de distribuição. 
 Após conferir a execução, usar `scripts/publish-update.py --version <versão>` com o GitHub CLI autenticado como BersaneV e o probe `tools/updater-check` compilado. O script baixa o draft, compara hashes, repete a verificação criptográfica local, publica a versão como prerelease e atualiza o feed. Não roda automaticamente em push. Mudanças futuras devem aumentar a versão no package.json, package-lock.json e projeto Tauri; nunca substituir um instalador de uma versão já publicada. O canal aponta somente para um pacote versionado.
 
 Referências: [Tauri Updater](https://v2.tauri.app/plugin/updater/), [releases do plugin](https://v2.tauri.app/release/updater/). A evidência e a manutenção da correção local de download estão em `vendor/tauri-plugin-updater/HARMONY-PATCH.md`.
+
+## Primeira publicação
+
+A release [0.2.0](https://github.com/BersaneV/Harmony/releases/tag/v0.2.0) e o canal público estão ativos. O artefato passou por assinatura/versão e instalação/remoção no Windows CI; o feed foi consultado por HTTPS com download e verificação reais. Veja VALIDATION.md para SHA, execução e limites. O publicador local trata drafts por listagem autorizada: o endpoint por tag pode retornar404 antes de existir uma referência Git publicada.
