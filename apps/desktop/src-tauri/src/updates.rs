@@ -301,6 +301,8 @@ pub async fn install_update(
     // On Windows the official plugin exits this process only after launching the verified installer.
     let mut session = state.session.lock().unwrap_or_else(|e| e.into_inner());
     session.status.phase = "available";
+    drop(session);
+    emit(&app, &state);
     result
         .map_err(|_| "Não foi possível iniciar o instalador.".to_string())?
         .map_err(|_| "Não foi possível instalar. Baixe novamente e tente outra vez.".to_string())

@@ -65,6 +65,22 @@ fn rss(pid: u32) -> u64 {
         unsafe { proc_pidinfo(pid as i32, 4, 0, (&mut info as *mut TaskInfo).cast(), size) };
     if result == size { info.u[1] } else { 0 }
 }
+async fn memory_monitor(pid: u32, memory: u64) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    loop {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        if rss(pid) > memory {
+            return Err(Failure::permanent("parser_memory_limit"));
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        // Linux enforces RLIMIT_AS in the child. Keep the select branch typed
+        // without creating a polling timer or relying on never-type inference.
+        let _ = (pid, memory);
+        std::future::pending::<Result<()>>().await
+    }
+}
 async fn run(config: &Config, executable: &Path, dir: &Path, args: &[String]) -> Result<Vec<u8>> {
     let mut cmd = sandbox::command(config, executable, dir)?;
     cmd.args(args);
@@ -85,17 +101,7 @@ async fn run(config: &Config, executable: &Path, dir: &Path, args: &[String]) ->
         .ok_or_else(|| Failure::permanent("parser_start"))?;
     let memory = config.memory;
     let work = async {
-        let monitor = async {
-            loop {
-                tokio::time::sleep(Duration::from_millis(100)).await;
-                #[cfg(target_os = "macos")]
-                if rss(pid) > memory {
-                    return Err::<(), _>(Failure::permanent("parser_memory_limit"));
-                }
-                #[cfg(not(target_os = "macos"))]
-                let _ = memory;
-            }
-        };
+        let monitor = memory_monitor(pid, memory);
         tokio::select! {
          results=async {tokio::try_join!(async{child.wait().await.map_err(Failure::from)},capped(stdout),capped(stderr))}=>{
           let (status,output,_)=results?;

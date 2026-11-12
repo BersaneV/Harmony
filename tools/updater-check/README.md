@@ -28,3 +28,15 @@ python3 tools/updater-check/test_updater.py \
 ```
 
 Isso só lê os bytes e a chave pública e os fornece ao mesmo plugin por loopback. A procedência do download e o hash do artefato devem ser registrados separadamente. A exceção de HTTP inseguro existe apenas neste harness; o aplicativo usa HTTPS.
+
+## Canal público por HTTPS
+
+Depois de publicar o feed, o segundo binário consulta exclusivamente o canal fixo `BersaneV/Harmony`, lê a chave pública e a versão esperada de `tauri.conf.json`, exige a URL exata do instalador e restringe os redirects a HTTPS nos hosts GitHub de releases. A seleção Windows x64 é explícita no MockRuntime; ela não transforma a execução no macOS em homologação Windows. Não habilita HTTP inseguro nem executa `install`.
+
+```sh
+cargo build --locked --manifest-path tools/updater-check/Cargo.toml --bin public-channel
+tools/updater-check/target/debug/public-channel 0.1.0
+tools/updater-check/target/debug/public-channel 0.2.0
+```
+
+Com o repositório e o canal em 0.2.0, a primeira execução deve baixar/verificar a assinatura e imprimir o SHA-256; a segunda deve retornar `no_update`. Falha HTTP, release ausente, destino inesperado ou assinatura inválida produz saída diferente de zero. Os testes unitários de URL/redirect não consultam o canal; o binário deve ser executado somente quando a publicação estiver disponível.
