@@ -1,0 +1,14 @@
+[[permission]]
+identifier = "allow-session-storage"
+description = "Lê ou grava somente o refresh token Harmony da origem selecionada no cofre do sistema."
+commands.allow = ["store_refresh_token", "load_refresh_token"]
+
+[[permission]]
+identifier = "allow-open-external"
+description = "Abre links HTTP/HTTPS no navegador padrão, após validação de esquema."
+commands.allow = ["open_external_url"]
+
+[[permission]]
+identifier = "allow-push-to-talk"
+description = "Ativa ou libera somente o atalho global fixo F9 para push-to-talk."
+commands.allow = ["set_push_to_talk"]

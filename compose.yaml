@@ -1,0 +1,76 @@
+name: harmony
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+services:
+  postgres:
+    image: postgres:18.7-bookworm
+    environment:
+      POSTGRES_USER: harmony
+      POSTGRES_DB: harmony
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/configure.py first}
+    volumes: [postgres:/var/lib/postgresql]
+    ports: ["127.0.0.1:15432:5432"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U harmony -d harmony"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    mem_limit: 1g
+    logging: *logging
+  storage:
+    image: chrislusf/seaweedfs:4.53
+    command: [server, "-dir=/data", "-ip=storage", "-volume.max=16", "-master.volumeSizeLimitMB=1024", "-s3", "-s3.config=/etc/seaweed/s3.json"]
+    volumes:
+      - storage:/data
+      - ./.local/deploy/s3.json:/etc/seaweed/s3.json:ro
+    ports: ["127.0.0.1:8333:8333"]
+    restart: unless-stopped
+    mem_limit: 1g
+    logging: *logging
+  livekit:
+    image: livekit/livekit-server:v1.13.11
+    command: ["--config", /etc/livekit.yaml]
+    network_mode: host
+    volumes: ["./.local/deploy/livekit.yaml:/etc/livekit.yaml:ro"]
+    restart: unless-stopped
+    mem_limit: 2g
+    logging: *logging
+  api:
+    build: {context: ., dockerfile: infra/Dockerfile.api}
+    network_mode: host
+    env_file: .env
+    environment:
+      HARMONY_BIND: 127.0.0.1:8080
+    depends_on:
+      postgres: {condition: service_healthy}
+      storage: {condition: service_started}
+      livekit: {condition: service_started}
+    read_only: true
+    tmpfs: [/tmp:size=32m]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, curl, -fsS, http://127.0.0.1:8080/health]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 1g
+    logging: *logging
+  caddy:
+    profiles: [public]
+    build: {context: ., dockerfile: infra/Dockerfile.caddy}
+    network_mode: host
+    volumes:
+      - ./.local/deploy/caddy.json:/etc/caddy/harmony.json:ro
+      - caddy:/data
+    depends_on: [api, livekit, storage]
+    restart: unless-stopped
+    mem_limit: 512m
+    logging: *logging
+volumes:
+  postgres:
+  storage:
+  caddy:

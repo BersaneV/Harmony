@@ -1,0 +1,13 @@
+.git
+.local
+.planning
+**/node_modules
+**/target
+**/dist
+.env
+.env.*
+!**/.env.example
+**/*.log
+**/*.dmg
+**/*.exe
+**/*.db

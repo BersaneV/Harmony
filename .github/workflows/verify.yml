@@ -1,0 +1,107 @@
+name: Verify and build Harmony
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Save Windows installer in a draft release after verification
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  server:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18.7-bookworm
+        env:
+          POSTGRES_USER: harmony
+          POSTGRES_PASSWORD: ci-disposable-database
+          POSTGRES_DB: harmony
+        ports: ["15432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U harmony -d harmony"
+          --health-interval 5s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: {node-version: "26.13.0"}
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with: {toolchain: "1.99.1", components: "rustfmt, clippy"}
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Generate disposable test credentials
+        run: |
+          python3 scripts/configure.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.env')
+          values = dict(line.split('=', 1) for line in path.read_text().splitlines())
+          values['DATABASE_URL'] = 'postgres://harmony:ci-disposable-database@127.0.0.1:15432/harmony'
+          path.write_text(''.join(f'{k}={v}\n' for k, v in values.items()))
+          PY
+      - name: PostgreSQL concurrency tests
+        run: python3 scripts/with-env.py cargo test --workspace --locked -- --include-ignored
+      - name: Start private storage and media
+        run: |
+          docker run -d --name harmony-storage --network host -v "$PWD/.local/deploy/s3.json:/etc/s3.json:ro" chrislusf/seaweedfs:4.53 server -ip=127.0.0.1 -ip.bind=127.0.0.1 -volume.port=8082 -s3 -s3.config=/etc/s3.json -master.volumeSizeLimitMB=256
+          docker run -d --name harmony-livekit --network host -v "$PWD/.local/deploy/livekit.yaml:/etc/livekit.yaml:ro" livekit/livekit-server:v1.13.11 --config /etc/livekit.yaml
+          for attempt in $(seq 1 30); do
+            if python3 scripts/storage-init.py; then break; fi
+            sleep 1
+          done
+          python3 scripts/storage-init.py
+          printf 'fs.configure -locationPrefix=/buckets/ -volumeGrowthCount=1 -apply\n' | docker exec -i harmony-storage weed shell -master=127.0.0.1:9333
+      - name: Integration through HTTP and WebSocket
+        env:
+          HARMONY_TEST_STORAGE: "1"
+          HARMONY_TEST_MEDIA: "1"
+        run: |
+          cargo build --locked --bin harmony-server
+          python3 scripts/with-env.py target/debug/harmony-server > .local/server-ci.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/health > /dev/null; then break; fi
+            sleep 1
+          done
+          python3 scripts/with-env.py node scripts/smoke.mjs
+  desktop:
+    needs: server
+    runs-on: windows-2022
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: {node-version: "26.13.0"}
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with: {toolchain: "1.99.1"}
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run desktop:build -- --bundles nsis
+      - name: Hash the Windows artifacts
+        shell: pwsh
+        run: |
+          Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*.exe | Get-FileHash -Algorithm SHA256 | Format-Table -AutoSize | Out-File -Encoding utf8 apps/desktop/src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
+      - name: Save installer as a draft development release
+        if: github.event_name == 'workflow_dispatch' && inputs.package
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "build-$env:GITHUB_SHA"
+          $notes = "Build de desenvolvimento vinculado ao commit $env:GITHUB_SHA. Instalador sem Authenticode; captura, áudio e redes Windows ainda exigem validação real. Consulte docs/VALIDATION.md."
+          $notes | Out-File -Encoding utf8 release-notes.txt
+          $files = (Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*).FullName
+          gh release create $tag @files --draft --prerelease --target $env:GITHUB_SHA --title "Harmony Windows — build de desenvolvimento" --notes-file release-notes.txt

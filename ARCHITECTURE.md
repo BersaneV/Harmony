@@ -1,6 +1,6 @@
 # Harmony — arquitetura v1
 
-Data: 12/11/2026. Estado: decisão de arquitetura para orientar o desenvolvimento; sem implementação, hospedagem provisionada ou desempenho comprovado. Autor das escolhas técnicas: Codex, conforme delegação de Victor.
+Data: 12/11/2026. Estado: arquitetura de referência. A implementação inicial e suas provas constam nos READMEs e em docs/BACKEND.md; itens deste desenho não são automaticamente funcionalidades concluídas. Sem hospedagem pública ou desempenho Windows homologado. Autor das escolhas técnicas: Codex, conforme delegação de Victor.
 
 ## 1. Objetivo e fontes
 
@@ -222,7 +222,7 @@ Lista de integração, não instrução para clonar tudo. Usar dependências pub
 | Backend | axum, tokio, tower-http, serde, sqlx, uuid, argon2, jsonwebtoken, tracing; livekit-api e SDK S3 pelo adaptador. |
 | Infraestrutura | PostgreSQL, LiveKit Server, SeaweedFS, Caddy + módulo L4, Docker Engine/Compose, FFmpeg/ffprobe e restic. |
 
-Licença proposta para o código próprio: Apache-2.0, ainda não aplicada a um repositório. Dependências preservam seus avisos/licenças. Antes de distribuir, inventariar dependências transitivas, assets, modelos, plugins e flags dos binários. FFmpeg varia de licença conforme o build; não tratar todos os componentes como MIT/Apache. Referências: [licença SeaweedFS](https://github.com/seaweedfs/seaweedfs/blob/master/LICENSE), [FFmpeg](https://ffmpeg.org/legal.html).
+Licença aplicada ao código próprio: Apache-2.0 (LICENSE). Dependências preservam seus avisos/licenças. Antes de distribuir, inventariar dependências transitivas, assets, modelos, plugins e flags dos binários. FFmpeg varia de licença conforme o build; não tratar todos os componentes como MIT/Apache. Referências: [licença SeaweedFS](https://github.com/seaweedfs/seaweedfs/blob/master/LICENSE), [FFmpeg](https://ffmpeg.org/legal.html).
 
 O repositório pessoal [BersaneV/Harmony](https://github.com/BersaneV/Harmony) é a origem do projeto. Releases poderão ser publicadas após validação dos artefatos. Não há dependência obrigatória de Actions/Codespaces pagos. Builds Windows poderão rodar localmente. Assinar updates com a chave do updater Tauri; isso é diferente de assinatura Authenticode e não garante ausência de avisos do Windows. [Updater Tauri](https://v2.tauri.app/plugin/updater/) e [instalador Windows](https://v2.tauri.app/distribute/windows-installer/).
 

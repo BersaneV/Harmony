@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Janela local Harmony: apenas sessão no cofre, links externos e notificações.",
+  "windows": ["main"],
+  "permissions": [
+    "allow-session-storage",
+    "allow-open-external",
+    "notification:default",
+    "allow-push-to-talk",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
+  ]
+}

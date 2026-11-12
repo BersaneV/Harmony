@@ -8,7 +8,7 @@ Este é o projeto pessoal Harmony, no repositório BersaneV/Harmony. Não reutil
 
 - Comunicar em português do Brasil, sem emojis salvo solicitação.
 - Trabalhar dentro do escopo autorizado e preservar alterações existentes.
-- Conferir checkout, branch, status e PR antes de editar. Usar branch de trabalho para mudanças versionadas.
+- Conferir checkout, branch, status e mudanças antes de editar. Decisão de Victor em 12/11/2026: desenvolvimento individual diretamente na `main`, sem abertura de PR. Preservar trabalho existente e validar antes de publicar.
 - Separar implementação, validação, revisão, merge e publicação. Não executar merge/deploy por presumir que a capacidade técnica é autorização.
 - Para tarefas longas, manter um único plano local com task_plan.md, findings.md e progress.md. Não publicar registros com informações privadas.
 

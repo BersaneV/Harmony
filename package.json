@@ -1,0 +1,17 @@
+{
+  "name": "harmony",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "workspaces": [
+    "apps/desktop"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @harmony/desktop",
+    "build": "npm run build -w @harmony/desktop",
+    "test": "npm run test -w @harmony/desktop",
+    "typecheck": "npm run typecheck -w @harmony/desktop",
+    "desktop:dev": "npm run tauri -w @harmony/desktop -- dev",
+    "desktop:build": "npm run tauri -w @harmony/desktop -- build"
+  }
+}
