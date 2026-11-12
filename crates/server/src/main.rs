@@ -1,5 +1,4 @@
 use harmony_server::{AppState, config::Config};
-use sqlx::postgres::PgPoolOptions;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
@@ -10,11 +9,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
     let config = Config::from_env()?;
     let bind = config.bind.clone();
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .acquire_timeout(std::time::Duration::from_secs(5))
-        .connect(&config.database_url)
-        .await?;
+    let pool = harmony_database::connect(&config.database_url, 10).await?;
     let state = AppState::new(pool, config).await.map_err(|e| e.0)?;
     harmony_server::initialize(&state).await.map_err(|e| e.0)?;
     harmony_server::background(state.clone());

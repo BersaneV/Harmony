@@ -12,7 +12,7 @@ spec.loader.exec_module(configure)
 class ConfigurationSecurity(unittest.TestCase):
     def test_secrets_are_unique_between_instances(self):
         one, two = configure.configuration()[0], configure.configuration()[0]
-        for key in ("POSTGRES_PASSWORD", "HARMONY_JWT_SECRET", "HARMONY_BOOTSTRAP_PASSWORD", "LIVEKIT_API_SECRET", "S3_SECRET_KEY"):
+        for key in ("HARMONY_JWT_SECRET", "HARMONY_BOOTSTRAP_PASSWORD", "LIVEKIT_API_SECRET"):
             self.assertNotEqual(one[key], two[key])
             self.assertGreaterEqual(len(one[key]), 32)
 
@@ -31,12 +31,17 @@ class ConfigurationSecurity(unittest.TestCase):
             if os.name != "nt":
                 self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
-    def test_storage_has_no_anonymous_identity(self):
-        env, storage, _, _ = configure.configuration("example.org")
-        for identity in storage["identities"]:
-            self.assertTrue(identity["credentials"])
-            self.assertNotEqual(identity["name"], "anonymous")
-        self.assertTrue(env["S3_PUBLIC_ENDPOINT"].startswith("https://"))
+    def test_embedded_profile_has_no_database_or_storage_credentials(self):
+        env, storage, _, caddy = configure.configuration("example.org")
+        self.assertTrue(env["DATABASE_URL"].startswith("sqlite:"))
+        self.assertEqual(env["HARMONY_STORAGE_BACKEND"], "local")
+        self.assertEqual(storage["backend"], "local")
+        self.assertFalse(any(k.startswith("S3_") or k == "POSTGRES_PASSWORD" for k in env))
+        self.assertEqual(env["HARMONY_PUBLIC_API_URL"], "https://app.example.org")
+        self.assertIn("http://127.0.0.1:8080", configure.configuration()[0]["HARMONY_PUBLIC_ORIGIN"].split(","))
+        self.assertEqual(set(caddy["apps"]["http"]["servers"]), {"web", "media"})
+        self.assertEqual(caddy["apps"]["tls"]["certificates"]["automate"],
+                         ["app.example.org", "media.example.org", "turn.example.org"])
 
     def test_livekit_control_api_is_never_public_plaintext(self):
         _, _, livekit, _ = configure.configuration("example.org")

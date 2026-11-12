@@ -18,7 +18,7 @@ use rand::{RngCore, rngs::OsRng};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use sqlx::{Postgres, Row, Transaction};
+use sqlx::{Row, Sqlite, Transaction};
 use uuid::Uuid;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -74,7 +74,7 @@ pub async fn recheck(state: &AppState, c: &Claims) -> ApiResult<()> {
     if c.exp <= Utc::now().timestamp() as usize {
         return Err(Error::Unauthorized.into());
     }
-    let valid:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=$1 AND u.id=$2 AND s.version=$3 AND u.auth_version=$4 AND s.revoked_at IS NULL AND s.expires_at>now() AND NOT u.disabled)").bind(c.sid).bind(c.sub).bind(c.ver).bind(c.uv).fetch_one(&state.pool).await?;
+    let valid:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=$1 AND u.id=$2 AND s.version=$3 AND u.auth_version=$4 AND s.revoked_at IS NULL AND julianday(s.expires_at)>julianday('now') AND NOT u.disabled)").bind(c.sid).bind(c.sub).bind(c.ver).bind(c.uv).fetch_one(&state.pool).await?;
     if !valid {
         return Err(Error::Unauthorized.into());
     }
@@ -176,12 +176,11 @@ async fn new_session(
 ) -> ApiResult<Json<Value>> {
     let sid = Uuid::now_v7();
     let refresh = random_token();
-    let mut tx = state.pool.begin().await?;
-    let row =
-        sqlx::query("SELECT auth_version,disabled,password_hash FROM users WHERE id=$1 FOR UPDATE")
-            .bind(user_id)
-            .fetch_one(&mut *tx)
-            .await?;
+    let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let row = sqlx::query("SELECT auth_version,disabled,password_hash FROM users WHERE id=$1")
+        .bind(user_id)
+        .fetch_one(&mut *tx)
+        .await?;
     if row.get::<bool, _>("disabled") {
         return Err(Error::Unauthorized.into());
     }
@@ -191,7 +190,7 @@ async fn new_session(
     {
         return Err(Error::Unauthorized.into());
     }
-    sqlx::query("INSERT INTO sessions(id,user_id,refresh_hash,expires_at) VALUES($1,$2,$3,now()+interval '30 days')").bind(sid).bind(user_id).bind(hash(&refresh)).execute(&mut *tx).await?;
+    sqlx::query("INSERT INTO sessions(id,user_id,refresh_hash,expires_at) VALUES($1,$2,$3,strftime('%Y-%m-%dT%H:%M:%fZ','now','+30 days'))").bind(sid).bind(user_id).bind(hash(&refresh)).execute(&mut *tx).await?;
     tx.commit().await?;
     response(state, user_id, sid, 1, uv, refresh).await
 }
@@ -239,7 +238,7 @@ pub async fn register(
     let username = domain::username(&b.username)?;
     let display_name = domain::name(&b.display_name)?;
     let encoded = password_hash(&state, b.password).await?;
-    let mut tx = state.pool.begin().await?;
+    let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
     let invite = consume_invite(&mut tx, &b.invite_token).await?;
     let id = Uuid::now_v7();
     sqlx::query("INSERT INTO users(id,username,display_name,password_hash) VALUES($1,$2,$3,$4)")
@@ -260,10 +259,10 @@ pub async fn register(
     new_session(&state, id, None).await
 }
 pub async fn consume_invite(
-    tx: &mut Transaction<'_, Postgres>,
+    tx: &mut Transaction<'_, Sqlite>,
     token: &str,
 ) -> ApiResult<Option<Uuid>> {
-    let row=sqlx::query("UPDATE invites SET uses=uses+1 WHERE hash=$1 AND expires_at>now() AND uses<max_uses RETURNING guild_id").bind(hash(token)).fetch_optional(&mut **tx).await?.ok_or_else(||Error::Invalid("Convite inválido, expirado ou esgotado".into()))?;
+    let row=sqlx::query("UPDATE invites SET uses=uses+1 WHERE hash=$1 AND julianday(expires_at)>julianday('now') AND uses<max_uses RETURNING guild_id").bind(hash(token)).fetch_optional(&mut **tx).await?.ok_or_else(||Error::Invalid("Convite inválido, expirado ou esgotado".into()))?;
     Ok(row.get("guild_id"))
 }
 #[derive(Deserialize)]
@@ -276,20 +275,22 @@ pub async fn refresh(
     Json(b): Json<Refresh>,
 ) -> ApiResult<Json<Value>> {
     let digest = hash(&b.refresh_token);
-    let mut tx = state.pool.begin().await?;
-    let row=sqlx::query("SELECT s.id,s.user_id,s.version,s.expires_at,u.auth_version FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.refresh_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now() AND NOT u.disabled FOR UPDATE OF s").bind(&digest).fetch_optional(&mut *tx).await?;
+    let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let row=sqlx::query("SELECT s.id,s.user_id,s.version,s.expires_at,u.auth_version FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.refresh_hash=$1 AND s.revoked_at IS NULL AND julianday(s.expires_at)>julianday('now') AND NOT u.disabled").bind(&digest).fetch_optional(&mut *tx).await?;
     let Some(row) = row else {
         let old: Option<Uuid> = sqlx::query_scalar(
-            "SELECT session_id FROM used_refresh_tokens WHERE hash=$1 AND expires_at>now()",
+            "SELECT session_id FROM used_refresh_tokens WHERE hash=$1 AND julianday(expires_at)>julianday('now')",
         )
         .bind(&digest)
         .fetch_optional(&mut *tx)
         .await?;
         if let Some(id) = old {
-            sqlx::query("UPDATE sessions SET revoked_at=now() WHERE id=$1")
-                .bind(id)
-                .execute(&mut *tx)
-                .await?;
+            sqlx::query(
+                "UPDATE sessions SET revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=$1",
+            )
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
             tx.commit().await?;
             state.events.send(json!({"type":"session.revoked"})).ok();
         }
@@ -319,7 +320,7 @@ pub async fn logout(
     State(state): State<AppState>,
     Json(b): Json<Refresh>,
 ) -> ApiResult<StatusCode> {
-    sqlx::query("UPDATE sessions SET revoked_at=now() WHERE refresh_hash=$1 OR id IN (SELECT session_id FROM used_refresh_tokens WHERE hash=$1 AND expires_at>now())").bind(hash(&b.refresh_token)).execute(&state.pool).await?;
+    sqlx::query("UPDATE sessions SET revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE refresh_hash=$1 OR id IN (SELECT session_id FROM used_refresh_tokens WHERE hash=$1 AND julianday(expires_at)>julianday('now'))").bind(hash(&b.refresh_token)).execute(&state.pool).await?;
     state.events.send(json!({"type":"session.revoked"})).ok();
     Ok(StatusCode::NO_CONTENT)
 }
@@ -331,17 +332,19 @@ pub struct Reset {
 }
 pub async fn reset(State(state): State<AppState>, Json(b): Json<Reset>) -> ApiResult<StatusCode> {
     let encoded = password_hash(&state, b.password).await?;
-    let mut tx = state.pool.begin().await?;
-    let id:Uuid=sqlx::query_scalar("UPDATE password_resets SET used_at=now() WHERE hash=$1 AND used_at IS NULL AND expires_at>now() RETURNING user_id").bind(hash(&b.token)).fetch_optional(&mut *tx).await?.ok_or_else(||Error::Invalid("Código inválido, expirado ou já usado".into()))?;
+    let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let id:Uuid=sqlx::query_scalar("UPDATE password_resets SET used_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE hash=$1 AND used_at IS NULL AND julianday(expires_at)>julianday('now') RETURNING user_id").bind(hash(&b.token)).fetch_optional(&mut *tx).await?.ok_or_else(||Error::Invalid("Código inválido, expirado ou já usado".into()))?;
     sqlx::query("UPDATE users SET password_hash=$1,auth_version=auth_version+1 WHERE id=$2")
         .bind(encoded)
         .bind(id)
         .execute(&mut *tx)
         .await?;
-    sqlx::query("UPDATE sessions SET revoked_at=now() WHERE user_id=$1")
-        .bind(id)
-        .execute(&mut *tx)
-        .await?;
+    sqlx::query(
+        "UPDATE sessions SET revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE user_id=$1",
+    )
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
     db::audit(&mut tx, id, "password.reset", Some(id)).await?;
     tx.commit().await?;
     state.events.send(json!({"type":"session.revoked"})).ok();
@@ -370,10 +373,8 @@ pub async fn update_me(
     Ok(Json(db::user(&state.pool, a.user.id).await?))
 }
 pub async fn bootstrap(state: &AppState) -> ApiResult<()> {
-    let mut tx = state.pool.begin().await?;
-    sqlx::query("SELECT pg_advisory_xact_lock(674622901)")
-        .execute(&mut *tx)
-        .await?;
+    let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
+
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM users")
         .fetch_one(&mut *tx)
         .await?;
@@ -400,7 +401,7 @@ pub async fn bootstrap(state: &AppState) -> ApiResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    async fn state(pool: sqlx::PgPool) -> AppState {
+    async fn state(pool: sqlx::SqlitePool) -> AppState {
         let config = crate::config::Config::from_env().expect("integration test environment");
         AppState::new(pool, config).await.unwrap()
     }
@@ -420,9 +421,9 @@ mod tests {
         .unwrap();
         (id, encoded)
     }
-    #[sqlx::test(migrations = "../../migrations")]
-    #[ignore = "requires disposable PostgreSQL and HARMONY_JWT_SECRET"]
-    async fn password_reset_wins_over_inflight_old_password_login(pool: sqlx::PgPool) {
+    #[sqlx::test(migrations = "../../migrations-sqlite")]
+    #[ignore = "requires HARMONY_JWT_SECRET and test storage configuration"]
+    async fn password_reset_wins_over_inflight_old_password_login(pool: sqlx::SqlitePool) {
         let s = state(pool).await;
         let (id, encoded) = account(&s).await;
         // This is the snapshot whose password was already verified before reset.
@@ -443,9 +444,9 @@ mod tests {
             .unwrap();
         assert_eq!(count, 0);
     }
-    #[sqlx::test(migrations = "../../migrations")]
-    #[ignore = "requires disposable PostgreSQL and HARMONY_JWT_SECRET"]
-    async fn logout_consumed_refresh_revokes_current_rotation(pool: sqlx::PgPool) {
+    #[sqlx::test(migrations = "../../migrations-sqlite")]
+    #[ignore = "requires HARMONY_JWT_SECRET and test storage configuration"]
+    async fn logout_consumed_refresh_revokes_current_rotation(pool: sqlx::SqlitePool) {
         let s = state(pool).await;
         let (id, _) = account(&s).await;
         let first = new_session(&s, id, None).await.unwrap().0;
@@ -466,9 +467,9 @@ mod tests {
             .unwrap();
         assert!(authenticate(&s, access).await.is_err());
     }
-    #[sqlx::test(migrations = "../../migrations")]
-    #[ignore = "requires disposable PostgreSQL and HARMONY_JWT_SECRET"]
-    async fn racing_refresh_reuse_revokes_the_session(pool: sqlx::PgPool) {
+    #[sqlx::test(migrations = "../../migrations-sqlite")]
+    #[ignore = "requires HARMONY_JWT_SECRET and test storage configuration"]
+    async fn racing_refresh_reuse_revokes_the_session(pool: sqlx::SqlitePool) {
         let s = state(pool).await;
         let (id, _) = account(&s).await;
         let first = new_session(&s, id, None).await.unwrap().0;

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { isTauri } from "@tauri-apps/api/core";
 import {
@@ -9,6 +9,7 @@ import {
   Hash,
   Headphones,
   MessageCircle,
+  Menu,
   Plus,
   Search,
   Settings2,
@@ -17,6 +18,7 @@ import {
   Users,
   Volume2,
   WifiOff,
+  X,
 } from "lucide-react";
 import {
   api,
@@ -149,6 +151,40 @@ function Workspace({ session }: { session: Session }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
+  const [compactLayout, setCompactLayout] = useState(
+    () => window.matchMedia("(max-width: 800px)").matches,
+  );
+  const sidebar = useRef<HTMLElement>(null);
+  const closeNavigation = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 800px)");
+    const resize = () => {
+      setCompactLayout(media.matches);
+      if (!media.matches) setMobileNav(false);
+    };
+    media.addEventListener("change", resize);
+    return () => media.removeEventListener("change", resize);
+  }, []);
+  useEffect(() => {
+    if (!mobileNav || !compactLayout) return;
+    const opener = document.activeElement;
+    closeNavigation.current?.focus();
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !document.querySelector("dialog[open]")) {
+        event.preventDefault();
+        setMobileNav(false);
+      }
+    };
+    window.addEventListener("keydown", escape);
+    return () => {
+      window.removeEventListener("keydown", escape);
+      if (
+        opener instanceof HTMLElement &&
+        opener.isConnected &&
+        sidebar.current?.contains(document.activeElement)
+      ) opener.focus();
+    };
+  }, [mobileNav, compactLayout]);
   const { connection, typing, sendTyping } = useRealtime(user.id);
   const guilds = useQuery({
     queryKey: ["guilds"],
@@ -259,9 +295,12 @@ function Workspace({ session }: { session: Session }) {
     }
   }, [canModerate]);
   function openGuild(id: string | null) {
+    // Reopening the current community reveals its channels on mobile without
+    // unmounting Chat (which would lose draft, scroll and loaded messages).
+    setMobileNav(compactLayout && (id !== guildId || !mobileNav));
+    if (id === guildId) return;
     setGuildId(id);
     setChannel(null);
-    setMobileNav(false);
     setRolesOpen(false);
     setPermissionsOpen(false);
     setRoleMemberId(null);
@@ -347,6 +386,7 @@ function Workspace({ session }: { session: Session }) {
         <button
           className={`home-button ${!guildId ? "selected" : ""}`}
           title="Conversas e amigos"
+          aria-current={!guildId ? "page" : undefined}
           onClick={() => openGuild(null)}
         >
           <img src="/harmony.svg" alt="Harmony" />
@@ -357,6 +397,7 @@ function Workspace({ session }: { session: Session }) {
             key={g.id}
             title={g.name}
             aria-label={`Abrir ${g.name}`}
+            aria-current={guildId === g.id ? "page" : undefined}
             className={`server-button ${guildId === g.id ? "selected" : ""}`}
             onClick={() => openGuild(g.id)}
           >
@@ -386,7 +427,21 @@ function Workspace({ session }: { session: Session }) {
           <Settings2 size={20} />
         </button>
       </nav>
-      <aside className="channel-sidebar">
+      {mobileNav && compactLayout && (
+        <button
+          className="navigation-backdrop"
+          aria-label="Fechar lista de canais"
+          onClick={() => setMobileNav(false)}
+          tabIndex={-1}
+        />
+      )}
+      <aside
+        ref={sidebar}
+        id="harmony-channels"
+        className="channel-sidebar"
+        aria-label="Canais e conversas"
+        inert={compactLayout && !mobileNav}
+      >
         <header className="sidebar-header">
           <div>
             <strong>{guild?.name || "Seu espaço"}</strong>
@@ -402,6 +457,14 @@ function Workspace({ session }: { session: Session }) {
               <ChevronDown size={19} />
             </IconButton>
           )}
+          <button
+            ref={closeNavigation}
+            className="icon-button navigation-close"
+            aria-label="Fechar canais"
+            onClick={() => setMobileNav(false)}
+          >
+            <X size={22} />
+          </button>
         </header>
         {guild && canModerate && (
           <div className="guild-tools">
@@ -414,7 +477,10 @@ function Workspace({ session }: { session: Session }) {
         {!guildId && (
           <button
             className={`friends-link ${!channel ? "selected" : ""}`}
-            onClick={() => setChannel(null)}
+            onClick={() => {
+              setChannel(null);
+              setMobileNav(false);
+            }}
           >
             <Users size={20} />
             Amigos<span>Encontre sua turma</span>
@@ -536,14 +602,16 @@ function Workspace({ session }: { session: Session }) {
           </div>
         </div>
       </aside>
-      <main className="main-area">
+      <main className="main-area" inert={compactLayout && mobileNav}>
         <header className="main-header">
           <button
             className="mobile-menu icon-button"
-            aria-label="Mostrar canais"
+            aria-label={mobileNav ? "Ocultar canais" : "Mostrar canais"}
+            aria-controls="harmony-channels"
+            aria-expanded={mobileNav}
             onClick={() => setMobileNav((v) => !v)}
           >
-            <Hash size={22} />
+            <Menu size={20} /><span>Canais</span>
           </button>
           <div className="channel-title">
             {channel ? (

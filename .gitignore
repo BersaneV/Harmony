@@ -22,3 +22,11 @@ node_modules/
 dist/
 coverage/
 *.log
+
+# Embedded database/object volume and SQLite sidecars
+/data/
+*.db-wal
+*.db-shm
+*.db.lock
+*.sqlite-wal
+*.sqlite-shm

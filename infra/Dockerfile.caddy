@@ -1,13 +1,5 @@
 FROM caddy:2.11.9-builder@sha256:345264d8c6b50f44f4a4d507d4e6b6bcae40eef2f210d70f76e717fd8cc31baf AS caddy
 RUN xcaddy build v2.11.9 --with github.com/mholt/caddy-l4@eafc300ef23bcb2a28cc329a18e1e98bcd2b7cee
-FROM node:26.13.0-bookworm-slim@sha256:add5c17c14752c54d2f3d519ec46a3815684d41c33f198bcb09fb998f7dcbf68 AS web
-WORKDIR /app
-COPY package.json package-lock.json ./
-COPY apps/desktop/package.json ./apps/desktop/
-RUN npm ci
-COPY apps/desktop ./apps/desktop
-RUN npm run build
 FROM caddy:2.11.9@sha256:e40b94d0a43b5ff69cb20568d73f10c70703df7b0ffc2298eb3d723cdc9d0bd1
 COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
-COPY --from=web /app/apps/desktop/dist /srv/harmony
 CMD ["caddy", "run", "--config", "/etc/caddy/harmony.json"]

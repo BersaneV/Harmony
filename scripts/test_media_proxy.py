@@ -116,11 +116,11 @@ class MediaProxyIntegration(unittest.TestCase):
         upstream = start_backend("upstream", events)
         process = None
         used = {admission.server_port, upstream.server_port}
-        ports = {18081: free_port(used), 18082: free_port(used), 18083: free_port(used),
-                 8080: admission.server_port, 7880: upstream.server_port, 8333: upstream.server_port}
+        ports = {18081: free_port(used), 18082: free_port(used),
+                 8080: admission.server_port, 7880: upstream.server_port}
         edge = free_port(used)
         config = copy.deepcopy(configure.configuration("example.test")[3])
-        config["apps"]["http"]["servers"]["files"]["routes"][0]["handle"][0]["max_size"] = 128
+        config["apps"]["http"]["servers"]["web"]["routes"][1]["handle"][0]["max_size"] = 128
         config["admin"] = {"disabled": True}
         config["apps"]["tls"]["automation"] = {"policies": [{"issuers": [{"module": "internal"}]}]}
         for server in config["apps"]["http"]["servers"].values():
@@ -169,9 +169,9 @@ class MediaProxyIntegration(unittest.TestCase):
                         checks.append("media path blocked " + blocked)
                     self.assertEqual(request(edge, "app.example.test", "/api/internal/media-admit", tls=True)[0], 404)
                     checks.append("app internal endpoint hidden")
-                    self.assertEqual(request(edge, "files.example.test", "/bucket/object", tls=True, method="PUT", body=b"x" * 128)[0], 200)
+                    self.assertEqual(request(edge, "app.example.test", "/api/files/test/original", tls=True, method="PUT", body=b"x" * 128)[0], 200)
                     checks.append("storage accepts body at configured limit")
-                    self.assertEqual(request(edge, "files.example.test", "/bucket/object", tls=True, method="PUT", body=b"x" * 129)[0], 413)
+                    self.assertEqual(request(edge, "app.example.test", "/api/files/test/original", tls=True, method="PUT", body=b"x" * 129)[0], 413)
                     checks.append("storage rejects body exceeding configured limit")
                     for key, host, route in [(18081, "app.example.test", "/api/test"),
                                              (18082, "media.example.test", "/rtc?access_token=allowed")]:

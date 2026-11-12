@@ -10,18 +10,23 @@ import secrets
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def configuration(domain=None):
+def configuration(domain=None, data_directory=None):
     if domain and (not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?", domain)
                    or "." not in domain or ".." in domain):
         raise ValueError("Domínio DNS inválido; use somente o nome, sem protocolo ou porta.")
     secret = lambda: secrets.token_hex(32)
-    password = secret()
+    data = Path(data_directory or "./data").resolve()
     env = {
-        "POSTGRES_PASSWORD": password,
-        "DATABASE_URL": f"postgres://harmony:{password}@127.0.0.1:15432/harmony",
+        "DATABASE_URL": f"sqlite:{data / 'harmony.db'}",
+        "HARMONY_STORAGE_BACKEND": "local",
+        "HARMONY_STORAGE_DIR": str(data / "files"),
+        "HARMONY_PUBLIC_API_URL": f"https://app.{domain}" if domain else "http://127.0.0.1:8080",
+        "HARMONY_WEB_DIR": str(ROOT / "apps/desktop/dist"),
+        "HARMONY_P2P_DIAGNOSTICS": "true",
+        "HARMONY_P2P_STUN_URLS": "",
         "HARMONY_BIND": "127.0.0.1:8080",
         "HARMONY_TRUST_PROXY": "true" if domain else "false",
-        "HARMONY_PUBLIC_ORIGIN": ",".join(([f"https://app.{domain}"] if domain else ["http://127.0.0.1:1420", "http://localhost:1420"]) + ["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"]),
+        "HARMONY_PUBLIC_ORIGIN": ",".join(([f"https://app.{domain}"] if domain else ["http://127.0.0.1:8080", "http://localhost:8080", "http://127.0.0.1:1420", "http://localhost:1420"]) + ["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"]),
         "HARMONY_JWT_SECRET": secret(),
         "HARMONY_BOOTSTRAP_USERNAME": "admin",
         "HARMONY_BOOTSTRAP_PASSWORD": secrets.token_urlsafe(24),
@@ -34,14 +39,8 @@ def configuration(domain=None):
         "LIVEKIT_API_URL": "http://127.0.0.1:7880",
         "LIVEKIT_API_KEY": "harmony_" + secrets.token_hex(8),
         "LIVEKIT_API_SECRET": secret(),
-        "S3_ENDPOINT": "http://127.0.0.1:8333",
-        "S3_PUBLIC_ENDPOINT": f"https://files.{domain}" if domain else "http://127.0.0.1:8333",
-        "S3_REGION": "us-east-1", "S3_BUCKET": "harmony",
-        "S3_ACCESS_KEY": "harmony_" + secrets.token_hex(8), "S3_SECRET_KEY": secret(),
     }
-    storage = {"identities": [{"name": "harmony-service", "credentials": [{
-        "accessKey": env["S3_ACCESS_KEY"], "secretKey": env["S3_SECRET_KEY"]}],
-        "actions": ["Admin:harmony", "Read:harmony", "Write:harmony", "List:harmony", "Tagging:harmony"]}]}
+    storage = {"backend": "local", "directory": str(data / "files")}
     livekit = {"port": 7880, "bind_addresses": ["127.0.0.1"], "logging": {"level": "info"},
                "rtc": {"tcp_port": 7881, "udp_port": 7882, "use_external_ip": bool(domain)},
                "keys": {env["LIVEKIT_API_KEY"]: env["LIVEKIT_API_SECRET"]},
@@ -55,12 +54,9 @@ def configuration(domain=None):
     proxy = lambda port: {"handler": "reverse_proxy", "upstreams": [{"dial": f"127.0.0.1:{port}"}]}
     web_routes = [
         {"match": [{"path": ["/api/internal/*"]}], "handle": [{"handler": "static_response", "status_code": 404}]},
-        {"match": [{"path": ["/api/*", "/health"]}], "handle": [proxy(8080)]},
-        {"handle": [{"handler": "vars", "root": "/srv/harmony"},
-                    {"handler": "subroute", "routes": [
-                        {"match": [{"file": {"try_files": ["{http.request.uri.path}", "/index.html"]}}],
-                         "handle": [{"handler": "rewrite", "uri": "{http.matchers.file.relative}"}]}]},
-                    {"handler": "file_server"}]},
+        {"match": [{"path": ["/api/files/*"]}], "handle": [
+            {"handler": "request_body", "max_size": int(env["HARMONY_MAX_UPLOAD_BYTES"])}, proxy(8080)]},
+        {"handle": [proxy(8080)]},
     ]
     caddy = {"admin": {"listen": "localhost:2019"}, "logging": {"logs": {"default": {"level": "INFO"}}},
              "storage": {"module": "file_system", "root": "/data"},
@@ -85,21 +81,14 @@ def configuration(domain=None):
                 {"handle": [{"handler": "static_response", "status_code": 404}]},
             ],
         }
-        caddy["apps"]["http"]["servers"]["files"] = {
-            "listen": ["127.0.0.1:18083"],
-            "routes": [{"handle": [
-                {"handler": "request_body", "max_size": int(env["HARMONY_MAX_UPLOAD_BYTES"])},
-                proxy(8333),
-            ]}],
-        }
-        for server in ("web", "media", "files"):
+        for server in ("web", "media"):
             caddy["apps"]["http"]["servers"][server]["listener_wrappers"] = [
                 {"wrapper": "proxy_protocol", "allow": ["127.0.0.1/32", "::1/128"], "fallback_policy": "reject"}
             ]
-        names = [f"{prefix}.{domain}" for prefix in ("app", "media", "files", "turn")]
+        names = [f"{prefix}.{domain}" for prefix in ("app", "media", "turn")]
         caddy["apps"]["tls"] = {"certificates": {"automate": names}}
         routes = []
-        for prefix, port in [("app", 18081), ("media", 18082), ("files", 18083), ("turn", 5349)]:
+        for prefix, port in [("app", 18081), ("media", 18082), ("turn", 5349)]:
             tls = {"handler": "tls"}
             if prefix != "turn":
                 tls["connection_policies"] = [{"alpn": ["http/1.1"]}]
@@ -119,16 +108,16 @@ def write_private(path, data):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--domain", help="Domínio base; requer app/media/files/turn apontando ao host")
+    parser.add_argument("--domain", help="Domínio base; requer app/media/turn apontando ao host")
     parser.add_argument("--directory", type=Path, default=ROOT)
     args = parser.parse_args()
     base = args.directory.resolve()
-    targets = [base / ".env"] + [base / ".local/deploy" / f for f in ("s3.json", "livekit.yaml", "caddy.json")]
+    targets = [base / ".env"] + [base / ".local/deploy" / f for f in ("livekit.yaml", "caddy.json")]
     if any(p.exists() for p in targets):
         parser.error("Configuração já existe; nenhuma chave foi substituída. Use outro --directory para ensaio.")
-    env, storage, livekit, caddy = configuration(args.domain)
+    env, _, livekit, caddy = configuration(args.domain, base / "data")
     write_private(targets[0], "".join(f"{k}={v}\n" for k, v in env.items()))
-    for path, content in zip(targets[1:], (storage, livekit, caddy)):
+    for path, content in zip(targets[1:], (livekit, caddy)):
         write_private(path, json.dumps(content, indent=2) + "\n")  # JSON is valid YAML 1.2.
     print(f"Configuração privada criada em {base}. Senha inicial: HARMONY_BOOTSTRAP_PASSWORD no arquivo .env.")
     print("Nenhuma conta externa, recurso pago, DNS ou servidor foi criado.")

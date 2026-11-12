@@ -1,4 +1,4 @@
-//! Restrict only the parser child. The supervising worker retains PG/S3 access.
+//! Restrict only the parser child. The supervising worker retains database/private object access.
 //! No fallback to unsandboxed parsing is allowed.
 use crate::{Config, Failure, Result};
 use std::{path::Path, process::Stdio};

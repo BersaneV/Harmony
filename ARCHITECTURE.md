@@ -1,6 +1,6 @@
-# Harmony — arquitetura v1
+# Harmony — arquitetura de instância única (0.3.0)
 
-Data: 12/11/2026. Estado: arquitetura de referência. A implementação inicial e suas provas constam nos READMEs e em docs/BACKEND.md; itens deste desenho não são automaticamente funcionalidades concluídas. O estado detalhado está em [docs/VALIDATION.md](docs/VALIDATION.md). Sem hospedagem pública ou desempenho Windows homologado. Autor das escolhas técnicas: Codex, conforme delegação de Victor.
+Data: 12/11/2026. Estado: perfil simplificado autorizado em 12/11/2026, inspirado na operação de instância única do Backspace, sem incorporar código AGPL. A arquitetura anterior permanece no histórico Git. A implementação inicial e suas provas constam nos READMEs e em docs/BACKEND.md; itens deste desenho não são automaticamente funcionalidades concluídas. O estado detalhado está em [docs/VALIDATION.md](docs/VALIDATION.md). Sem hospedagem pública ou desempenho Windows homologado. Autor das escolhas técnicas: Codex, conforme delegação de Victor.
 
 ## 1. Objetivo e fontes
 
@@ -22,41 +22,33 @@ Ao atingir os recursos disponíveis, o sistema deve limitar novos uploads, trans
 
 O código próprio e os serviços escolhidos podem ser abertos. Windows e WebView2 são dependências proprietárias do ambiente Windows; isso não transforma o conjunto inteiro, incluindo o sistema operacional, em software livre. O aplicativo não exigirá compra adicional de licença do nosso produto.
 
-## 3. Hospedagem: decisão e alternativas
+## 3. Hospedagem: estado atual
 
-| Alternativa | Avaliação | Decisão |
-|---|---|---|
-| Oracle Cloud Always Free, VM Ampere A1 | Documentação consultada: equivalente a 2 OCPUs/12 GB; 200 GB de volumes no total e 10 TB/mês de saída. Capacidade e limites da conta precisam ser conferidos; instâncias ociosas podem ser recolhidas. | Primeira candidata para piloto, sem mudar a conta para plano pago. |
-| Equipamento existente ou cedido por um participante | Exige máquina ligada, conexão adequada e acesso externo viável. Sem aluguel, mas com energia, internet e manutenção. CGNAT pode impedir acesso direto. | Alternativa futura de self-hosting; equipamento ainda não informado. |
-| Google Compute Engine Free Tier | A franquia da e2-micro inclui somente 1 GB/mês de saída nas condições documentadas. | Insuficiente para o servidor de voz/vídeo; não dividir a stack entre fornecedores para disfarçar esse limite. |
-| Render Free | Serviço com disco efêmero; banco gratuito expira em 30 dias. | Inadequado para o núcleo persistente da plataforma. |
-| Créditos temporários de provedores | Acabam e não sustentam a exigência de gratuidade continuada. | Não usar como base operacional. |
+Victor exige uma única hospedagem externa gratuita, sem cartão. Oracle foi descartada por exigir cartão. A divisão entre provedores e créditos temporários também foi recusada. A Altare foi ensaiada no plano gratuito: o nó Ashburn apresentou RTT UDP mediano de 137 ms, considerado alto pelo usuário. Nesse nó, o sandbox do worker também não atende ao mínimo exigido. Não existe hospedagem definitiva validada para o Harmony.
 
-Fontes: [Oracle Always Free](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm), [Google Free Tier](https://docs.cloud.google.com/free/docs/free-cloud-features), [Render Free](https://render.com/docs/free).
-
-A Oracle exige verificação de cartão e pode fazer reserva temporária de autorização, segundo sua [FAQ oficial](https://www.oracle.com/cloud/free/faq/). Nenhuma conta foi criada, acessada ou provisionada nesta avaliação. Não prometemos elegibilidade, vaga ou ausência de bloqueios na conta do usuário.
-
-No provisionamento, conferir cada recurso no console, inclusive volumes, backups, IP, região e tráfego; somente recursos elegíveis ao plano gratuito. Escolher a região disponível com menor latência medida para os participantes. Nome DNS e certificados são necessários: usar domínio já disponível ou nomes de DDNS gratuitos compatíveis com ACME; a permanência de um nome gratuito também depende de terceiros.
+O túnel HTTPS temporário usado no ensaio de celular permite testar o aplicativo hospedado no computador de desenvolvimento. Ele não hospeda a aplicação, não transporta a mídia P2P e não substitui uma implantação permanente. A simplificação reduz serviços e o teste direto pode evitar a rota da mídia por uma região distante; nenhuma dessas mudanças garante ping baixo, conectividade por qualquer NAT ou gratuidade ilimitada.
 
 ## 4. Arquitetura escolhida
 
-![Arquitetura v1](arquitetura-v1.png)
+O [diagrama atual no README](README.md) mostra três serviços: Harmony, LiveKit e Caddy. Os arquivos `arquitetura-v1.*` são a referência histórica anterior.
 
 Uma implantação Linux, inicialmente com um único nó, executará Docker Engine e Compose. O cliente Windows se conecta a essa implantação; não carrega um banco e um servidor completos na máquina de cada participante.
 
 | Componente | Escolha | Responsabilidade |
 |---|---|---|
-| Cliente desktop | Tauri 2, React, TypeScript, Vite e Tailwind CSS | Interface, atalhos, notificações, cache e integração Windows. |
+| Cliente desktop | Tauri 2, React, TypeScript, Vite e CSS | Interface, atalhos, notificações, cache e integração Windows. |
 | Cliente de mídia | LiveKit Client SDK + WebRTC/Web Audio | Microfone, câmera, tela, reprodução e qualidade adaptativa. |
 | Entrada pública | Caddy com suporte a camada 4 | HTTPS/WSS, certificados e encaminhamento TLS para TURN no mesmo IP. |
 | Aplicação | Rust, Tokio, Axum, SQLx | API, WebSocket, regras de negócio, autenticação, ACL, mídia e administração. |
-| Persistência | PostgreSQL | Contas, mensagens, permissões, sessões, auditoria, busca, tarefas e outbox. |
-| Arquivos | SeaweedFS com API S3 | Anexos, avatares, temas, derivados e objetos privados. |
+| Persistência | SQLite 3.51.3 / WAL / FTS5 | Contas, mensagens, permissões, sessões, auditoria, busca, tarefas e outbox. |
+| Arquivos | Diretório privado local, adaptador S3 opcional | Anexos, avatares, temas, derivados e objetos privados. |
 | Voz/vídeo/tela | LiveKit Server self-hosted + TURN embutido | Encaminhar mídia entre participantes. |
 | Processamento | Worker Rust + FFmpeg/ffprobe | Inspeção, miniaturas e conversões assíncronas com limites. |
-| Backup | Dumps consistentes + restic | Cópia criptografada de dados e configuração para destino independente. |
+| Backup | Snapshot offline verificado + restic opcional | Cópia criptografada de dados e configuração para destino independente. |
 
-LiveKit e SeaweedFS são processos externos; não serão reescritos em Rust. A stack do produto será Rust/React, mas não todos os executáveis de infraestrutura. Docker Engine no Linux dispensa Docker Desktop nos usuários finais. Referências: [Docker Engine](https://docs.docker.com/engine/), [SeaweedFS](https://github.com/seaweedfs/seaweedfs), [implantação LiveKit em VM](https://docs.livekit.io/transport/self-hosting/vm/).
+O serviço `harmony` reúne o servidor, os assets React e um worker supervisionado em processo separado. Banco e objetos ficam no volume local `/data`; FFmpeg mantém o isolamento por Landlock/seccomp, sem rede ou credenciais. O supervisor impede startup sem sandbox e encerra o conjunto se API ou worker cair. LiveKit e Caddy continuam serviços separados; não são reescritos em Rust. O aplicativo Windows permanece apenas cliente.
+
+SQLite não é compartilhado por NFS/SMB nem usado por réplicas em hosts diferentes. O perfil é de instância única. Escritas usam transações imediatas, mantendo sequenciamento, idempotência, ACL e cotas. A busca preserva o parser `simple` do PostgreSQL com código de origem sob licença PostgreSQL e comparação independente; veja [banco e limites](docs/EMBEDDED-DATABASE.md).
 
 ### Alternativas consideradas
 
@@ -66,9 +58,9 @@ LiveKit e SeaweedFS são processos externos; não serão reescritos em Rust. A s
 
 ### Simplificações deliberadas frente ao diagrama original
 
-- Sem Valkey/Redis no piloto de uma instância: presença/digitação em memória; mensagens, tarefas e eventos recuperáveis no PostgreSQL. A configuração single-node do LiveKit será validada. Se houver múltiplas instâncias, incluir coordenação compatível após prova específica.
-- Sem Kubernetes, Elasticsearch, broker de mensagens dedicado ou pg_cron inicial. Busca FTS no PostgreSQL; tarefas agendadas pelo worker com leasing no banco.
-- SeaweedFS escolhido; não executar simultaneamente Garage e SeaweedFS.
+- Sem Valkey/Redis no piloto de uma instância: presença/digitação em memória; mensagens, tarefas e eventos recuperáveis no SQLite. A configuração single-node do LiveKit será validada. Se houver múltiplas instâncias, incluir coordenação compatível após prova específica.
+- Sem Kubernetes, Elasticsearch, broker de mensagens dedicado ou pg_cron inicial. Busca FTS5 com lexemas compatíveis com a configuração anterior; tarefas agendadas pelo worker com leasing no banco.
+- Sem serviço S3 obrigatório: originais e derivados privados locais, com streaming e publicação atômica. Migrações PG/S3 são offline, verificadas e sem sobrescrita; a origem é preservada.
 - Sem transcodificação de cada chamada no servidor. FFmpeg atende arquivos enviados, não o vídeo ao vivo.
 - Sem promessa de 50 MB no cliente/30 MB no backend. Medir o conjunto real, inclusive processos WebView2, codecs, banco e SFU.
 
@@ -76,7 +68,7 @@ LiveKit e SeaweedFS são processos externos; não serão reescritos em Rust. A s
 
 O monólito terá módulos de Identidade, Comunidades/Canais, Mensagens, Permissões/Moderação, Mídia, Arquivos, Personalização e Administração. Domínio e Aplicação não dependem de Axum, SQLx, S3 ou LiveKit. Portas internas definem persistência, relógio, objetos e controle de mídia; adaptadores implementam essas portas.
 
-O cliente chama HTTPS para operações e WSS para eventos. A mídia usa o transporte WebRTC diretamente com LiveKit/TURN. PostgreSQL e interfaces administrativas de infraestrutura não ficam públicos. O controle de mídia passa pelo backend: nunca embutir a chave secreta do LiveKit ou credenciais S3 no .exe.
+O cliente chama HTTPS para operações e WSS para eventos. A mídia usa o transporte WebRTC diretamente com LiveKit/TURN. Banco, objetos e interfaces administrativas de infraestrutura não ficam públicos. O controle de mídia passa pelo backend: nunca embutir a chave secreta do LiveKit ou credenciais S3 no .exe.
 
 Contrato HTTP versionado com OpenAPI e tipos TypeScript gerados. Eventos têm versão, ID, cursor de recuperação e chave de idempotência. Identificadores de entidades serão UUIDv7, serializados como strings; ordenação explícita por campos indexados, nunca ordem física presumida. Permissões serão nomes estáveis no contrato; representação numérica interna, se útil, terá conversão explícita sem depender de precisão de Number em JavaScript.
 
@@ -175,7 +167,7 @@ Capabilities Tauri mínimas, sem shell genérico exposto; conteúdo remoto não 
 
 ## 9. Arquivos, privacidade e operação
 
-Upload: backend autoriza, reserva cota e emite URL curta para objeto temporário privado. Finalização valida tamanho real, tipo por conteúdo e associação ao dono antes de publicar. Magic bytes são só uma checagem, não prova de arquivo seguro. Worker isolado sem acesso livre à rede processa arquivos com tempo, memória, CPU e saída limitados. Miniaturas/derivados têm chave própria; original preservado conforme política. Downloads revalidam autorização e recebem URL curta; URLs assinadas já emitidas não são revogadas instantaneamente por mudança de cargo.
+Upload: backend autoriza, reserva cota e emite URL curta para objeto temporário privado. Finalização valida tamanho real, tipo por conteúdo e associação ao dono antes de publicar. Magic bytes são só uma checagem, não prova de arquivo seguro. Worker isolado sem acesso livre à rede processa arquivos com tempo, memória, CPU e saída limitados. Miniaturas/derivados têm chave própria; original preservado conforme política. Downloads revalidam autorização e recebem URL curta; O gateway local revalida sessão e ACL ao abrir cada transferência; não interrompe retroativamente bytes de uma transferência já iniciada.
 
 Plano inicial de privacidade escolhido: TLS no transporte de aplicação e criptografia de mídia no transporte WebRTC; **sem E2EE de conteúdo nesta v1**. Isso mantém busca e moderação no servidor. Administrador da infraestrutura pode tecnicamente acessar conteúdo persistido; não vender promessa de inacessibilidade. E2EE é evolução separada que exigiria desenho de chaves, pesquisa e recuperação; reset de senha sozinho não recupera chaves antigas. A ausência de E2EE é escolha desta arquitetura, não requisito previamente aprovado pelo usuário.
 
@@ -192,7 +184,7 @@ Sem gravação automática de chamadas, transcrição ou envio de conteúdo para
 
 ### Backup e recuperação
 
-Dumps PostgreSQL consistentes, objetos e configuração serão incluídos em backups criptografados com restic. Obter um ponto recuperável entre banco e storage: manifestos de objetos, janela de proteção contra exclusão e procedimento de manutenção quando necessário. Não copiar arquivos de um PostgreSQL ativo como se isso fosse backup consistente.
+O backup para API e worker, obtém lock exclusivo de manutenção e copia o snapshot SQLite, objetos e configuração com manifesto SHA-256. A restauração exige diretório e volume novos e não inicia os serviços. Restic pode cifrar e enviar para um destino já configurado; não há contratação automática. Backups contêm credenciais e precisam permanecer privados.
 
 Destino em máquina/disco independente, com chave fora do servidor. Uma cópia no mesmo disco não protege da perda da VM. Destino externo ainda não está disponível: isso impede declarar o piloto pronto para dados importantes. Alvo inicial proposto: backup diário (perda máxima pretendida de 24h), com tempo de restauração medido antes de prometer disponibilidade. Recuperação exige ensaio real de banco, anexos, contas, chaves e configuração.
 
@@ -220,7 +212,7 @@ Lista de integração, não instrução para clonar tudo. Usar dependências pub
 | Desktop | Tauri 2; plugins oficiais para atalhos, notificações e updater; integração com Windows Credential Manager por adaptador restrito. |
 | Mídia cliente | livekit-client e APIs WebRTC/Web Audio; RNNoise como opção posterior homologada. |
 | Backend | axum, tokio, tower-http, serde, sqlx, uuid, argon2, jsonwebtoken, tracing; livekit-api e SDK S3 pelo adaptador. |
-| Infraestrutura | PostgreSQL, LiveKit Server, SeaweedFS, Caddy + módulo L4, Docker Engine/Compose, FFmpeg/ffprobe e restic. |
+| Infraestrutura | SQLite, LiveKit Server, Caddy + módulo L4, Docker Engine/Compose, FFmpeg/ffprobe e restic opcional. |
 
 Licença aplicada ao código próprio: Apache-2.0 (LICENSE). Dependências preservam seus avisos/licenças. Antes de distribuir, inventariar dependências transitivas, assets, modelos, plugins e flags dos binários. FFmpeg varia de licença conforme o build; não tratar todos os componentes como MIT/Apache. Referências: [licença SeaweedFS](https://github.com/seaweedfs/seaweedfs/blob/master/LICENSE), [FFmpeg](https://ffmpeg.org/legal.html).
 
@@ -243,9 +235,9 @@ O repositório pessoal [BersaneV/Harmony](https://github.com/BersaneV/Harmony) �
 
 A implementação de desenvolvimento está disponível na main; a fase de homologação Windows e externa permanece aberta. Não está homologada para afirmar capacidade, latência, gratuidade permanente ou funcionamento integral. Hospedagem elegível, nomes DNS, backup e prova de captura são condições concretas para o piloto público.
 
-## Implementação0.2.0 — fronteiras adicionais
+## Fronteiras de mídia, personalização e atualização
 
-O processo `harmony-media-worker` consome a fila PostgreSQL por lease e publica derivados privados no mesmo S3, sem alterar originais. FFmpeg/ffprobe rodam em subprocessos sem credenciais/rede, com sandbox e limites. Os endpoints de metadados e assinatura de derivados revalidam a ACL do anexo; quota inclui reservas de trabalho e derivados. Backup congela também o worker.
+O processo `harmony-media-worker` consome a fila SQLite por lease e publica derivados privados no mesmo armazenamento privado local, sem alterar originais. FFmpeg/ffprobe rodam em subprocessos sem credenciais/rede, com sandbox e limites. Os endpoints de metadados e assinatura de derivados revalidam a ACL do anexo; quota inclui reservas de trabalho e derivados. Backup congela também o worker.
 
 A personalização usa configuração JSON versionada na conta e bytes em IndexedDB por dispositivo/origem/usuário. O updater mantém chave pública, destino e bytes verificados exclusivamente no processo nativo; somente comandos sem argumentos são expostos ao renderer. O canal de atualização hospeda metadados públicos, e cada binário possui assinatura vinculada à versão. Estes recortes não adicionam serviço pago nem dependência obrigatória de nuvem de mídia.
 
@@ -253,11 +245,15 @@ A personalização usa configuração JSON versionada na conta e bytes em Indexe
 flowchart LR
   UI[React / Tauri] -->|JSON do tema| API[API Rust]
   UI -->|arquivos locais| IDB[IndexedDB por conta e servidor]
-  API --> PG[(PostgreSQL / jobs e leases)]
+  API --> PG[(SQLite / jobs e leases)]
   Worker[Worker Rust] --> PG
   Worker -->|subprocesso isolado| FF[FFmpeg / ffprobe sem rede]
-  Worker -->|derivados privados| S3[(S3)]
+  Worker -->|derivados privados| S3[(Arquivos locais privados)]
   API -->|ACL e URLs temporárias| S3
   UI -->|check / download / install| Native[Updater Rust e chave pública fixa]
   Native -->|HTTPS / assinatura e versão| GH[Releases públicas GitHub]
 ```
+
+## Diagnóstico P2P
+
+Experimento separado das chamadas: dois usuários distintos autorizados no mesmo canal trocam ping e vídeo sintético por WebRTC, sem câmera, microfone ou captura de tela. A sinalização exige sessão e ACL, possui limite e expira em até 120 segundos. O cliente mostra parâmetros solicitados e medidos, rota direta/relay e permite exportar métricas sem IPs ou credenciais. STUN é configurável; TURN pago não é contratado e não existe garantia de conexão direta através de NAT restritivo. As provas locais não representam latência entre redes.

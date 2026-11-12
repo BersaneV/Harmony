@@ -1,4 +1,5 @@
 import { isTauri } from "@tauri-apps/api/core";
+import P2PDiagnostics from "./P2PDiagnostics";
 import { registerGlobalPtt } from "../lib/desktop";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -316,6 +317,7 @@ export default function CallPanel({
   const [deafened, setDeafened] = useState(false);
   const [ptt, setPtt] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [p2pDiagnostics, setP2pDiagnostics] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [sharing, setSharing] = useState(false);
   const [preview, setPreview] = useState<LocalTrack[]>([]);
@@ -699,6 +701,12 @@ export default function CallPanel({
   }
   return (
     <section className={`call-panel ${expanded ? "expanded" : "collapsed"}`}>
+      {p2pDiagnostics && (
+        <P2PDiagnostics
+          channelId={channel.id}
+          onClose={() => setP2pDiagnostics(false)}
+        />
+      )}
       <header className="call-header">
         <span className="connection-dot" />
         <div>
@@ -709,6 +717,13 @@ export default function CallPanel({
           </small>
         </div>
         <div className="call-heading-actions">
+          <button
+            className="text-button"
+            disabled={!can(channel, Permission.Publish)}
+            onClick={() => setP2pDiagnostics(true)}
+          >
+            Testar P2P
+          </button>
           <button className="text-button" onClick={onExpand}>
             <ChevronDown size={16} />
             {expanded ? "Recolher" : "Mostrar chamada"}

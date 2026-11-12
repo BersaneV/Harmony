@@ -7,6 +7,7 @@ pub mod config;
 mod db;
 mod error;
 mod media;
+mod p2p;
 mod uploads;
 mod ws;
 use crate::{
@@ -23,7 +24,7 @@ use axum::{
 };
 use harmony_domain::Error;
 use serde_json::{Value, json};
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use std::{
     collections::HashMap,
     net::SocketAddr,
@@ -33,7 +34,10 @@ use std::{
 use tokio::sync::{Semaphore, broadcast};
 #[derive(Clone)]
 pub struct AppState {
-    pub pool: PgPool,
+    pub pool: SqlitePool,
+    pub store: Arc<harmony_storage::Store>,
+    pub file_slots: Arc<Semaphore>,
+    pub p2p: p2p::ProbeRegistry,
     pub config: Arc<Config>,
     pub events: broadcast::Sender<Value>,
     pub password_slots: Arc<Semaphore>,
@@ -42,10 +46,14 @@ pub struct AppState {
     limits: Arc<Mutex<HashMap<String, (Instant, u32)>>>,
 }
 impl AppState {
-    pub async fn new(pool: PgPool, config: Config) -> ApiResult<Self> {
+    pub async fn new(pool: SqlitePool, config: Config) -> ApiResult<Self> {
         let (events, _) = broadcast::channel(512);
+        let store = harmony_storage::Store::new(&config.storage).map_err(|_| Error::Internal)?;
         let mut s = Self {
             pool,
+            store: Arc::new(store),
+            file_slots: Arc::new(Semaphore::new(4)),
+            p2p: Default::default(),
             config: Arc::new(config),
             events,
             password_slots: Arc::new(Semaphore::new(2)),
@@ -146,7 +154,23 @@ pub fn router(s: AppState) -> Router {
             Method::OPTIONS,
         ])
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE]);
-    Router::new()
+    let mut routes = Router::new();
+    if let Some(web) = &s.config.web_dir {
+        routes = routes
+            .route_service(
+                "/",
+                tower_http::services::ServeFile::new(web.join("index.html")),
+            )
+            .route_service(
+                "/harmony.svg",
+                tower_http::services::ServeFile::new(web.join("harmony.svg")),
+            )
+            .nest_service(
+                "/assets",
+                tower_http::services::ServeDir::new(web.join("assets")),
+            );
+    }
+    routes
         .route("/health", get(health))
         .route("/api/instance", get(instance))
         .route("/api/internal/media-admit", get(media::admit))
@@ -213,9 +237,18 @@ pub fn router(s: AppState) -> Router {
         .route("/api/channels/{id}/read", post(chat::mark_read))
         .route("/api/search", get(chat::search))
         .route("/api/ws", get(ws::upgrade))
+        .route(
+            "/api/channels/{id}/p2p-probes",
+            get(p2p::info).post(p2p::create),
+        )
+        .route("/api/p2p/ws", get(p2p::upgrade))
         .route("/api/channels/{id}/media-token", post(media::token))
         .route("/api/channels/{id}/moderate", post(media::moderate))
         .route("/api/channels/{id}/uploads", post(uploads::reserve))
+        .route(
+            "/api/files/{id}/{kind}",
+            get(uploads::file_get).put(uploads::file_put),
+        )
         .route("/api/uploads/{id}/complete", post(uploads::complete))
         .route("/api/uploads/{id}/download", get(uploads::download))
         .route("/api/uploads/{id}/media", get(uploads::media_status))
@@ -248,13 +281,10 @@ pub fn router(s: AppState) -> Router {
         .with_state(s)
 }
 pub async fn initialize(s: &AppState) -> ApiResult<()> {
-    sqlx::migrate!("../../migrations")
-        .run(&s.pool)
-        .await
-        .map_err(|e| {
-            tracing::error!(error=%e,"migration failed");
-            Error::Internal
-        })?;
+    harmony_database::migrate(&s.pool).await.map_err(|e| {
+        tracing::error!(error=%e,"migration failed");
+        Error::Internal
+    })?;
     auth::bootstrap(s).await
 }
 pub fn background(s: AppState) {

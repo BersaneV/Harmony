@@ -1,17 +1,27 @@
 use crate::error::db_error;
 use harmony_domain::{Channel, Error, Message, Result, User};
-use sqlx::{PgPool, Postgres, Row, Transaction};
+use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
-pub async fn user(pool: &PgPool, id: Uuid) -> Result<User> {
-    let value: serde_json::Value =
-        sqlx::query_scalar("SELECT to_jsonb(u) FROM public_users u WHERE id=$1")
-            .bind(id)
-            .fetch_one(pool)
-            .await
-            .map_err(db_error)?;
-    serde_json::from_value(value).map_err(|_| Error::Internal)
+pub fn user_row(row: &sqlx::sqlite::SqliteRow) -> User {
+    User {
+        id: row.get("id"),
+        username: row.get("username"),
+        display_name: row.get("display_name"),
+        is_admin: row.get("is_admin"),
+        disabled: row.get("disabled"),
+        preferences: row.get("preferences"),
+        created_at: row.get("created_at"),
+    }
 }
-pub async fn member_role(pool: &PgPool, guild: Uuid, user: Uuid) -> Result<Option<String>> {
+pub async fn user(pool: &SqlitePool, id: Uuid) -> Result<User> {
+    let row = sqlx::query("SELECT * FROM public_users WHERE id=$1")
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .map_err(db_error)?;
+    Ok(user_row(&row))
+}
+pub async fn member_role(pool: &SqlitePool, guild: Uuid, user: Uuid) -> Result<Option<String>> {
     sqlx::query_scalar("SELECT role FROM guild_members WHERE guild_id=$1 AND user_id=$2")
         .bind(guild)
         .bind(user)
@@ -19,8 +29,8 @@ pub async fn member_role(pool: &PgPool, guild: Uuid, user: Uuid) -> Result<Optio
         .await
         .map_err(db_error)
 }
-pub async fn permissions(pool: &PgPool, channel: Uuid, user: Uuid) -> Result<i64> {
-    sqlx::query_scalar("SELECT harmony_channel_permissions($1,$2)")
+pub async fn permissions(pool: &SqlitePool, channel: Uuid, user: Uuid) -> Result<i64> {
+    sqlx::query_scalar("SELECT COALESCE((SELECT permissions FROM effective_channel_permissions ep WHERE ep.channel_id=$1 AND ep.user_id=$2),0)")
         .bind(channel)
         .bind(user)
         .fetch_one(pool)
@@ -28,7 +38,7 @@ pub async fn permissions(pool: &PgPool, channel: Uuid, user: Uuid) -> Result<i64
         .map_err(db_error)
 }
 pub async fn require_permission(
-    pool: &PgPool,
+    pool: &SqlitePool,
     channel: Uuid,
     user: Uuid,
     required: i64,
@@ -40,34 +50,26 @@ pub async fn require_permission(
         Err(Error::Forbidden)
     }
 }
-pub async fn channel_access(pool: &PgPool, channel: Uuid, user: Uuid) -> Result<()> {
+pub async fn channel_access(pool: &SqlitePool, channel: Uuid, user: Uuid) -> Result<()> {
     require_permission(pool, channel, user, harmony_domain::permissions::VIEW).await
 }
+/// The caller holds SQLite's cross-process writer lock via BEGIN IMMEDIATE.
+/// ACL updates and the mutation authorized here therefore cannot interleave.
 pub async fn tx_acl_lock(
-    tx: &mut Transaction<'_, Postgres>,
-    guild: Uuid,
-    exclusive: bool,
+    _tx: &mut Transaction<'_, Sqlite>,
+    _guild: Uuid,
+    _exclusive: bool,
 ) -> Result<()> {
-    let query = if exclusive {
-        "SELECT pg_advisory_xact_lock(hashtextextended($1::text,674622903))"
-    } else {
-        "SELECT pg_advisory_xact_lock_shared(hashtextextended($1::text,674622903))"
-    };
-    sqlx::query(query)
-        .bind(guild.to_string())
-        .execute(&mut **tx)
-        .await
-        .map_err(db_error)?;
     Ok(())
 }
 pub async fn tx_require_permission(
-    tx: &mut Transaction<'_, Postgres>,
+    tx: &mut Transaction<'_, Sqlite>,
     channel: Uuid,
     user: Uuid,
     required: i64,
 ) -> Result<()> {
     tx_access(tx, channel, user).await?;
-    let effective: i64 = sqlx::query_scalar("SELECT harmony_channel_permissions($1,$2)")
+    let effective: i64 = sqlx::query_scalar("SELECT COALESCE((SELECT permissions FROM effective_channel_permissions ep WHERE ep.channel_id=$1 AND ep.user_id=$2),0)")
         .bind(channel)
         .bind(user)
         .fetch_one(&mut **tx)
@@ -79,11 +81,7 @@ pub async fn tx_require_permission(
         Err(Error::Forbidden)
     }
 }
-pub async fn tx_access(
-    tx: &mut Transaction<'_, Postgres>,
-    channel: Uuid,
-    user: Uuid,
-) -> Result<()> {
+pub async fn tx_access(tx: &mut Transaction<'_, Sqlite>, channel: Uuid, user: Uuid) -> Result<()> {
     let guild: Option<Uuid> = sqlx::query_scalar("SELECT guild_id FROM channels WHERE id=$1")
         .bind(channel)
         .fetch_one(&mut **tx)
@@ -93,28 +91,24 @@ pub async fn tx_access(
         tx_acl_lock(tx, gid, false).await?;
     }
     let member: Option<Uuid> = if let Some(gid) = guild {
-        sqlx::query_scalar(
-            "SELECT user_id FROM guild_members WHERE guild_id=$1 AND user_id=$2 FOR SHARE",
-        )
-        .bind(gid)
-        .bind(user)
-        .fetch_optional(&mut **tx)
-        .await
-        .map_err(db_error)?
+        sqlx::query_scalar("SELECT user_id FROM guild_members WHERE guild_id=$1 AND user_id=$2")
+            .bind(gid)
+            .bind(user)
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(db_error)?
     } else {
-        sqlx::query_scalar(
-            "SELECT user_id FROM channel_members WHERE channel_id=$1 AND user_id=$2 FOR SHARE",
-        )
-        .bind(channel)
-        .bind(user)
-        .fetch_optional(&mut **tx)
-        .await
-        .map_err(db_error)?
+        sqlx::query_scalar("SELECT user_id FROM channel_members WHERE channel_id=$1 AND user_id=$2")
+            .bind(channel)
+            .bind(user)
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(db_error)?
     };
     if member.is_none() {
         return Err(Error::Forbidden);
     }
-    let effective: i64 = sqlx::query_scalar("SELECT harmony_channel_permissions($1,$2)")
+    let effective: i64 = sqlx::query_scalar("SELECT COALESCE((SELECT permissions FROM effective_channel_permissions ep WHERE ep.channel_id=$1 AND ep.user_id=$2),0)")
         .bind(channel)
         .bind(user)
         .fetch_one(&mut **tx)
@@ -126,7 +120,7 @@ pub async fn tx_access(
         Err(Error::Forbidden)
     }
 }
-pub fn channel(row: sqlx::postgres::PgRow) -> Channel {
+pub fn channel(row: sqlx::sqlite::SqliteRow) -> Channel {
     Channel {
         id: row.get("id"),
         guild_id: row.get("guild_id"),
@@ -144,13 +138,17 @@ pub fn channel(row: sqlx::postgres::PgRow) -> Channel {
             .map(|s| s.to_string()),
     }
 }
-pub async fn message(pool: &PgPool, id: Uuid, viewer: Uuid) -> Result<Message> {
-    let row=sqlx::query("SELECT m.*,to_jsonb(u) AS author FROM messages m JOIN public_users u ON u.id=m.author_id WHERE m.id=$1").bind(id).fetch_one(pool).await.map_err(db_error)?;
+pub async fn message(pool: &SqlitePool, id: Uuid, viewer: Uuid) -> Result<Message> {
+    let row = sqlx::query("SELECT m.* FROM messages m WHERE m.id=$1")
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .map_err(db_error)?;
     let deleted: bool = row.get("deleted");
     let reactions = if deleted {
         vec![]
     } else {
-        sqlx::query("SELECT emoji,COUNT(*) AS count,bool_or(user_id=$2) AS me FROM reactions WHERE message_id=$1 GROUP BY emoji ORDER BY emoji").bind(id).bind(viewer).fetch_all(pool).await.map_err(db_error)?.into_iter().map(|r|harmony_domain::Reaction{emoji:r.get("emoji"),count:r.get("count"),me:r.get("me")}).collect()
+        sqlx::query("SELECT emoji,COUNT(*) AS count,max(user_id=$2) AS me FROM reactions WHERE message_id=$1 GROUP BY emoji ORDER BY emoji").bind(id).bind(viewer).fetch_all(pool).await.map_err(db_error)?.into_iter().map(|r|harmony_domain::Reaction{emoji:r.get("emoji"),count:r.get("count"),me:r.get("me")}).collect()
     };
     let attachments = if deleted {
         vec![]
@@ -160,7 +158,7 @@ pub async fn message(pool: &PgPool, id: Uuid, viewer: Uuid) -> Result<Message> {
     Ok(Message {
         id,
         channel_id: row.get("channel_id"),
-        author: serde_json::from_value(row.get("author")).map_err(|_| Error::Internal)?,
+        author: user(pool, row.get("author_id")).await?,
         content: if deleted {
             String::new()
         } else {
@@ -177,7 +175,7 @@ pub async fn message(pool: &PgPool, id: Uuid, viewer: Uuid) -> Result<Message> {
     })
 }
 pub async fn audit(
-    tx: &mut Transaction<'_, Postgres>,
+    tx: &mut Transaction<'_, Sqlite>,
     actor: Uuid,
     action: &str,
     target: Option<Uuid>,

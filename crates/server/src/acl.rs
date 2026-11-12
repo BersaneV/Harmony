@@ -7,24 +7,23 @@ use axum::{
 use harmony_domain::{self as domain, Error, permissions};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use sqlx::{Postgres, Row, Transaction};
+use sqlx::{Row, Sqlite, Transaction};
 use uuid::Uuid;
-async fn manager(tx: &mut Transaction<'_, Postgres>, gid: Uuid, uid: Uuid) -> ApiResult<()> {
+async fn manager(tx: &mut Transaction<'_, Sqlite>, gid: Uuid, uid: Uuid) -> ApiResult<()> {
     db::tx_acl_lock(tx, gid, true).await?;
-    let role: Option<String> = sqlx::query_scalar(
-        "SELECT role FROM guild_members WHERE guild_id=$1 AND user_id=$2 FOR SHARE",
-    )
-    .bind(gid)
-    .bind(uid)
-    .fetch_optional(&mut **tx)
-    .await?;
+    let role: Option<String> =
+        sqlx::query_scalar("SELECT role FROM guild_members WHERE guild_id=$1 AND user_id=$2")
+            .bind(gid)
+            .bind(uid)
+            .fetch_optional(&mut **tx)
+            .await?;
     if domain::can_manage(role.as_deref()) {
         Ok(())
     } else {
         Err(Error::Forbidden.into())
     }
 }
-fn role(row: sqlx::postgres::PgRow) -> Value {
+fn role(row: sqlx::sqlite::SqliteRow) -> Value {
     json!({"id":row.get::<Uuid,_>("id"),"guild_id":row.get::<Uuid,_>("guild_id"),"name":row.get::<String,_>("name"),"permissions":row.get::<i64,_>("permissions").to_string()})
 }
 fn changed(s: &AppState, gid: Uuid) {
@@ -63,7 +62,7 @@ pub async fn create_role(
 ) -> ApiResult<Json<Value>> {
     let name = domain::name(&b.name)?;
     let mask = permissions::parse(&b.permissions)?;
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     manager(&mut tx, gid, a.user.id).await?;
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM guild_roles WHERE guild_id=$1")
         .bind(gid)
@@ -105,7 +104,7 @@ pub async fn update_role(
         .bind(id)
         .fetch_one(&s.pool)
         .await?;
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     manager(&mut tx, gid, a.user.id).await?;
     let row=sqlx::query("UPDATE guild_roles SET name=COALESCE($1,name),permissions=COALESCE($2,permissions) WHERE id=$3 AND guild_id=$4 RETURNING *")
         .bind(name).bind(mask).bind(id).bind(gid).fetch_one(&mut *tx).await?;
@@ -123,7 +122,7 @@ pub async fn delete_role(
         .bind(id)
         .fetch_one(&s.pool)
         .await?;
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     manager(&mut tx, gid, a.user.id).await?;
     sqlx::query("DELETE FROM guild_roles WHERE id=$1 AND guild_id=$2")
         .bind(id)
@@ -157,7 +156,7 @@ async fn assign(
     rid: Uuid,
     add: bool,
 ) -> ApiResult<StatusCode> {
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     manager(&mut tx, gid, a.user.id).await?;
     let valid:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM guild_members WHERE guild_id=$1 AND user_id=$2) AND EXISTS(SELECT 1 FROM guild_roles WHERE id=$3 AND guild_id=$1)")
         .bind(gid).bind(uid).bind(rid).fetch_one(&mut *tx).await?;
@@ -229,7 +228,7 @@ pub async fn set_override(
         .fetch_one(&s.pool)
         .await?;
     let gid = gid.ok_or(Error::Forbidden)?;
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     manager(&mut tx, gid, a.user.id).await?;
     if let Some(rid) = b.role_id {
         let valid: bool = sqlx::query_scalar(
@@ -244,9 +243,13 @@ pub async fn set_override(
         }
     }
     if allow == 0 && deny == 0 {
-        sqlx::query("DELETE FROM channel_permissions WHERE channel_id=$1 AND role_id IS NOT DISTINCT FROM $2").bind(cid).bind(b.role_id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM channel_permissions WHERE channel_id=$1 AND role_id IS $2")
+            .bind(cid)
+            .bind(b.role_id)
+            .execute(&mut *tx)
+            .await?;
     } else {
-        sqlx::query("INSERT INTO channel_permissions(channel_id,guild_id,role_id,allow,deny) VALUES($1,$2,$3,$4,$5) ON CONFLICT(channel_id,role_id) DO UPDATE SET allow=EXCLUDED.allow,deny=EXCLUDED.deny")
+        sqlx::query("INSERT INTO channel_permissions(channel_id,guild_id,role_id,allow,deny) VALUES($1,$2,$3,$4,$5) ON CONFLICT(channel_id,role_key) DO UPDATE SET allow=EXCLUDED.allow,deny=EXCLUDED.deny")
         .bind(cid).bind(gid).bind(b.role_id).bind(allow).bind(deny).execute(&mut *tx).await?;
     }
     db::audit(&mut tx, a.user.id, "channel.permissions", Some(cid)).await?;
@@ -258,9 +261,9 @@ pub async fn set_override(
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[sqlx::test(migrations = "../../migrations")]
-    #[ignore = "requires disposable PostgreSQL"]
-    async fn database_permission_algebra_and_cross_guild_constraints(pool: sqlx::PgPool) {
+    #[sqlx::test(migrations = "../../migrations-sqlite")]
+    #[ignore = "integration test (SQLite)"]
+    async fn database_permission_algebra_and_cross_guild_constraints(pool: sqlx::SqlitePool) {
         let owner = Uuid::now_v7();
         let member = Uuid::now_v7();
         let gid = Uuid::now_v7();
@@ -306,7 +309,7 @@ mod tests {
             .await
             .unwrap();
         for deny in [0, 2, 4, 8, 16, 32, 1, 63] {
-            sqlx::query("INSERT INTO channel_permissions(channel_id,guild_id,allow,deny) VALUES($1,$2,0,$3) ON CONFLICT(channel_id,role_id) DO UPDATE SET deny=EXCLUDED.deny").bind(cid).bind(gid).bind(deny).execute(&pool).await.unwrap();
+            sqlx::query("INSERT INTO channel_permissions(channel_id,guild_id,allow,deny) VALUES($1,$2,0,$3) ON CONFLICT(channel_id,role_key) DO UPDATE SET deny=EXCLUDED.deny").bind(cid).bind(gid).bind(deny).execute(&pool).await.unwrap();
             assert_eq!(
                 db::permissions(&pool, cid, member).await.unwrap(),
                 permissions::effective(false, 63, (0, deny), &[])

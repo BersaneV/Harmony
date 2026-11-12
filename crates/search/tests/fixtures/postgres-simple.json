@@ -1,0 +1,5362 @@
+{
+  "source": "PostgreSQL 18.7 (Postgres.app), C.UTF-8, UTF8, simple configuration",
+  "query_sha256": "7d907dfd381352661e40bad29e505cee5e3a8645ec0f8e4ee6eadbd832effd7c",
+  "cases": [
+    {
+      "input": "ACLsearch_1234",
+      "lexemes": [
+        "1234",
+        "aclsearch"
+      ]
+    },
+    {
+      "input": "foo-bar",
+      "lexemes": [
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "foo bar",
+      "lexemes": [
+        "bar",
+        "foo"
+      ]
+    },
+    {
+      "input": "1.23",
+      "lexemes": [
+        "1.23"
+      ]
+    },
+    {
+      "input": "1 23",
+      "lexemes": [
+        "1",
+        "23"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "acao",
+      "lexemes": [
+        "acao"
+      ]
+    },
+    {
+      "input": "A\u00c7\u00c3O",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "A\u0301c\u00e3o",
+      "lexemes": [
+        "a\u0301c\u00e3o"
+      ]
+    },
+    {
+      "input": "foo@example.com",
+      "lexemes": [
+        "foo@example.com"
+      ]
+    },
+    {
+      "input": "foo/bar",
+      "lexemes": [
+        "foo/bar"
+      ]
+    },
+    {
+      "input": "https://example.com/foo/bar?a=1&b=2",
+      "lexemes": [
+        "/foo/bar?a=1&b=2",
+        "example.com",
+        "example.com/foo/bar?a=1&b=2"
+      ]
+    },
+    {
+      "input": "one OR two",
+      "lexemes": [
+        "one",
+        "or",
+        "two"
+      ]
+    },
+    {
+      "input": "foo'bar",
+      "lexemes": [
+        "bar",
+        "foo"
+      ]
+    },
+    {
+      "input": "abc123",
+      "lexemes": [
+        "abc123"
+      ]
+    },
+    {
+      "input": "123abc",
+      "lexemes": [
+        "123abc"
+      ]
+    },
+    {
+      "input": "hello:world",
+      "lexemes": [
+        "hello",
+        "world"
+      ]
+    },
+    {
+      "input": "localhost:8080/path",
+      "lexemes": [
+        "8080/path",
+        "localhost"
+      ]
+    },
+    {
+      "input": "user_name@some-domain.co.uk",
+      "lexemes": [
+        "user_name@some-domain.co.uk"
+      ]
+    },
+    {
+      "input": "1e-8",
+      "lexemes": [
+        "1e-8"
+      ]
+    },
+    {
+      "input": "-12.45",
+      "lexemes": [
+        "-12.45"
+      ]
+    },
+    {
+      "input": "+123",
+      "lexemes": [
+        "+123"
+      ]
+    },
+    {
+      "input": "1.2.3",
+      "lexemes": [
+        "1.2.3"
+      ]
+    },
+    {
+      "input": "v1.2.3",
+      "lexemes": [
+        "v1.2.3"
+      ]
+    },
+    {
+      "input": "foo--bar",
+      "lexemes": [
+        "bar",
+        "foo"
+      ]
+    },
+    {
+      "input": "foo---bar",
+      "lexemes": [
+        "bar",
+        "foo"
+      ]
+    },
+    {
+      "input": "hello\u2014world",
+      "lexemes": [
+        "hello",
+        "world"
+      ]
+    },
+    {
+      "input": "\u4f60\u597d \u4e16\u754c",
+      "lexemes": [
+        "\u4e16\u754c",
+        "\u4f60\u597d"
+      ]
+    },
+    {
+      "input": "\u041f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440",
+      "lexemes": [
+        "\u043c\u0438\u0440",
+        "\u043f\u0440\u0438\u0432\u0435\u0442"
+      ]
+    },
+    {
+      "input": "\u0130 I \u0131 i \u03a3 \u03c2 \u03c3",
+      "lexemes": [
+        "i",
+        "\u0131",
+        "\u03c2",
+        "\u03c3"
+      ]
+    },
+    {
+      "input": "Stra\u00dfe STRASSE",
+      "lexemes": [
+        "strasse",
+        "stra\u00dfe"
+      ]
+    },
+    {
+      "input": "\u05e9\u05dc\u05d5\u05dd \u05e2\u05d5\u05dc\u05dd",
+      "lexemes": [
+        "\u05e2\u05d5\u05dc\u05dd",
+        "\u05e9\u05dc\u05d5\u05dd"
+      ]
+    },
+    {
+      "input": "\u0928\u092e\u0938\u094d\u0924\u0947 \u0926\u0941\u0928\u093f\u092f\u093e",
+      "lexemes": [
+        "\u0926\u0941\u0928\u093f\u092f\u093e",
+        "\u0928\u092e\u0938\u094d\u0924\u0947"
+      ]
+    },
+    {
+      "input": "\u0645\u0631\u062d\u0628\u0627 \u0628\u0627\u0644\u0639\u0627\u0644\u0645",
+      "lexemes": [
+        "\u0628\u0627\u0644\u0639\u0627\u0644\u0645",
+        "\u0645\u0631\u062d\u0628\u0627"
+      ]
+    },
+    {
+      "input": "\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\u200d\ud83d\udc66 hello",
+      "lexemes": [
+        "hello"
+      ]
+    },
+    {
+      "input": "<script>hide me</script>show me",
+      "lexemes": [
+        "me",
+        "show"
+      ]
+    },
+    {
+      "input": "<style>hidden</style>visible",
+      "lexemes": [
+        "visible"
+      ]
+    },
+    {
+      "input": "<b>bold</b> text",
+      "lexemes": [
+        "bold",
+        "text"
+      ]
+    },
+    {
+      "input": "&amp; &#1234; &#x0041;",
+      "lexemes": []
+    },
+    {
+      "input": "foo.com",
+      "lexemes": [
+        "foo.com"
+      ]
+    },
+    {
+      "input": "foo.com.br",
+      "lexemes": [
+        "foo.com.br"
+      ]
+    },
+    {
+      "input": "foo.com/path",
+      "lexemes": [
+        "/path",
+        "foo.com",
+        "foo.com/path"
+      ]
+    },
+    {
+      "input": "C:\\Users\\Victor",
+      "lexemes": [
+        "c",
+        "users",
+        "victor"
+      ]
+    },
+    {
+      "input": "/var/test.txt",
+      "lexemes": [
+        "/var/test.txt"
+      ]
+    },
+    {
+      "input": "~/file.txt",
+      "lexemes": [
+        "~/file.txt"
+      ]
+    },
+    {
+      "input": "./relative/file.txt",
+      "lexemes": [
+        "./relative/file.txt"
+      ]
+    },
+    {
+      "input": "../file.txt",
+      "lexemes": [
+        "../file.txt"
+      ]
+    },
+    {
+      "input": "example.com:443",
+      "lexemes": [
+        "example.com:443"
+      ]
+    },
+    {
+      "input": "http://[::1]:8080",
+      "lexemes": [
+        "1",
+        "8080"
+      ]
+    },
+    {
+      "input": "email+tag@example.com",
+      "lexemes": [
+        "email",
+        "tag@example.com"
+      ]
+    },
+    {
+      "input": "name.surname@x.com",
+      "lexemes": [
+        "name.surname@x.com"
+      ]
+    },
+    {
+      "input": "3,14",
+      "lexemes": [
+        "14",
+        "3"
+      ]
+    },
+    {
+      "input": "10:20",
+      "lexemes": [
+        "10",
+        "20"
+      ]
+    },
+    {
+      "input": "2026-11-12",
+      "lexemes": [
+        "-11",
+        "-12",
+        "2026"
+      ]
+    },
+    {
+      "input": "rock\u2019n\u2019roll",
+      "lexemes": [
+        "n",
+        "rock",
+        "roll"
+      ]
+    },
+    {
+      "input": "a_b_c",
+      "lexemes": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "input": "one\ntwo\tthree",
+      "lexemes": [
+        "one",
+        "three",
+        "two"
+      ]
+    },
+    {
+      "input": "A\r\nB",
+      "lexemes": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "lexemes": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "lexemes": []
+    },
+    {
+      "input": "\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1",
+      "lexemes": []
+    },
+    {
+      "input": "",
+      "lexemes": []
+    },
+    {
+      "input": "!!!",
+      "lexemes": []
+    },
+    {
+      "input": "foo | !bar",
+      "lexemes": [
+        "bar",
+        "foo"
+      ]
+    },
+    {
+      "input": "\"exact phrase\"",
+      "lexemes": [
+        "exact",
+        "phrase"
+      ]
+    },
+    {
+      "input": "caf\u00e9 caf\u00e9 CAF\u00c9",
+      "lexemes": [
+        "caf\u00e9"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+",
+      "lexemes": [
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "example.org ",
+      "lexemes": [
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "1.23.a@b.com",
+        "hello"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org ",
+      "lexemes": [
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-",
+      "lexemes": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-",
+      "lexemes": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:",
+      "lexemes": [
+        "123"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!",
+      "lexemes": [
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "/a/b\u200d",
+      "lexemes": [
+        "/a/b"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "-1.2e3@",
+      "lexemes": [
+        "-1.2e3"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "-1.2e3@",
+      "lexemes": [
+        "-1.2e3"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-",
+      "lexemes": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "input": "\u0301;",
+      "lexemes": []
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "-1.2e3@",
+      "lexemes": [
+        "-1.2e3"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.",
+      "lexemes": [
+        "1.23",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;",
+      "lexemes": []
+    },
+    {
+      "input": "foo?",
+      "lexemes": [
+        "foo"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b",
+        "123",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/",
+      "lexemes": [
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "foo"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&",
+      "lexemes": [
+        "a@b.com"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:",
+      "lexemes": [
+        "123"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "a@b.com",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "123",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&",
+      "lexemes": [
+        "1.23.a@b.com"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!",
+      "lexemes": [
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!",
+      "lexemes": [
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b",
+        "123",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+",
+      "lexemes": [
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "1.23.a@b.com",
+        "hello"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!",
+      "lexemes": [
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org ",
+      "lexemes": [
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "foo"
+      ]
+    },
+    {
+      "input": "123:foo-bar_",
+      "lexemes": [
+        "123",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org ",
+      "lexemes": [
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.",
+      "lexemes": [
+        "1.23",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.",
+      "lexemes": [
+        "1.23",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "hello\u2014",
+      "lexemes": [
+        "hello"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_",
+      "lexemes": [
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u2014",
+      "lexemes": [
+        "hello"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "/a/b",
+        "123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "1.23.a@b.com",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "foo?",
+      "lexemes": [
+        "foo"
+      ]
+    },
+    {
+      "input": "123:foo-bar_",
+      "lexemes": [
+        "123",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!",
+      "lexemes": [
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;",
+      "lexemes": []
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org ",
+      "lexemes": [
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "1.23.a@b.com",
+        "hello"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org ",
+      "lexemes": [
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.",
+      "lexemes": [
+        "1.23"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "1.23.a@b.com",
+        "hello"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "example.org ",
+      "lexemes": [
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.",
+      "lexemes": [
+        "1.23",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+",
+      "lexemes": [
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "foo",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.",
+      "lexemes": [
+        "1.23",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "a\u00e7\u00e3o",
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/",
+      "lexemes": [
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "123:",
+      "lexemes": [
+        "123"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n",
+      "lexemes": []
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.",
+      "lexemes": [
+        "1.23",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!",
+      "lexemes": [
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org ",
+      "lexemes": [
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u2014",
+      "lexemes": [
+        "hello"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "a@b.com",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "a@b.com",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org ",
+      "lexemes": [
+        "example.org"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.",
+      "lexemes": [
+        "1.23"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "foo",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "123:",
+      "lexemes": [
+        "123"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "a@b.com",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:foo-bar_",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!",
+      "lexemes": [
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "-1.2e3@",
+      "lexemes": [
+        "-1.2e3"
+      ]
+    },
+    {
+      "input": "<i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "123",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_",
+      "lexemes": [
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&",
+      "lexemes": [
+        "1.23.a@b.com"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:foo-bar_",
+      "lexemes": [
+        "123",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "a@b.com",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org ",
+      "lexemes": [
+        "/a/b",
+        "123",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "hello\u20141.23.",
+      "lexemes": [
+        "1.23",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n",
+      "lexemes": []
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<\u0301;",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "foo?hello\u20141.23.a@b.com&\u6771\u4eac!",
+      "lexemes": [
+        "1.23.a@b.com",
+        "foo",
+        "hello",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "a\u00e7\u00e3o<",
+      "lexemes": [
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u20141.23.a@b.com&",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:",
+      "lexemes": [
+        "/123",
+        "example.org",
+        "x"
+      ]
+    },
+    {
+      "input": "a@b.com&\u6771\u4eac!a_b-",
+      "lexemes": [
+        "a",
+        "a@b.com",
+        "b",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "\u0301;example.org <i>x</i>/123:foo-bar_\ud83d\udc4b\n",
+      "lexemes": [
+        "/123",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "a_b-\u03b1\u03b2+-1.2e3@foo?hello\u20141.23.",
+      "lexemes": [
+        "-1.2e3",
+        "1.23",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b"
+      ]
+    },
+    {
+      "input": "\u03b1\u03b2+-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "foo",
+        "hello",
+        "\u03b1\u03b2"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    },
+    {
+      "input": "-1.2e3@foo?hello\u2014",
+      "lexemes": [
+        "-1.2e3",
+        "foo",
+        "hello"
+      ]
+    },
+    {
+      "input": "foo-bar_\ud83d\udc4b\n/a/b\u200da\u00e7\u00e3o<\u0301;example.org <i>x</i>/",
+      "lexemes": [
+        "/a/b",
+        "a\u00e7\u00e3o",
+        "bar",
+        "example.org",
+        "foo",
+        "foo-bar",
+        "x"
+      ]
+    },
+    {
+      "input": "1.23.a@b.com&\u6771\u4eac!a_b-\u03b1\u03b2+-1.2e3@foo?",
+      "lexemes": [
+        "-1.2e3",
+        "1.23.a@b.com",
+        "a",
+        "b",
+        "b-\u03b1\u03b2",
+        "foo",
+        "\u03b1\u03b2",
+        "\u6771\u4eac"
+      ]
+    },
+    {
+      "input": "123:foo-bar_\ud83d\udc4b\n/a/b\u200d",
+      "lexemes": [
+        "/a/b",
+        "123",
+        "bar",
+        "foo",
+        "foo-bar"
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "query": "ACLsearch_1234",
+      "matches": [
+        0
+      ]
+    },
+    {
+      "query": "foo-bar",
+      "matches": [
+        1,
+        73,
+        77,
+        85,
+        87,
+        93,
+        95,
+        97,
+        99,
+        103,
+        107,
+        111,
+        115,
+        121,
+        127,
+        133,
+        135,
+        143,
+        151,
+        163,
+        167,
+        169,
+        171,
+        173,
+        175,
+        177,
+        181,
+        183,
+        185,
+        191,
+        193,
+        205,
+        207,
+        209,
+        213,
+        215,
+        219,
+        223,
+        225,
+        229,
+        233,
+        241,
+        243,
+        245,
+        249,
+        251,
+        255,
+        257,
+        259,
+        273,
+        275,
+        285,
+        287,
+        289,
+        291,
+        293,
+        307,
+        313,
+        317,
+        319,
+        323,
+        327,
+        329,
+        331,
+        341,
+        347,
+        353,
+        369,
+        373,
+        375,
+        377,
+        385,
+        389,
+        393,
+        395,
+        407,
+        411,
+        413,
+        415
+      ]
+    },
+    {
+      "query": "foo bar",
+      "matches": [
+        1,
+        2,
+        13,
+        24,
+        25,
+        63,
+        73,
+        77,
+        85,
+        87,
+        93,
+        95,
+        97,
+        99,
+        103,
+        107,
+        111,
+        115,
+        121,
+        127,
+        133,
+        135,
+        143,
+        151,
+        163,
+        167,
+        169,
+        171,
+        173,
+        175,
+        177,
+        181,
+        183,
+        185,
+        191,
+        193,
+        205,
+        207,
+        209,
+        213,
+        215,
+        219,
+        223,
+        225,
+        229,
+        233,
+        241,
+        243,
+        245,
+        249,
+        251,
+        255,
+        257,
+        259,
+        273,
+        275,
+        285,
+        287,
+        289,
+        291,
+        293,
+        307,
+        313,
+        317,
+        319,
+        323,
+        327,
+        329,
+        331,
+        341,
+        347,
+        353,
+        369,
+        373,
+        375,
+        377,
+        385,
+        389,
+        393,
+        395,
+        407,
+        411,
+        413,
+        415
+      ]
+    },
+    {
+      "query": "1.23",
+      "matches": [
+        3,
+        88,
+        104,
+        108,
+        116,
+        122,
+        144,
+        152,
+        164,
+        178,
+        196,
+        198,
+        230,
+        266,
+        280,
+        296,
+        298,
+        320,
+        324,
+        332,
+        348,
+        364,
+        386,
+        390,
+        400,
+        408
+      ]
+    },
+    {
+      "query": "1 23",
+      "matches": [
+        4
+      ]
+    },
+    {
+      "query": "a\u00e7\u00e3o",
+      "matches": [
+        5,
+        7,
+        69,
+        87,
+        93,
+        95,
+        97,
+        105,
+        107,
+        109,
+        111,
+        117,
+        123,
+        129,
+        131,
+        133,
+        135,
+        139,
+        143,
+        145,
+        149,
+        153,
+        155,
+        157,
+        165,
+        169,
+        171,
+        177,
+        179,
+        181,
+        183,
+        185,
+        189,
+        191,
+        197,
+        199,
+        205,
+        215,
+        217,
+        219,
+        221,
+        223,
+        225,
+        227,
+        231,
+        235,
+        243,
+        245,
+        249,
+        255,
+        259,
+        267,
+        269,
+        271,
+        275,
+        277,
+        283,
+        285,
+        291,
+        293,
+        295,
+        297,
+        301,
+        303,
+        311,
+        319,
+        321,
+        329,
+        331,
+        333,
+        335,
+        343,
+        349,
+        351,
+        355,
+        357,
+        359,
+        363,
+        369,
+        371,
+        381,
+        383,
+        387,
+        389,
+        395,
+        397,
+        399,
+        401,
+        403,
+        411,
+        413
+      ]
+    },
+    {
+      "query": "acao",
+      "matches": [
+        6
+      ]
+    },
+    {
+      "query": "A\u00c7\u00c3O",
+      "matches": [
+        5,
+        7,
+        69,
+        87,
+        93,
+        95,
+        97,
+        105,
+        107,
+        109,
+        111,
+        117,
+        123,
+        129,
+        131,
+        133,
+        135,
+        139,
+        143,
+        145,
+        149,
+        153,
+        155,
+        157,
+        165,
+        169,
+        171,
+        177,
+        179,
+        181,
+        183,
+        185,
+        189,
+        191,
+        197,
+        199,
+        205,
+        215,
+        217,
+        219,
+        221,
+        223,
+        225,
+        227,
+        231,
+        235,
+        243,
+        245,
+        249,
+        255,
+        259,
+        267,
+        269,
+        271,
+        275,
+        277,
+        283,
+        285,
+        291,
+        293,
+        295,
+        297,
+        301,
+        303,
+        311,
+        319,
+        321,
+        329,
+        331,
+        333,
+        335,
+        343,
+        349,
+        351,
+        355,
+        357,
+        359,
+        363,
+        369,
+        371,
+        381,
+        383,
+        387,
+        389,
+        395,
+        397,
+        399,
+        401,
+        403,
+        411,
+        413
+      ]
+    },
+    {
+      "query": "A\u0301c\u00e3o",
+      "matches": [
+        8
+      ]
+    },
+    {
+      "query": "foo@example.com",
+      "matches": [
+        9
+      ]
+    },
+    {
+      "query": "foo/bar",
+      "matches": [
+        10
+      ]
+    },
+    {
+      "query": "https://example.com/foo/bar?a=1&b=2",
+      "matches": [
+        11
+      ]
+    },
+    {
+      "query": "one OR two",
+      "matches": [
+        12
+      ]
+    },
+    {
+      "query": "foo'bar",
+      "matches": [
+        1,
+        2,
+        13,
+        24,
+        25,
+        63,
+        73,
+        77,
+        85,
+        87,
+        93,
+        95,
+        97,
+        99,
+        103,
+        107,
+        111,
+        115,
+        121,
+        127,
+        133,
+        135,
+        143,
+        151,
+        163,
+        167,
+        169,
+        171,
+        173,
+        175,
+        177,
+        181,
+        183,
+        185,
+        191,
+        193,
+        205,
+        207,
+        209,
+        213,
+        215,
+        219,
+        223,
+        225,
+        229,
+        233,
+        241,
+        243,
+        245,
+        249,
+        251,
+        255,
+        257,
+        259,
+        273,
+        275,
+        285,
+        287,
+        289,
+        291,
+        293,
+        307,
+        313,
+        317,
+        319,
+        323,
+        327,
+        329,
+        331,
+        341,
+        347,
+        353,
+        369,
+        373,
+        375,
+        377,
+        385,
+        389,
+        393,
+        395,
+        407,
+        411,
+        413,
+        415
+      ]
+    },
+    {
+      "query": "abc123",
+      "matches": [
+        14
+      ]
+    },
+    {
+      "query": "123abc",
+      "matches": [
+        15
+      ]
+    },
+    {
+      "query": "hello:world",
+      "matches": [
+        16,
+        26
+      ]
+    },
+    {
+      "query": "localhost:8080/path",
+      "matches": [
+        17
+      ]
+    },
+    {
+      "query": "user_name@some-domain.co.uk",
+      "matches": [
+        18
+      ]
+    },
+    {
+      "query": "1e-8",
+      "matches": [
+        19
+      ]
+    },
+    {
+      "query": "-12.45",
+      "matches": [
+        20
+      ]
+    },
+    {
+      "query": "+123",
+      "matches": [
+        21
+      ]
+    },
+    {
+      "query": "1.2.3",
+      "matches": [
+        22
+      ]
+    },
+    {
+      "query": "v1.2.3",
+      "matches": [
+        23
+      ]
+    },
+    {
+      "query": "foo--bar",
+      "matches": [
+        1,
+        2,
+        13,
+        24,
+        25,
+        63,
+        73,
+        77,
+        85,
+        87,
+        93,
+        95,
+        97,
+        99,
+        103,
+        107,
+        111,
+        115,
+        121,
+        127,
+        133,
+        135,
+        143,
+        151,
+        163,
+        167,
+        169,
+        171,
+        173,
+        175,
+        177,
+        181,
+        183,
+        185,
+        191,
+        193,
+        205,
+        207,
+        209,
+        213,
+        215,
+        219,
+        223,
+        225,
+        229,
+        233,
+        241,
+        243,
+        245,
+        249,
+        251,
+        255,
+        257,
+        259,
+        273,
+        275,
+        285,
+        287,
+        289,
+        291,
+        293,
+        307,
+        313,
+        317,
+        319,
+        323,
+        327,
+        329,
+        331,
+        341,
+        347,
+        353,
+        369,
+        373,
+        375,
+        377,
+        385,
+        389,
+        393,
+        395,
+        407,
+        411,
+        413,
+        415
+      ]
+    },
+    {
+      "query": "foo---bar",
+      "matches": [
+        1,
+        2,
+        13,
+        24,
+        25,
+        63,
+        73,
+        77,
+        85,
+        87,
+        93,
+        95,
+        97,
+        99,
+        103,
+        107,
+        111,
+        115,
+        121,
+        127,
+        133,
+        135,
+        143,
+        151,
+        163,
+        167,
+        169,
+        171,
+        173,
+        175,
+        177,
+        181,
+        183,
+        185,
+        191,
+        193,
+        205,
+        207,
+        209,
+        213,
+        215,
+        219,
+        223,
+        225,
+        229,
+        233,
+        241,
+        243,
+        245,
+        249,
+        251,
+        255,
+        257,
+        259,
+        273,
+        275,
+        285,
+        287,
+        289,
+        291,
+        293,
+        307,
+        313,
+        317,
+        319,
+        323,
+        327,
+        329,
+        331,
+        341,
+        347,
+        353,
+        369,
+        373,
+        375,
+        377,
+        385,
+        389,
+        393,
+        395,
+        407,
+        411,
+        413,
+        415
+      ]
+    },
+    {
+      "query": "hello\u2014world",
+      "matches": [
+        16,
+        26
+      ]
+    },
+    {
+      "query": "\u4f60\u597d \u4e16\u754c",
+      "matches": [
+        27
+      ]
+    },
+    {
+      "query": "\u041f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440",
+      "matches": [
+        28
+      ]
+    },
+    {
+      "query": "\u0130 I \u0131 i \u03a3 \u03c2 \u03c3",
+      "matches": [
+        29
+      ]
+    },
+    {
+      "query": "Stra\u00dfe STRASSE",
+      "matches": [
+        30
+      ]
+    },
+    {
+      "query": "\u05e9\u05dc\u05d5\u05dd \u05e2\u05d5\u05dc\u05dd",
+      "matches": [
+        31
+      ]
+    },
+    {
+      "query": "\u0928\u092e\u0938\u094d\u0924\u0947 \u0926\u0941\u0928\u093f\u092f\u093e",
+      "matches": [
+        32
+      ]
+    },
+    {
+      "query": "\u0645\u0631\u062d\u0628\u0627 \u0628\u0627\u0644\u0639\u0627\u0644\u0645",
+      "matches": [
+        33
+      ]
+    },
+    {
+      "query": "\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\u200d\ud83d\udc66 hello",
+      "matches": [
+        16,
+        26,
+        34,
+        68,
+        70,
+        72,
+        88,
+        90,
+        92,
+        98,
+        102,
+        104,
+        108,
+        112,
+        116,
+        118,
+        122,
+        128,
+        130,
+        132,
+        136,
+        140,
+        144,
+        152,
+        156,
+        158,
+        164,
+        166,
+        176,
+        178,
+        180,
+        186,
+        188,
+        196,
+        198,
+        204,
+        206,
+        208,
+        214,
+        220,
+        222,
+        226,
+        228,
+        230,
+        236,
+        238,
+        242,
+        244,
+        246,
+        248,
+        256,
+        258,
+        262,
+        268,
+        270,
+        272,
+        274,
+        276,
+        278,
+        280,
+        282,
+        284,
+        286,
+        292,
+        296,
+        298,
+        300,
+        302,
+        304,
+        312,
+        318,
+        320,
+        324,
+        328,
+        332,
+        334,
+        346,
+        348,
+        350,
+        352,
+        354,
+        362,
+        376,
+        386,
+        390,
+        392,
+        394,
+        398,
+        400,
+        402,
+        408,
+        410,
+        412
+      ]
+    },
+    {
+      "query": "<script>hide me</script>show me",
+      "matches": [
+        35
+      ]
+    },
+    {
+      "query": "<style>hidden</style>visible",
+      "matches": [
+        36
+      ]
+    },
+    {
+      "query": "<b>bold</b> text",
+      "matches": [
+        37
+      ]
+    },
+    {
+      "query": "&amp; &#1234; &#x0041;",
+      "matches": []
+    },
+    {
+      "query": "foo.com",
+      "matches": [
+        39,
+        41
+      ]
+    },
+    {
+      "query": "foo.com.br",
+      "matches": [
+        40
+      ]
+    },
+    {
+      "query": "foo.com/path",
+      "matches": [
+        41
+      ]
+    },
+    {
+      "query": "C:\\Users\\Victor",
+      "matches": [
+        42
+      ]
+    },
+    {
+      "query": "/var/test.txt",
+      "matches": [
+        43
+      ]
+    },
+    {
+      "query": "~/file.txt",
+      "matches": [
+        44
+      ]
+    },
+    {
+      "query": "./relative/file.txt",
+      "matches": [
+        45
+      ]
+    },
+    {
+      "query": "../file.txt",
+      "matches": [
+        46
+      ]
+    },
+    {
+      "query": "example.com:443",
+      "matches": [
+        47
+      ]
+    },
+    {
+      "query": "http://[::1]:8080",
+      "matches": [
+        48
+      ]
+    },
+    {
+      "query": "email+tag@example.com",
+      "matches": [
+        49
+      ]
+    },
+    {
+      "query": "name.surname@x.com",
+      "matches": [
+        50
+      ]
+    },
+    {
+      "query": "3,14",
+      "matches": [
+        51
+      ]
+    },
+    {
+      "query": "10:20",
+      "matches": [
+        52
+      ]
+    },
+    {
+      "query": "2026-11-12",
+      "matches": [
+        53
+      ]
+    },
+    {
+      "query": "rock\u2019n\u2019roll",
+      "matches": [
+        54
+      ]
+    },
+    {
+      "query": "a_b_c",
+      "matches": [
+        55
+      ]
+    },
+    {
+      "query": "one\ntwo\tthree",
+      "matches": [
+        56
+      ]
+    },
+    {
+      "query": "A\r\nB",
+      "matches": [
+        55,
+        57,
+        70,
+        72,
+        74,
+        76,
+        78,
+        80,
+        82,
+        84,
+        88,
+        98,
+        100,
+        102,
+        110,
+        112,
+        118,
+        120,
+        122,
+        124,
+        126,
+        132,
+        136,
+        140,
+        142,
+        146,
+        150,
+        152,
+        158,
+        160,
+        162,
+        166,
+        172,
+        176,
+        184,
+        186,
+        190,
+        194,
+        200,
+        202,
+        204,
+        210,
+        212,
+        214,
+        218,
+        224,
+        228,
+        230,
+        236,
+        238,
+        240,
+        244,
+        246,
+        250,
+        252,
+        254,
+        256,
+        260,
+        262,
+        264,
+        272,
+        274,
+        278,
+        286,
+        288,
+        304,
+        306,
+        308,
+        312,
+        314,
+        316,
+        318,
+        322,
+        324,
+        326,
+        328,
+        330,
+        336,
+        338,
+        340,
+        344,
+        352,
+        360,
+        374,
+        376,
+        378,
+        384,
+        386,
+        388,
+        392,
+        394,
+        404,
+        406,
+        408,
+        414
+      ]
+    },
+    {
+      "query": "foo",
+      "matches": [
+        1,
+        2,
+        13,
+        24,
+        25,
+        63,
+        73,
+        77,
+        82,
+        85,
+        87,
+        88,
+        90,
+        92,
+        93,
+        95,
+        97,
+        98,
+        99,
+        102,
+        103,
+        104,
+        107,
+        108,
+        110,
+        111,
+        112,
+        114,
+        115,
+        116,
+        118,
+        121,
+        122,
+        127,
+        128,
+        130,
+        132,
+        133,
+        134,
+        135,
+        143,
+        144,
+        146,
+        150,
+        151,
+        152,
+        156,
+        158,
+        163,
+        164,
+        167,
+        169,
+        171,
+        172,
+        173,
+        175,
+        176,
+        177,
+        178,
+        181,
+        183,
+        184,
+        185,
+        190,
+        191,
+        192,
+        193,
+        204,
+        205,
+        207,
+        208,
+        209,
+        213,
+        214,
+        215,
+        219,
+        220,
+        223,
+        224,
+        225,
+        226,
+        229,
+        230,
+        232,
+        233,
+        236,
+        238,
+        241,
+        242,
+        243,
+        244,
+        245,
+        249,
+        251,
+        255,
+        256,
+        257,
+        258,
+        259,
+        270,
+        273,
+        274,
+        275,
+        276,
+        282,
+        284,
+        285,
+        286,
+        287,
+        289,
+        290,
+        291,
+        292,
+        293,
+        296,
+        300,
+        302,
+        307,
+        312,
+        313,
+        314,
+        317,
+        318,
+        319,
+        320,
+        323,
+        324,
+        327,
+        328,
+        329,
+        331,
+        332,
+        334,
+        341,
+        347,
+        348,
+        350,
+        352,
+        353,
+        354,
+        366,
+        369,
+        373,
+        374,
+        375,
+        376,
+        377,
+        384,
+        385,
+        386,
+        388,
+        389,
+        392,
+        393,
+        394,
+        395,
+        398,
+        400,
+        402,
+        407,
+        408,
+        410,
+        411,
+        412,
+        413,
+        414,
+        415
+      ]
+    },
+    {
+      "query": "bar",
+      "matches": [
+        1,
+        2,
+        13,
+        24,
+        25,
+        63,
+        73,
+        77,
+        85,
+        87,
+        93,
+        95,
+        97,
+        99,
+        103,
+        107,
+        111,
+        115,
+        121,
+        127,
+        133,
+        135,
+        143,
+        151,
+        163,
+        167,
+        169,
+        171,
+        173,
+        175,
+        177,
+        181,
+        183,
+        185,
+        191,
+        193,
+        205,
+        207,
+        209,
+        213,
+        215,
+        219,
+        223,
+        225,
+        229,
+        233,
+        241,
+        243,
+        245,
+        249,
+        251,
+        255,
+        257,
+        259,
+        273,
+        275,
+        285,
+        287,
+        289,
+        291,
+        293,
+        307,
+        313,
+        317,
+        319,
+        323,
+        327,
+        329,
+        331,
+        341,
+        347,
+        353,
+        369,
+        373,
+        375,
+        377,
+        385,
+        389,
+        393,
+        395,
+        407,
+        411,
+        413,
+        415
+      ]
+    },
+    {
+      "query": "example",
+      "matches": []
+    },
+    {
+      "query": "com",
+      "matches": []
+    },
+    {
+      "query": "1",
+      "matches": [
+        4,
+        48
+      ]
+    },
+    {
+      "query": "23",
+      "matches": [
+        4
+      ]
+    },
+    {
+      "query": "foo 1.23",
+      "matches": [
+        88,
+        104,
+        108,
+        116,
+        122,
+        144,
+        152,
+        164,
+        178,
+        230,
+        296,
+        320,
+        324,
+        332,
+        348,
+        386,
+        400,
+        408
+      ]
+    },
+    {
+      "query": "FOO-BAR",
+      "matches": [
+        1,
+        73,
+        77,
+        85,
+        87,
+        93,
+        95,
+        97,
+        99,
+        103,
+        107,
+        111,
+        115,
+        121,
+        127,
+        133,
+        135,
+        143,
+        151,
+        163,
+        167,
+        169,
+        171,
+        173,
+        175,
+        177,
+        181,
+        183,
+        185,
+        191,
+        193,
+        205,
+        207,
+        209,
+        213,
+        215,
+        219,
+        223,
+        225,
+        229,
+        233,
+        241,
+        243,
+        245,
+        249,
+        251,
+        255,
+        257,
+        259,
+        273,
+        275,
+        285,
+        287,
+        289,
+        291,
+        293,
+        307,
+        313,
+        317,
+        319,
+        323,
+        327,
+        329,
+        331,
+        341,
+        347,
+        353,
+        369,
+        373,
+        375,
+        377,
+        385,
+        389,
+        393,
+        395,
+        407,
+        411,
+        413,
+        415
+      ]
+    },
+    {
+      "query": "A_B",
+      "matches": [
+        55,
+        57,
+        70,
+        72,
+        74,
+        76,
+        78,
+        80,
+        82,
+        84,
+        88,
+        98,
+        100,
+        102,
+        110,
+        112,
+        118,
+        120,
+        122,
+        124,
+        126,
+        132,
+        136,
+        140,
+        142,
+        146,
+        150,
+        152,
+        158,
+        160,
+        162,
+        166,
+        172,
+        176,
+        184,
+        186,
+        190,
+        194,
+        200,
+        202,
+        204,
+        210,
+        212,
+        214,
+        218,
+        224,
+        228,
+        230,
+        236,
+        238,
+        240,
+        244,
+        246,
+        250,
+        252,
+        254,
+        256,
+        260,
+        262,
+        264,
+        272,
+        274,
+        278,
+        286,
+        288,
+        304,
+        306,
+        308,
+        312,
+        314,
+        316,
+        318,
+        322,
+        324,
+        326,
+        328,
+        330,
+        336,
+        338,
+        340,
+        344,
+        352,
+        360,
+        374,
+        376,
+        378,
+        384,
+        386,
+        388,
+        392,
+        394,
+        404,
+        406,
+        408,
+        414
+      ]
+    },
+    {
+      "query": "a\u00e7\u00e3o foo",
+      "matches": [
+        87,
+        93,
+        95,
+        97,
+        107,
+        111,
+        133,
+        135,
+        143,
+        169,
+        171,
+        177,
+        181,
+        183,
+        185,
+        191,
+        205,
+        215,
+        219,
+        223,
+        225,
+        243,
+        245,
+        249,
+        255,
+        259,
+        275,
+        285,
+        291,
+        293,
+        319,
+        329,
+        331,
+        369,
+        389,
+        395,
+        411,
+        413
+      ]
+    },
+    {
+      "query": "!!!",
+      "matches": []
+    }
+  ]
+}

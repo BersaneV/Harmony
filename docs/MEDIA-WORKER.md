@@ -1,6 +1,6 @@
 # Processamento de anexos
 
-O executável `harmony-media-worker` processa anexos confirmados pela API. É um processo separado, sem porta HTTP. Não processa chamadas LiveKit, não grava conversas e não acessa URLs fornecidas pelos usuários. O arquivo original permanece intacto.
+O executável `harmony-media-worker` processa anexos confirmados pela API. É um processo separado, sem porta HTTP, supervisionado junto com a API pela imagem `infra/Dockerfile.harmony`. Ambos compartilham SQLite e o diretório privado de objetos; não exigem servidores PostgreSQL ou S3 no perfil padrão. Não processa chamadas LiveKit, não grava conversas e não acessa URLs fornecidas pelos usuários. O arquivo original permanece intacto.
 
 ## Contrato de produto
 
@@ -25,15 +25,15 @@ O executável `harmony-media-worker` processa anexos confirmados pela API. É um
 
 Estados: `queued`, `processing`, `ready`, `unsupported`, `failed`. Enquanto não há resultado, `metadata` é `null` e `derivatives` é vazio. O cliente consulta a cada 2–3 segundos durante processamento; esta versão não publica evento WebSocket de conclusão. `Message.attachments[].media_status` informa o estado observado na leitura da mensagem, sem obrigação de permanecer atualizado sozinho.
 
-`GET /api/uploads/{id}/derivatives/{thumbnail|faststart}` retorna `{url, expires_in:60, content_type, size}`. Status e assinatura de derivados exigem sessão vigente e `VIEW` atual do canal; antes de associar a uma mensagem, somente o autor pode acessá-los. Mensagens excluídas bloqueiam todos esses acessos. Bucket e derivados são privados. URLs previamente emitidas têm janela residual de até 60 segundos; revogar um cargo não invalida magicamente uma assinatura já entregue.
+`GET /api/uploads/{id}/derivatives/{thumbnail|faststart}` retorna `{url, expires_in:60, content_type, size}`. Status e assinatura de derivados exigem sessão vigente e `VIEW` atual do canal; antes de associar a uma mensagem, somente o autor pode acessá-los. Mensagens excluídas bloqueiam todos esses acessos. Objetos e derivados são privados. As URLs apontam para a API, que revalida sessão, VIEW e estado do anexo a cada GET; uma URL já emitida deixa de autorizar um novo download após revogação. Bytes de um fluxo que já começou não podem ser recolhidos. O endpoint suporta Range para reprodução/seek e transmite blocos sem carregar o original inteiro na memória.
 
 ## Fila, concorrência e cota
 
-A finalização do upload grava `media_jobs` na mesma transação que publica o original. A migration 0004 inclui uploads antigos já prontos. Cada upload tem um job da versão 1 da pipeline.
+A finalização do upload grava `media_jobs` na mesma transação que publica o original. O esquema `migrations-sqlite/` mantém jobs, tentativas e derivados; a importação copia os jobs históricos, inclusive os criados pela antiga migration PostgreSQL 0004. Cada upload tem um job da versão 1 da pipeline.
 
-O claim usa PostgreSQL, `FOR UPDATE SKIP LOCKED`, lease de 120 segundos e UUID da tentativa. Um processo executa um job por vez. Heartbeat a cada 5 segundos renova somente a tentativa vigente e ainda válida. Falhas transitórias de armazenamento, banco, I/O e timeout podem repetir até três tentativas, com espera de 5/10 segundos. Falhas permanentes não repetem. Jobs prontos não são executados novamente. Após morte do processo, outra execução coleta a tentativa vencida e retoma o job; o lease não é resetado por reiniciar o serviço.
+O claim usa SQLite e `BEGIN IMMEDIATE`, com lease de 120 segundos e UUID da tentativa. O lock de escrita serializa claims de processos independentes; não há `SKIP LOCKED` nem servidor de fila adicional. Um processo executa um job por vez. Heartbeat a cada 5 segundos renova somente a tentativa vigente e ainda válida. Falhas transitórias de armazenamento, banco, I/O e timeout podem repetir até três tentativas, com espera de 5/10 segundos. Falhas permanentes não repetem. Jobs prontos não são executados novamente. Após morte do processo, outra execução coleta a tentativa vencida e retoma o job; o lease não é resetado por reiniciar o serviço.
 
-Antes de qualquer gravação S3, a tentativa e todas as chaves possíveis são registradas no banco. Cada tentativa tem seu próprio prefixo. Publicação e coleta seguram o mesmo lock de job e o lock global de cota durante as operações S3, limitadas a 20 segundos por requisição. Uma tentativa obsoleta não pode gravar depois que o coletor ou o substituto adquiriu esse lock. Uma interrupção após PUT e antes de commit conserva o registro de limpeza e a reserva de bytes.
+Antes de qualquer gravação de objeto, a tentativa e todas as chaves possíveis são registradas no banco. Cada tentativa tem seu próprio prefixo. Publicação e coleta seguram o lock de escrita SQLite e revalidam a tentativa/lease antes das operações de armazenamento. Arquivos locais são publicados por rename atômico, com nomes derivados de hash e staging privado; o adaptador S3 opcional limita suas requisições a 20 segundos. Uma tentativa obsoleta não pode gravar depois que o coletor ou o substituto adquiriu o lock. Uma interrupção após a gravação e antes de commit conserva o registro de limpeza e a reserva de bytes.
 
 A cota global conta originais prontos, uploads ainda reservados, bytes dos derivados publicados e orçamento de tentativas ainda não coletadas. A tentativa reserva até `WORKER_MAX_OUTPUT_BYTES` antes de começar. Se não couber, fica `queued` com `error_code: quota_wait`, sem consumir tentativa, e tenta novamente após 60 segundos. Isso pode adiar uma miniatura pequena quando falta espaço para a reserva integral; o sistema não ultrapassa a cota para processá-la.
 
@@ -41,13 +41,13 @@ O worker remove derivados de tentativas falhas, substituídas, vencidas e mensag
 
 ## Isolamento e limites
 
-O supervisor possui apenas as credenciais PostgreSQL/S3 necessárias. Faz download assinado de uma chave canônica `objects/{upload_id}/original`, com redirecionamentos desabilitados, tamanho conhecido e leitura limitada. O parser recebe somente arquivo local em diretório temporário privado, argumentos fixos e ambiente limpo, sem credenciais. Não há shell nem URL de usuário na invocação.
+O processo do worker abre o mesmo SQLite e o armazenamento privado da API; no perfil local não precisa de credenciais de rede. Lê somente a chave canônica `objects/{upload_id}/original`, com tamanho conhecido e leitura limitada por `WORKER_MAX_INPUT_BYTES`. S3 exige configuração explícita e permanece um adaptador opcional. O parser recebe somente arquivo local em diretório temporário privado, argumentos fixos e ambiente limpo, sem credenciais. Não há shell nem URL de usuário na invocação.
 
 FFmpeg/ffprobe usam protocolo `file` e uma lista restrita de demuxers, sem HLS, concat ou playlists. A imagem de produção compila FFmpeg sem protocolos de rede. O parser tem um thread de codec/filtro, `max_alloc` de 64 MiB por alocação, limite de pixels antes de decodificar, stdout e stderr limitados separadamente a 64 KiB, timeout por comando e limite de tamanho de arquivo pelo sistema operacional. O total dos derivados também é validado antes da publicação.
 
 No Linux, exige Landlock ABI ≥3 (kernel ≥6.2 com Landlock habilitado) e seccomp. O parser pode ler seu diretório temporário, seu executável e bibliotecas de runtime; pode escrever apenas no temporário e `/dev/null`. Não pode ler `/proc`, credenciais ou outros arquivos do app. Seccomp bloqueia sockets/rede, ptrace, acesso à memória de outros processos, namespaces, mounts, io_uring e forks de processos. Threads são permitidas; `clone3` retorna ENOSYS para o fallback filtrado de `clone`. `PDEATHSIG` encerra o parser se o supervisor morrer. Falha em aplicar o sandbox impede processamento; não existe fallback sem isolamento.
 
-A implantação ainda deve usar usuário sem privilégios, capabilities removidas, filesystem somente leitura, tmpfs, limite de processos, memória e CPU no container. O serviço supervisor precisa alcançar apenas PostgreSQL e S3 na rede interna; o bloqueio de rede do parser não substitui a configuração de rede do host.
+A implantação ainda deve usar usuário sem privilégios, capabilities removidas, filesystem somente leitura, tmpfs, limite de processos, memória e CPU no container. A unidade compartilhada inclui a API, que acessa LiveKit; isso não concede rede aos parsers. O bloqueio de rede do parser não substitui a configuração de rede do host. O volume `/data` persiste banco e objetos, e `/tmp/harmony-media` é temporário; backup consistente exige parar API e worker e obter o lock exclusivo de manutenção.
 
 No macOS de desenvolvimento, `sandbox-exec` aplica isolamento de arquivos/rede; o supervisor mede RSS a cada 100 ms e encerra o grupo de processos no timeout/cancelamento. O limite de RSS é observado, não um hard limit de kernel. Mac não oferece o mesmo `PDEATHSIG`: SIGKILL do supervisor não garante encerramento imediato do parser órfão. Esse caminho é QA local; a implantação suportada do worker é Linux com os limites do container. A prova macOS não comprova Landlock/seccomp Linux.
 
@@ -55,9 +55,11 @@ No macOS de desenvolvimento, `sandbox-exec` aplica isolamento de arquivos/rede; 
 
 | Variável | Padrão / uso |
 |---|---|
-| `DATABASE_URL` | PostgreSQL, obrigatória |
-| `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | S3 interno autenticado, obrigatórias |
-| `S3_REGION`, `S3_BUCKET` | `us-east-1`, `harmony` |
+| `DATABASE_URL` | SQLite, obrigatória; compose: `sqlite:/data/harmony.db` |
+| `HARMONY_STORAGE_BACKEND` | `local`; `s3` somente quando escolhido explicitamente |
+| `HARMONY_STORAGE_DIR` | `./data/files`; compose: `/data/files`, igual à API |
+| `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Necessárias somente com backend `s3` |
+| `S3_REGION`, `S3_BUCKET` | `us-east-1`, `harmony`, somente para S3 |
 | `HARMONY_STORAGE_QUOTA_BYTES` | 1 GiB, idêntica à API |
 | `FFMPEG_PATH`, `FFPROBE_PATH` | `/usr/bin/ffmpeg`, `/usr/bin/ffprobe`; executáveis locais confiáveis |
 | `WORKER_TEMP_DIR` | `/tmp/harmony-media` |
@@ -81,6 +83,8 @@ A configuração ainda é validada em `--check-sandbox`, incluindo presença das
 
 ## Validação
 
-`node scripts/test_worker.mjs`, com ambiente carregado, API/S3/PostgreSQL ativos, `FFMPEG_PATH`, `FFPROBE_PATH` e `PSQL_PATH`: arquivos sintéticos reais, dois workers, JPEG/MP4 e bytes originais, ACL, cota, retries finitos, morte real de processo, retomada por lease, tentativa antiga concorrente, exclusão durante processamento e limpeza. Não usar dados de usuários para a prova.
+`node scripts/test_worker.mjs`, com configuração privada de QA, API/SQLite/arquivos locais ativos, `FFMPEG_PATH`, `FFPROBE_PATH` e CLI `harmony-db` compilado (`HARMONY_DB_BIN` permite apontar outro caminho): arquivos sintéticos reais, dois workers, JPEG/MP4 e bytes originais, ACL, cota, retries finitos, morte real de processo, retomada por lease, tentativa antiga concorrente, exclusão durante processamento e limpeza. Não usar dados de usuários para a prova.
 
 `python3 scripts/test_worker_sandbox.py`: negativos independentes com executáveis C inofensivos e canários, sem alterar os binários FFmpeg. O script verifica o isolamento observado na plataforma em que é executado. Relatórios locais em `.local/qa-worker/result.json` e `.local/qa-worker-sandbox/result.json` identificam o hash do binário testado. Linux deve passar os mesmos negativos e a prova com FFmpeg real no CI/host de destino; documentação e compilação não substituem a execução.
+
+A execução autocontida `HARMONY_TEST_WORKER=true node scripts/test_local_storage.mjs` inicia API e armazenamento temporários e inclui a suíte do worker; configure os caminhos de FFmpeg/ffprobe antes. Os relatórios PostgreSQL/S3 anteriores permanecem históricos; a validação atual deve identificar o backend e hash do executável usados. O worker preserva o original mesmo quando seu limite de processamento é menor que o limite de upload configurado na API.

@@ -3,34 +3,37 @@ x-logging: &logging
   driver: json-file
   options: {max-size: "10m", max-file: "3"}
 services:
-  postgres:
-    image: postgres:18.6-bookworm@sha256:f1ea2a1a4fb7b68d4836be1fdcb8a6466a89b072158bf9d97663600538c294c5
+  harmony:
+    build: {context: ., dockerfile: infra/Dockerfile.harmony}
+    network_mode: host
+    env_file: .env
     environment:
-      POSTGRES_USER: harmony
-      POSTGRES_DB: harmony
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/configure.py first}
-    volumes: [postgres:/var/lib/postgresql]
-    ports: ["127.0.0.1:15432:5432"]
+      DATABASE_URL: sqlite:/data/harmony.db
+      HARMONY_BIND: 127.0.0.1:8080
+      HARMONY_STORAGE_BACKEND: local
+      HARMONY_STORAGE_DIR: /data/files
+      HARMONY_WEB_DIR: /srv/harmony
+      WORKER_TEMP_DIR: /tmp/harmony-media
+      WORKER_TIMEOUT_SECONDS: "30"
+      WORKER_LEASE_SECONDS: "120"
+      WORKER_MEMORY_BYTES: "536870912"
+    volumes: [data:/data]
+    depends_on: [livekit]
+    read_only: true
+    tmpfs: [/tmp/harmony-media:size=128m,mode=0700,uid=10001,gid=10001]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    cpus: 2
+    mem_limit: 1536m
     healthcheck:
-      test: [CMD-SHELL, "pg_isready -U harmony -d harmony"]
-      interval: 5s
+      test: [CMD, curl, -fsS, http://127.0.0.1:8080/health]
+      interval: 15s
       timeout: 3s
-      retries: 30
+      retries: 5
+      start_period: 30s
+    stop_grace_period: 15s
     restart: unless-stopped
-    mem_limit: 1g
-    logging: *logging
-  storage:
-    image: chrislusf/seaweedfs:4.53@sha256:ccad23e18639c8b98cee17e7100b95830a06077b56d8e5b006d6dcf8ec5e94a0
-    entrypoint: [/bin/sh, /etc/harmony/storage-entrypoint.sh]
-    command: [server, "-dir=/data", "-ip=storage", "-volume.max=16", "-master.volumeSizeLimitMB=1024", "-s3", "-s3.config=/run/harmony/s3.json"]
-    volumes:
-      - storage:/data
-      - ./.local/deploy/s3.json:/etc/harmony/s3-source.json:ro
-      - ./infra/seaweed-entrypoint.sh:/etc/harmony/storage-entrypoint.sh:ro
-    tmpfs: [/run/harmony:size=1m,mode=0700]
-    ports: ["127.0.0.1:8333:8333"]
-    restart: unless-stopped
-    mem_limit: 1g
     logging: *logging
   livekit:
     image: livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20
@@ -40,55 +43,6 @@ services:
     restart: unless-stopped
     mem_limit: 2g
     logging: *logging
-  api:
-    build: {context: ., dockerfile: infra/Dockerfile.api}
-    network_mode: host
-    env_file: .env
-    environment:
-      HARMONY_BIND: 127.0.0.1:8080
-    depends_on:
-      postgres: {condition: service_healthy}
-      storage: {condition: service_started}
-      livekit: {condition: service_started}
-    read_only: true
-    tmpfs: [/tmp:size=32m]
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    healthcheck:
-      test: [CMD, curl, -fsS, http://127.0.0.1:8080/health]
-      interval: 15s
-      timeout: 3s
-      retries: 5
-    restart: unless-stopped
-    mem_limit: 1g
-    logging: *logging
-  media-worker:
-    build: {context: ., dockerfile: infra/Dockerfile.worker}
-    network_mode: host
-    environment:
-      DATABASE_URL: ${DATABASE_URL:?Run scripts/configure.py first}
-      S3_ENDPOINT: ${S3_ENDPOINT:-http://127.0.0.1:8333}
-      S3_REGION: ${S3_REGION:-us-east-1}
-      S3_BUCKET: ${S3_BUCKET:-harmony}
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Run scripts/configure.py first}
-      S3_SECRET_KEY: ${S3_SECRET_KEY:?Run scripts/configure.py first}
-      HARMONY_STORAGE_QUOTA_BYTES: ${HARMONY_STORAGE_QUOTA_BYTES:-1073741824}
-      WORKER_TEMP_DIR: /tmp/harmony-media
-      WORKER_TIMEOUT_SECONDS: "30"
-      WORKER_LEASE_SECONDS: "120"
-      WORKER_MEMORY_BYTES: "536870912"
-    depends_on:
-      api: {condition: service_healthy}
-      storage: {condition: service_started}
-    read_only: true
-    tmpfs: [/tmp/harmony-media:size=128m,mode=0700,uid=10001,gid=10001]
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    pids_limit: 64
-    cpus: 1
-    mem_limit: 768m
-    restart: unless-stopped
-    logging: *logging
   caddy:
     profiles: [public]
     build: {context: ., dockerfile: infra/Dockerfile.caddy}
@@ -96,11 +50,11 @@ services:
     volumes:
       - ./.local/deploy/caddy.json:/etc/caddy/harmony.json:ro
       - caddy:/data
-    depends_on: [api, livekit, storage]
+    depends_on:
+      harmony: {condition: service_healthy}
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 256m
     logging: *logging
 volumes:
-  postgres:
-  storage:
+  data:
   caddy:

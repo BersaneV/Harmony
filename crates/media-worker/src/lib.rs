@@ -1,5 +1,5 @@
 //! Durable media adapter. Original uploads are immutable; all publication is fenced
-//! by the PostgreSQL attempt id, and every object key is recorded before a PUT.
+//! by the persisted attempt id, and every object key is recorded before publication.
 mod config;
 mod parser;
 mod queue;

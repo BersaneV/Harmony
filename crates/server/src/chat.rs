@@ -15,19 +15,23 @@ use harmony_domain::permissions as p;
 use harmony_domain::{self as domain, Error, Message, SendMessage};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use sqlx::{PgPool, Postgres, Row, Transaction};
+use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 #[derive(Clone)]
-pub struct PgConversations(pub PgPool);
+pub struct SqliteConversations(pub SqlitePool);
 #[async_trait]
-impl ConversationRepository for PgConversations {
+impl ConversationRepository for SqliteConversations {
     async fn commit_message(
         &self,
         actor: Uuid,
         channel: Uuid,
         b: SendMessage,
     ) -> domain::Result<Message> {
-        let mut tx = self.0.begin().await.map_err(db_error)?;
+        let mut tx = self
+            .0
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(db_error)?;
         lock_channel(&mut tx, channel).await?;
         db::tx_require_permission(
             &mut tx,
@@ -56,7 +60,8 @@ impl ConversationRepository for PgConversations {
                 ));
             }
         }
-        sqlx::query("INSERT INTO messages(id,channel_id,author_id,client_nonce,content,seq,change_seq,request_hash) VALUES($1,$2,$3,$4,$5,$6,$6,$7)").bind(id).bind(channel).bind(actor).bind(b.client_nonce).bind(b.content).bind(seq).bind(request_hash).execute(&mut *tx).await.map_err(db_error)?;
+        let lexemes = harmony_search::encoded(&b.content).map_err(|e| Error::Invalid(e.into()))?;
+        sqlx::query("INSERT INTO messages(id,channel_id,author_id,client_nonce,content,seq,change_seq,request_hash,search_lexemes,search_index_version) VALUES($1,$2,$3,$4,$5,$6,$6,$7,$8,1)").bind(id).bind(channel).bind(actor).bind(b.client_nonce).bind(b.content).bind(seq).bind(request_hash).bind(lexemes).execute(&mut *tx).await.map_err(db_error)?;
         for aid in attachments {
             let n =
                 sqlx::query("UPDATE uploads SET message_id=$1 WHERE id=$2 AND message_id IS NULL")
@@ -77,15 +82,15 @@ impl ConversationRepository for PgConversations {
         db::message(&self.0, id, actor).await
     }
 }
-async fn lock_channel(tx: &mut Transaction<'_, Postgres>, id: Uuid) -> domain::Result<()> {
-    sqlx::query("SELECT id FROM channels WHERE id=$1 FOR NO KEY UPDATE")
+async fn lock_channel(tx: &mut Transaction<'_, Sqlite>, id: Uuid) -> domain::Result<()> {
+    sqlx::query("SELECT id FROM channels WHERE id=$1")
         .bind(id)
         .fetch_one(&mut **tx)
         .await
         .map_err(db_error)?;
     Ok(())
 }
-async fn next_seq(tx: &mut Transaction<'_, Postgres>, id: Uuid) -> domain::Result<i64> {
+async fn next_seq(tx: &mut Transaction<'_, Sqlite>, id: Uuid) -> domain::Result<i64> {
     sqlx::query_scalar("UPDATE channels SET last_seq=last_seq+1 WHERE id=$1 RETURNING last_seq")
         .bind(id)
         .fetch_one(&mut **tx)
@@ -93,7 +98,7 @@ async fn next_seq(tx: &mut Transaction<'_, Postgres>, id: Uuid) -> domain::Resul
         .map_err(db_error)
 }
 async fn event(
-    tx: &mut Transaction<'_, Postgres>,
+    tx: &mut Transaction<'_, Sqlite>,
     channel: Uuid,
     kind: &str,
     id: Uuid,
@@ -110,7 +115,7 @@ pub async fn send(
 ) -> ApiResult<Json<Message>> {
     s.limit(&format!("messages:{}", a.user.id), 60, 60)?;
     Ok(Json(
-        ChatService(PgConversations(s.pool))
+        ChatService(SqliteConversations(s.pool))
             .send(a.user.id, cid, b)
             .await?,
     ))
@@ -139,8 +144,8 @@ pub async fn history(
         .transpose()?
         .unwrap_or(i64::MAX);
     let after = q.after_seq.as_deref().map(domain::sequence).transpose()?;
-    let mut tx = s.pool.begin().await?;
-    let cursor: i64 = sqlx::query_scalar("SELECT last_seq FROM channels WHERE id=$1 FOR SHARE")
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let cursor: i64 = sqlx::query_scalar("SELECT last_seq FROM channels WHERE id=$1")
         .bind(cid)
         .fetch_one(&mut *tx)
         .await?;
@@ -214,16 +219,17 @@ pub async fn edit(
     if b.content.trim().is_empty() || b.content.chars().count() > 4000 {
         return Err(Error::Invalid("Conteúdo deve ter de1 a4000 caracteres".into()).into());
     }
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     lock_channel(&mut tx, cid).await?;
     db::tx_require_permission(&mut tx, cid, a.user.id, p::SEND).await?;
     let seq = next_seq(&mut tx, cid).await?;
     let n = sqlx::query(
-        "UPDATE messages SET content=$1,edited_at=now(),change_seq=$2 WHERE id=$3 AND NOT deleted",
+        "UPDATE messages SET content=$1,search_lexemes=$4,search_index_version=1,edited_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),change_seq=$2 WHERE id=$3 AND NOT deleted",
     )
-    .bind(b.content)
+    .bind(&b.content)
     .bind(seq)
     .bind(id)
+    .bind(harmony_search::encoded(&b.content).map_err(|e|Error::Invalid(e.into()))?)
     .execute(&mut *tx)
     .await?
     .rows_affected();
@@ -240,7 +246,7 @@ pub async fn delete(
     Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
     let cid = authorize_mutation(&s, &a, id, true).await?;
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     lock_channel(&mut tx, cid).await?;
     db::tx_access(&mut tx, cid, a.user.id).await?;
     let owner: Uuid = sqlx::query_scalar("SELECT author_id FROM messages WHERE id=$1")
@@ -262,7 +268,7 @@ pub async fn delete(
     if !deleted {
         let seq = next_seq(&mut tx, cid).await?;
         sqlx::query(
-            "UPDATE messages SET content='',deleted=true,edited_at=now(),change_seq=$1 WHERE id=$2",
+            "UPDATE messages SET content='',search_lexemes='',search_index_version=1,deleted=true,edited_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),change_seq=$1 WHERE id=$2",
         )
         .bind(seq)
         .bind(id)
@@ -302,7 +308,7 @@ async fn reaction(
             .bind(id)
             .fetch_one(&s.pool)
             .await?;
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     lock_channel(&mut tx, cid).await?;
     db::tx_require_permission(&mut tx, cid, a.user.id, p::REACT).await?;
     let changed = if add {
@@ -348,7 +354,7 @@ pub async fn mark_read(
     if seq > last {
         return Err(Error::Invalid("Leitura além do último evento".into()).into());
     }
-    sqlx::query("INSERT INTO channel_reads(channel_id,user_id,seq) VALUES($1,$2,$3) ON CONFLICT(channel_id,user_id) DO UPDATE SET seq=GREATEST(channel_reads.seq,EXCLUDED.seq)").bind(cid).bind(a.user.id).bind(seq).execute(&s.pool).await?;
+    sqlx::query("INSERT INTO channel_reads(channel_id,user_id,seq) VALUES($1,$2,$3) ON CONFLICT(channel_id,user_id) DO UPDATE SET seq=max(channel_reads.seq,EXCLUDED.seq)").bind(cid).bind(a.user.id).bind(seq).execute(&s.pool).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 #[derive(Deserialize)]
@@ -364,7 +370,7 @@ pub async fn search(
     if q.q.trim().is_empty() || q.q.len() > 200 {
         return Err(Error::Invalid("Busca deve ter de1 a200 bytes".into()).into());
     }
-    let ids:Vec<Uuid>=sqlx::query_scalar("SELECT m.id FROM messages m JOIN channels c ON c.id=m.channel_id WHERE NOT m.deleted AND ($1::uuid IS NULL OR m.channel_id=$1) AND to_tsvector('simple',m.content) @@ plainto_tsquery('simple',$2) AND (EXISTS(SELECT 1 FROM guild_members gm WHERE gm.guild_id=c.guild_id AND gm.user_id=$3) OR EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id=c.id AND cm.user_id=$3)) AND (harmony_channel_permissions(c.id,$3) & 1)=1 ORDER BY m.created_at DESC LIMIT 50").bind(q.channel_id).bind(q.q).bind(a.user.id).fetch_all(&s.pool).await?;
+    let ids:Vec<Uuid>=sqlx::query_scalar("SELECT m.id FROM messages m JOIN channels c ON c.id=m.channel_id WHERE NOT m.deleted AND ($1 IS NULL OR m.channel_id=$1) AND m.rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH $2) AND (EXISTS(SELECT 1 FROM guild_members gm WHERE gm.guild_id=c.guild_id AND gm.user_id=$3) OR EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id=c.id AND cm.user_id=$3)) AND (COALESCE((SELECT permissions FROM effective_channel_permissions ep WHERE ep.channel_id=c.id AND ep.user_id=$3),0) & 1)=1 ORDER BY m.created_at DESC LIMIT 50").bind(q.channel_id).bind(harmony_search::query(&q.q).map_err(|e|Error::Invalid(e.into()))?).bind(a.user.id).fetch_all(&s.pool).await?;
     let mut items = vec![];
     for id in ids {
         items.push(db::message(&s.pool, id, a.user.id).await?)
@@ -384,10 +390,12 @@ pub async fn dispatch_outbox(s: AppState) {
         for row in rows {
             let event: Value = row.get("event");
             s.events.send(event).ok();
-            let _ = sqlx::query("UPDATE outbox SET delivered_at=now() WHERE id=$1")
-                .bind(row.get::<i64, _>("id"))
-                .execute(&s.pool)
-                .await;
+            let _ = sqlx::query(
+                "UPDATE outbox SET delivered_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=$1",
+            )
+            .bind(row.get::<i64, _>("id"))
+            .execute(&s.pool)
+            .await;
         }
     }
 }

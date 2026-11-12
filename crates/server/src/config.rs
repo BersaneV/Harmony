@@ -16,6 +16,11 @@ pub struct Config {
     pub s3_bucket: String,
     pub s3_access: Option<String>,
     pub s3_secret: Option<String>,
+    pub storage: harmony_storage::StorageConfig,
+    pub public_api_url: String,
+    pub web_dir: Option<std::path::PathBuf>,
+    pub p2p_enabled: bool,
+    pub p2p_stun_urls: Vec<String>,
     pub max_upload: i64,
     pub storage_quota: i64,
     pub max_bitrate: u64,
@@ -28,8 +33,54 @@ impl Config {
         if jwt_secret.len() < 32 || jwt_secret.starts_with("CHANGE_ME") {
             return Err("HARMONY_JWT_SECRET exige ao menos32 bytes aleatórios".into());
         }
+        let public_api_url =
+            env::var("HARMONY_PUBLIC_API_URL").unwrap_or("http://127.0.0.1:8080".into());
+        let public_url = url::Url::parse(&public_api_url)?;
+        if !matches!(public_url.scheme(), "http" | "https")
+            || public_url.host_str().is_none()
+            || !public_url.username().is_empty()
+            || public_url.password().is_some()
+            || public_url.query().is_some()
+            || public_url.fragment().is_some()
+            || !matches!(public_url.path(), "" | "/")
+        {
+            return Err(
+                "HARMONY_PUBLIC_API_URL deve ser uma origem HTTP(S), sem caminho ou credenciais"
+                    .into(),
+            );
+        }
+        let p2p_stun_urls: Vec<String> = env::var("HARMONY_P2P_STUN_URLS")
+            .unwrap_or_default()
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect();
+        if p2p_stun_urls.len() > 4
+            || p2p_stun_urls.iter().any(|s| {
+                !(s.starts_with("stun:") || s.starts_with("stuns:"))
+                    || s.len() > 255
+                    || s.contains('@')
+                    || s.contains('/')
+                    || s.contains('?')
+                    || s.contains('#')
+                    || s.chars().any(char::is_whitespace)
+            })
+        {
+            return Err("HARMONY_P2P_STUN_URLS aceita até quatro URLs STUN sem credenciais".into());
+        }
+        let p2p_enabled = match env::var("HARMONY_P2P_DIAGNOSTICS").as_deref() {
+            Ok("true") => true,
+            Ok("false") | Err(_) => false,
+            _ => return Err("HARMONY_P2P_DIAGNOSTICS deve ser true ou false".into()),
+        };
         Ok(Self {
-            database_url: env::var("DATABASE_URL")?,
+            database_url: env::var("DATABASE_URL").unwrap_or("sqlite:./data/harmony.db".into()),
+            storage: harmony_storage::StorageConfig::from_env()?,
+            public_api_url: public_api_url.trim_end_matches('/').to_string(),
+            web_dir: env::var_os("HARMONY_WEB_DIR").map(std::path::PathBuf::from),
+            p2p_enabled,
+            p2p_stun_urls,
             bind: env::var("HARMONY_BIND").unwrap_or("127.0.0.1:8080".into()),
             public_origin: env::var("HARMONY_PUBLIC_ORIGIN")
                 .unwrap_or("http://localhost:5173".into()),

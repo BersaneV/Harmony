@@ -36,8 +36,8 @@ pub async fn create_guild(
         name: domain::name(&b.name)?,
         owner_id: a.user.id,
     };
-    let mut tx = s.pool.begin().await?;
-    sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
+    sqlx::query("SELECT id FROM users WHERE id=$1")
         .bind(a.user.id)
         .execute(&mut *tx)
         .await?;
@@ -79,7 +79,18 @@ pub async fn members(
     if db::member_role(&s.pool, id, a.user.id).await?.is_none() {
         return Err(Error::Forbidden.into());
     }
-    let items=sqlx::query("SELECT to_jsonb(u)||jsonb_build_object('role',m.role,'role_ids',COALESCE((SELECT jsonb_agg(mr.role_id ORDER BY mr.role_id) FROM guild_member_roles mr WHERE mr.guild_id=m.guild_id AND mr.user_id=m.user_id),'[]'::jsonb)) AS data FROM guild_members m JOIN public_users u ON u.id=m.user_id WHERE guild_id=$1 ORDER BY u.username").bind(id).fetch_all(&s.pool).await?.into_iter().map(|r|r.get::<Value,_>("data")).collect::<Vec<_>>();
+    let rows = sqlx::query("SELECT u.*,m.role FROM guild_members m JOIN public_users u ON u.id=m.user_id WHERE guild_id=$1 ORDER BY u.username")
+        .bind(id).fetch_all(&s.pool).await?;
+    let mut items = Vec::with_capacity(rows.len());
+    for row in rows {
+        let user = db::user_row(&row);
+        let role_ids: Vec<Uuid> = sqlx::query_scalar("SELECT role_id FROM guild_member_roles WHERE guild_id=$1 AND user_id=$2 ORDER BY role_id")
+            .bind(id).bind(user.id).fetch_all(&s.pool).await?;
+        let mut value = json!(user);
+        value["role"] = json!(row.get::<String, _>("role"));
+        value["role_ids"] = json!(role_ids);
+        items.push(value);
+    }
     Ok(Json(json!({"items":items})))
 }
 #[derive(Deserialize)]
@@ -96,8 +107,8 @@ pub async fn update_member(
     if !matches!(b.role.as_str(), "admin" | "member") {
         return Err(Error::Invalid("Cargo inválido".into()).into());
     }
-    let mut tx = s.pool.begin().await?;
-    let owner: Uuid = sqlx::query_scalar("SELECT owner_id FROM guilds WHERE id=$1 FOR UPDATE")
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let owner: Uuid = sqlx::query_scalar("SELECT owner_id FROM guilds WHERE id=$1")
         .bind(gid)
         .fetch_one(&mut *tx)
         .await?;
@@ -123,8 +134,8 @@ pub async fn remove_member(
     a: Auth,
     Path((gid, uid)): Path<(Uuid, Uuid)>,
 ) -> ApiResult<StatusCode> {
-    let mut tx = s.pool.begin().await?;
-    let owner: Uuid = sqlx::query_scalar("SELECT owner_id FROM guilds WHERE id=$1 FOR UPDATE")
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let owner: Uuid = sqlx::query_scalar("SELECT owner_id FROM guilds WHERE id=$1")
         .bind(gid)
         .fetch_one(&mut *tx)
         .await?;
@@ -166,7 +177,7 @@ pub async fn channels(
     if db::member_role(&s.pool, id, a.user.id).await?.is_none() {
         return Err(Error::Forbidden.into());
     }
-    let items=sqlx::query("SELECT c.*,harmony_channel_permissions(c.id,$2) AS effective_permissions,COALESCE(r.seq,0) AS read_seq FROM channels c LEFT JOIN channel_reads r ON r.channel_id=c.id AND r.user_id=$2 WHERE c.guild_id=$1 AND (harmony_channel_permissions(c.id,$2) & 1)=1 ORDER BY c.created_at,c.id").bind(id).bind(a.user.id).fetch_all(&s.pool).await?.into_iter().map(db::channel).collect::<Vec<_>>();
+    let items=sqlx::query("SELECT c.*,COALESCE((SELECT permissions FROM effective_channel_permissions ep WHERE ep.channel_id=c.id AND ep.user_id=$2),0) AS effective_permissions,COALESCE(r.seq,0) AS read_seq FROM channels c LEFT JOIN channel_reads r ON r.channel_id=c.id AND r.user_id=$2 WHERE c.guild_id=$1 AND (COALESCE((SELECT permissions FROM effective_channel_permissions ep WHERE ep.channel_id=c.id AND ep.user_id=$2),0) & 1)=1 ORDER BY c.created_at,c.id").bind(id).bind(a.user.id).fetch_all(&s.pool).await?.into_iter().map(db::channel).collect::<Vec<_>>();
     Ok(Json(json!({"items":items})))
 }
 #[derive(Deserialize)]
@@ -188,18 +199,17 @@ pub async fn create_channel(
         return Err(Error::Invalid("Tipo de canal inválido".into()).into());
     }
     let name = domain::name(&b.name)?;
-    let mut tx = s.pool.begin().await?;
-    sqlx::query("SELECT id FROM guilds WHERE id=$1 FOR UPDATE")
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
+    sqlx::query("SELECT id FROM guilds WHERE id=$1")
         .bind(id)
         .execute(&mut *tx)
         .await?;
-    let role: Option<String> = sqlx::query_scalar(
-        "SELECT role FROM guild_members WHERE guild_id=$1 AND user_id=$2 FOR SHARE",
-    )
-    .bind(id)
-    .bind(a.user.id)
-    .fetch_optional(&mut *tx)
-    .await?;
+    let role: Option<String> =
+        sqlx::query_scalar("SELECT role FROM guild_members WHERE guild_id=$1 AND user_id=$2")
+            .bind(id)
+            .bind(a.user.id)
+            .fetch_optional(&mut *tx)
+            .await?;
     if !domain::can_manage(role.as_deref()) {
         return Err(Error::Forbidden.into());
     }
@@ -238,15 +248,14 @@ pub async fn issue_invite(
     if !(1..=168).contains(&hours) || !(1..=100).contains(&uses) {
         return Err(Error::Invalid("Convite aceita1–168 horas e1–100 usos".into()).into());
     }
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     if let Some(gid) = guild {
-        let role: Option<String> = sqlx::query_scalar(
-            "SELECT role FROM guild_members WHERE guild_id=$1 AND user_id=$2 FOR SHARE",
-        )
-        .bind(gid)
-        .bind(actor)
-        .fetch_optional(&mut *tx)
-        .await?;
+        let role: Option<String> =
+            sqlx::query_scalar("SELECT role FROM guild_members WHERE guild_id=$1 AND user_id=$2")
+                .bind(gid)
+                .bind(actor)
+                .fetch_optional(&mut *tx)
+                .await?;
         if !domain::can_manage(role.as_deref()) {
             return Err(Error::Forbidden.into());
         }
@@ -287,7 +296,7 @@ pub async fn accept_invite(
     a: Auth,
     Json(b): Json<Token>,
 ) -> ApiResult<Json<Value>> {
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     let gid = consume_invite(&mut tx, &b.token)
         .await?
         .ok_or_else(|| Error::Invalid("Este convite é apenas para cadastro".into()))?;
@@ -316,11 +325,16 @@ pub async fn users_search(
     if q.len() < 2 || q.len() > 80 {
         return Ok(Json(json!({"items":[]})));
     }
-    let items=sqlx::query("SELECT id,username,display_name FROM users WHERE NOT disabled AND starts_with(username,$1) ORDER BY username LIMIT 20").bind(q.to_ascii_lowercase()).fetch_all(&s.pool).await?.into_iter().map(|r|json!({"id":r.get::<Uuid,_>("id"),"username":r.get::<String,_>("username"),"display_name":r.get::<String,_>("display_name")})).collect::<Vec<_>>();
+    let items=sqlx::query("SELECT id,username,display_name FROM users WHERE NOT disabled AND substr(username,1,length($1))=$1 ORDER BY username LIMIT 20").bind(q.to_ascii_lowercase()).fetch_all(&s.pool).await?.into_iter().map(|r|json!({"id":r.get::<Uuid,_>("id"),"username":r.get::<String,_>("username"),"display_name":r.get::<String,_>("display_name")})).collect::<Vec<_>>();
     Ok(Json(json!({"items":items})))
 }
 pub async fn friends(State(s): State<AppState>, a: Auth) -> ApiResult<Json<Value>> {
-    let items=sqlx::query("SELECT f.*,to_jsonb(u) AS other_user FROM friends f JOIN public_users u ON u.id=CASE WHEN f.requester_id=$1 THEN f.addressee_id ELSE f.requester_id END WHERE f.requester_id=$1 OR f.addressee_id=$1 ORDER BY f.created_at").bind(a.user.id).fetch_all(&s.pool).await?.into_iter().map(|r|json!({"id":r.get::<Uuid,_>("id"),"user":r.get::<Value,_>("other_user"),"status":r.get::<String,_>("status"),"incoming":r.get::<Uuid,_>("addressee_id")==a.user.id})).collect::<Vec<_>>();
+    let rows = sqlx::query("SELECT f.*,CASE WHEN f.requester_id=$1 THEN f.addressee_id ELSE f.requester_id END AS other_user_id FROM friends f WHERE f.requester_id=$1 OR f.addressee_id=$1 ORDER BY f.created_at")
+        .bind(a.user.id).fetch_all(&s.pool).await?;
+    let mut items = Vec::with_capacity(rows.len());
+    for row in rows {
+        items.push(json!({"id":row.get::<Uuid,_>("id"),"user":db::user(&s.pool,row.get("other_user_id")).await?,"status":row.get::<String,_>("status"),"incoming":row.get::<Uuid,_>("addressee_id")==a.user.id}));
+    }
     Ok(Json(json!({"items":items})))
 }
 #[derive(Deserialize)]
@@ -394,11 +408,9 @@ pub async fn conversations(State(s): State<AppState>, a: Auth) -> ApiResult<Json
     Ok(Json(json!({"items":items})))
 }
 async fn participants(s: &AppState, id: Uuid) -> ApiResult<Vec<domain::User>> {
-    let values:Vec<Value>=sqlx::query_scalar("SELECT to_jsonb(u) FROM public_users u JOIN channel_members m ON m.user_id=u.id WHERE m.channel_id=$1 ORDER BY u.username").bind(id).fetch_all(&s.pool).await?;
-    values
-        .into_iter()
-        .map(|v| serde_json::from_value(v).map_err(|_| Error::Internal.into()))
-        .collect()
+    let rows = sqlx::query("SELECT u.* FROM public_users u JOIN channel_members m ON m.user_id=u.id WHERE m.channel_id=$1 ORDER BY u.username")
+        .bind(id).fetch_all(&s.pool).await?;
+    Ok(rows.iter().map(db::user_row).collect())
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -417,12 +429,12 @@ pub async fn create_conversation(
     if ids.is_empty() || ids.len() > 9 || ids.contains(&a.user.id) {
         return Err(Error::Invalid("Selecione de1 a9 amigos diferentes".into()).into());
     }
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     let mut all = ids.clone();
     all.push(a.user.id);
     all.sort();
     for uid in &all {
-        sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
+        sqlx::query("SELECT id FROM users WHERE id=$1")
             .bind(uid)
             .execute(&mut *tx)
             .await?;

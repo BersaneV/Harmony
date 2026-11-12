@@ -51,6 +51,27 @@ def main():
             "source": "https://www.npmjs.com/package/" + package["name"] + "/v/" + package["version"],
             "directory": directory,
         }
+    # The text parser is upstream C vendored inside our own workspace crate;
+    # Cargo metadata alone cannot discover its separate license/attribution.
+    parser_dir = ROOT / "crates/search/vendor"
+    parser_files = []
+    for name, expected, source in (
+        ("wparser_def.c", "ee458e41da57621472c0d8e268b6010fb696d64ac45f7707d98ee9479bb84f47",
+         "https://github.com/postgres/postgres/blob/REL_18_6/src/backend/tsearch/wparser_def.c"),
+        ("COPYRIGHT", "3d6af92ff8a4c2cdf69afb1cf44edea727922f5cd0cf8b5f72b11cdecac8fdfd",
+         "https://github.com/postgres/postgres/blob/REL_18_6/COPYRIGHT"),
+    ):
+        digest = hashlib.sha256((parser_dir / name).read_bytes()).hexdigest()
+        if digest != expected:
+            raise RuntimeError(f"Vendored PostgreSQL {name} differs from the verified upstream source")
+        parser_files.append({"name": name, "sha256": digest, "source": source})
+    packages["vendor:postgresql-text-parser@18.6"] = {
+        "license": "PostgreSQL",
+        "source": "https://github.com/postgres/postgres/tree/REL_18_6",
+        "directory": parser_dir,
+        "source_files": parser_files,
+        "usage": "Server search tokenizer; Harmony standalone adapter documented in crates/search/vendor/README.md",
+    }
     inventory, texts = [], {}
     for key, entry in sorted(packages.items()):
         notices = []
@@ -64,7 +85,7 @@ def main():
     header = (
         "Harmony — third-party notices\n\n"
         "Generated from pinned package metadata and bundled license/notice files.\n"
-        "Includes all Cargo target/build dependencies and installed npm production dependencies.\n"
+        "Includes all Cargo target/build dependencies, installed npm production dependencies and vendored third-party sources.\n"
         "Individual packages retain their original licenses; Harmony's Apache-2.0 applies only to its own code.\n"
         "Source links below provide each unmodified package. Windows/WebView2 and infrastructure images are separate products.\n"
         "A missing notice file is not a claim that attribution is unnecessary; inspect the linked package before distribution.\n\n"
@@ -72,6 +93,9 @@ def main():
     body = [header]
     for entry in inventory:
         body.append(f"{entry['package']}\nLicense: {entry['license']}\nSource: {entry['source']}\n")
+        body.extend(f"Source file: {item['name']} — SHA256 {item['sha256']} — {item['source']}\n" for item in entry.get("source_files", []))
+        if entry.get("usage"):
+            body.append(f"Usage: {entry['usage']}\n")
         body.extend(f"Notice: {n['name']} — {n['sha256']}\n" for n in entry["notices"])
         body.append("\n")
     for digest, content in sorted(texts.items()):

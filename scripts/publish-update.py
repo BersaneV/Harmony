@@ -64,7 +64,7 @@ def main():
         "--output", str(directory / "local-signature-verification.json")], check=True, cwd=ROOT)
     manifest = {
         "version": args.version,
-        "notes": "Worker de mídia, personalização avançada e atualizações assinadas. Consulte as notas da versão no GitHub.",
+        "notes": "Servidor simplificado com SQLite e arquivos locais, navegação responsiva e diagnóstico P2P. Worker, personalização e atualizações assinadas preservados. Consulte as notas da versão no GitHub.",
         "pub_date": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "platforms": {"windows-x86_64": {
             "signature": (directory / (name + ".sig")).read_text().strip(),

@@ -1,66 +1,72 @@
-# Operar o Harmony
+# Operar o Harmony 0.3.0
 
-Servidor: Linux dedicado, Docker Engine e Compose. O Compose usa rede do host para a mídia e **não é homologado no Docker Desktop de macOS/Windows**. O aplicativo Windows é cliente; ele não instala PostgreSQL ou LiveKit no computador de cada participante.
+O perfil simplificado usa três serviços: `harmony` (API, frontend e worker em processos separados), `livekit` (voz/vídeo) e `caddy` (entrada pública). SQLite e os arquivos privados ficam no volume `data`. O aplicativo Windows é cliente e não instala esses serviços.
 
-## Primeiro start local do servidor Linux
+Servidor: Linux dedicado com Docker Engine/Compose, disco local e Landlock ABI 3 (kernel 6.2+) com seccomp. O Compose usa rede do host; não é homologado no Docker Desktop de macOS/Windows. O supervisor verifica o sandbox antes de abrir a API. Sem suporte, a unidade falha e não processa arquivos sem isolamento.
+
+## Instalação nova
 
 ```sh
 python3 scripts/configure.py
 docker compose up -d --build
-printf 'fs.configure -locationPrefix=/buckets/ -volumeGrowthCount=1 -apply\n' | docker compose exec -T storage weed shell
-python3 scripts/storage-init.py
 ```
 
-Os segredos ficam em `.env` e `.local/deploy/`, com permissão0600 e ignorados pelo Git. O script recusa substituir arquivos existentes. A senha inicial está no campo `HARMONY_BOOTSTRAP_PASSWORD`; o bootstrap só cria o primeiro administrador quando não existe conta. Não compartilhe esse arquivo. O backend deve recusar chaves ausentes/fracas. Para o cliente web de desenvolvimento: `npm ci && npm run dev`; informe o servidor `http://127.0.0.1:8080`.
+A API serve o frontend em `http://127.0.0.1:8080`. O gerador cria `.env` e `.local/deploy/` privados, recusa sobrescrita e não contata provedores. A senha inicial está em `HARMONY_BOOTSTRAP_PASSWORD`; só é usada para criar a primeira conta. Não envie `.env` aos participantes. Não há cadastro aberto: o administrador emite convites.
 
-O entrypoint do storage copia a configuração privada para um tmpfs com acesso exclusivo do UID1000 e depois entrega ao entrypoint oficial, que reduz os privilégios. O arquivo no host continua0600. O gateway de arquivos18083 limita o corpo do upload ao valor gerado de `HARMONY_MAX_UPLOAD_BYTES`; ao alterar essa variável, ajuste também o `max_size` em `caddy.json`. A URL de PUT assina o tamanho exato reservado.
+Para desenvolvimento nativo, compile o frontend e os binários e use `scripts/with-env.py`. `HARMONY_ENV_FILE` seleciona uma configuração isolada; variáveis já definidas no ambiente prevalecem. O banco e storage nativos usam os caminhos absolutos da configuração. No Compose, os caminhos são sobrescritos por `/data/harmony.db`, `/data/files` e `/srv/harmony`.
 
-O login normal não usa token de administração do LiveKit nem chaves S3. Essas chaves ficam no servidor. Não existe cadastro aberto: crie convite no painel administrativo e entregue pelo contato combinado com o usuário.
+## Endereço público
 
-## Host público
-
-Prepare um checkout novo e execute `python3 scripts/configure.py --domain seu-dominio.example`. Antes de ligar serviços públicos, os quatro nomes `app`, `media`, `files` e `turn` precisam apontar para o IP do host. DNS, IP público, limites da conta e certificados não são criados pelo projeto.
-
-Depois de conferir a configuração: `docker compose --profile public up -d --build` e `python3 scripts/storage-init.py`. Caddy é compilado com módulo L4 fixado; o binário Caddy comum não substitui esse build.
-
-Execute também a configuração de crescimento de volumes mostrada acima. SeaweedFS cresce sete volumes por padrão; usar um volume por vez evita reservar espaço demais no host pequeno. Essa configuração não remove volumes existentes. A sinalização de mídia passa pelo gateway HTTP privado18082: cada conexão/reconexão RTC é autorizada pela sessão e ACL correntes antes de chegar ao LiveKit, inclusive com token de mídia renovado. Chamadas já abertas são reconciliadas a cada5s. Não existe revogação instantânea de pacotes já transmitidos.
+Em instalação nova, use `python3 scripts/configure.py --domain seu-dominio.example`. Os nomes `app`, `media` e `turn` devem apontar ao IP do host. Depois de conferir DNS, firewall e elegibilidade gratuita, execute `docker compose --profile public up -d --build`. Não há subdomínio de arquivos: o gateway autorizado usa `/api/files` na origem da aplicação. Caddy é compilado com o módulo L4 fixado; o binário comum não substitui esse build.
 
 | Porta externa | Função |
 |---|---|
-| TCP80 | ACME/renovação de certificados |
-| TCP443 | Aplicação, mídia sinalizada, arquivos e TURN/TLS separados por SNI |
-| UDP7882 | ICE/WebRTC |
-| TCP7881 | ICE/TCP de contingência |
-| UDP3478 | TURN/UDP |
+| TCP 80 | ACME/renovação |
+| TCP 443 | HTTPS/WSS da aplicação, sinalização de mídia e TURN/TLS por SNI |
+| UDP 7882 | ICE/WebRTC |
+| TCP 7881 | ICE/TCP de contingência |
+| UDP 3478 | TURN/UDP |
 
-No firewall, bloquear acesso externo a15432,8080,7880,8333,5349,18081,18082,18083,2019 e às portas administrativas SeaweedFS. PostgreSQL, API, S3 e HTTP do LiveKit escutam em loopback. O listener TURN5349 exige PROXYv2 do proxy local confiável; não deve ficar público. O endpoint de health não comprova conectividade WebRTC.
+Bloqueie acesso externo a 8080, 7880, 5349, 18081, 18082 e 2019. API e sinalização privada escutam em loopback. TURN 5349 só aceita PROXYv2 do proxy local confiável. O gateway de mídia revalida sessão e ACL em cada conexão/reconexão; chamadas ativas são reconciliadas periodicamente. Health HTTP não comprova conectividade WebRTC.
 
-LiveKit1.13.11 anuncia TURN/TLS443 no código da versão fixada, mesmo recebendo o tráfego terminado pelo Caddy em5349. A validação completa depende de DNS/certificado e clientes em redes diferentes. A configuração não comprova que o provedor permitirá UDP ou acesso público à VM.
+Arquivos permanecem privados: a API revalida assinatura, sessão e ACL no início de cada transferência. O limite de corpo `/api/files/*` do Caddy acompanha `HARMONY_MAX_UPLOAD_BYTES`; se mudar esse valor, atualize também o `max_size` gerado. Transferências já abertas não são interrompidas retroativamente por revogação.
 
-## Controles de recursos
+Nenhuma hospedagem permanente está validada. O túnel gratuito temporário do ensaio móvel depende do computador de desenvolvimento e não hospeda o Harmony. Não equivale à implantação externa solicitada.
 
-O Compose limita memória por serviço e rotação de logs. `HARMONY_MAX_UPLOAD_BYTES`, `HARMONY_STORAGE_QUOTA_BYTES` e `HARMONY_MAX_VIDEO_BITRATE` definem limites explícitos da instância. O cliente exibe o teto de mídia recebido; o teto de bitrate do encoder não representa cobrança de tráfego, controle de disco físico nem proteção contra um cliente modificado.
+## Recursos e limites
 
-Um host público ainda precisa de medição/limite na rede, margem de segurança de disco, política de admissão e bloqueio de fluxos ativos. **Sem a integração com o host escolhido não há garantia de custo zero.** Nenhum script cria VPS, adiciona cartão, ativa upgrade automático ou contrata domínio. Os serviços locais funcionam sem assinatura. Não habilite o piloto com dados importantes antes de executar as provas de rede, armazenamento e restauração.
+Os limites Compose são tetos, não consumo medido: Harmony 1536 MiB/2 CPUs/128 processos; LiveKit 2 GiB; Caddy 256 MiB. O worker continua separado da API, usa tmpfs de 128 MiB e subprocessos com limites adicionais. Veja [worker](MEDIA-WORKER.md).
 
-## Backup consistente e restauração
+`HARMONY_MAX_UPLOAD_BYTES`, `HARMONY_STORAGE_QUOTA_BYTES`, `HARMONY_MAX_VIDEO_BITRATE` e `HARMONY_MAX_ROOM_PARTICIPANTS` limitam admissão lógica. Banco, logs, rede, backups e armazenamento físico também exigem monitoramento. Nenhum script cria VPS, exige cartão, contrata domínio ou ativa upgrade. Cota lógica e bitrate do encoder não são bloqueios de cobrança de um provedor.
 
-Instale restic e configure `RESTIC_REPOSITORY` para destino independente e `RESTIC_PASSWORD_FILE` para uma chave fora do repositório. Inicialize o destino conscientemente com `restic init`. `sh scripts/backup.sh` interrompe chamadas e serviços de escrita, gera dump PostgreSQL e copia o volume SeaweedFS parado, preservando objetos e metadados juntos. Em seguida cifra o snapshot com restic e religa somente os serviços que estavam rodando. Não há cópia de arquivos de um PostgreSQL ativo como substituto do dump.
+## Migrar PostgreSQL/S3 existentes
 
-O backup inclui segredos necessários à recuperação; a cifra e a chave externa são obrigatórias. Backups no mesmo disco do host não são proteção contra perda da VM. A rotina não exclui snapshots antigos automaticamente; configure retenção somente após definir a política de dados.
+Não execute o novo gerador sobre `.env` antigo nem aponte o servidor SQLite para PostgreSQL. Preserve a implantação e faça ensaio em destino novo. Siga [migração do banco](EMBEDDED-DATABASE.md) e [migração dos objetos](LOCAL-STORAGE.md). `--snapshot-only` não autoriza corte: um snapshot obtido com escritores ativos não inclui as mudanças posteriores. O corte definitivo exige parar os escritores, verificar banco e objetos e só então admitir tráfego. Rollback após novas escritas requer reconciliação.
 
-Restaure um snapshot com `restic restore SNAPSHOT --target /destino-independente`. No checkout vazio correspondente ao commit registrado, execute `sh scripts/restore.sh /caminho/absoluto/para/o/backup harmony-restauracao`. O segundo argumento é um projeto Compose novo: a rotina recusa nomes já existentes, banco/storage preenchidos e porta15432 ocupada. Uma pasta nova sozinha não isola volumes Docker. Os serviços públicos permanecem parados ao terminar. Valide contas, mensagens, anexos e chaves antes de abrir a rede. O script Compose ainda exige ensaio no host Linux real; provas locais e sua cobertura constam em `VALIDATION.md`.
+## Backup offline verificado
 
-## Build e atualizações Windows
+```sh
+sh scripts/backup.sh /caminho/privado/backup-novo
+```
 
-`npm run desktop:build -- --bundles nsis` gera o instalador `.exe`. A workflow usa runners padrão em repositório público. O acionamento manual com `package=true` guarda o instalador e SHA256 em uma release de desenvolvimento em rascunho, após os testes de servidor. Não usa armazenamento de artifacts/caches do Actions; não publica automaticamente uma versão estável.
+A rotina para os três serviços, copia o volume parado, cria snapshot SQLite e manifesto SHA-256 dos objetos/configuração, verifica integridade/FKs/hashes e religa somente os serviços antes ativos. API e worker usam lease compartilhado; manutenção exige lock exclusivo. Não execute escritores externos durante o backup e não compartilhe SQLite por NFS/SMB.
 
-O instalador inicial não tem assinatura Authenticode. Não existem atualizações automáticas sem chave de assinatura configurada; distribuir uma nova versão exige baixar e verificar o instalador. Não inventar chave pública/updater nem reutilizar chaves de outro projeto. Uma compilação Windows bem-sucedida não homologa microfone/captura/eco/atalhos ou desempenho em máquinas reais.
+O diretório contém credenciais. Permissões privadas não substituem criptografia e um backup no mesmo disco não protege contra perda do host. Se `RESTIC_REPOSITORY` e `RESTIC_PASSWORD_FILE` apontarem a um destino previamente configurado, a rotina também executa `restic backup` e `restic check`. Não cria conta ou repositório pago. Não há exclusão automática de snapshots.
 
-Referências: [LiveKit deployment](https://docs.livekit.io/transport/self-hosting/deployment/), [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [limites de releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases), [restic](https://restic.readthedocs.io/en/stable/).
+```sh
+sh scripts/restore.sh /caminho/backup /caminho/instancia-nova
+```
 
-## Serviço de mídia e manutenção
+A restauração recusa destino existente, verifica o manifesto e cria `data/`, `.env` e `.local/deploy/`. Não inicia serviços nem substitui volumes. O `.env` é preservado literalmente: no modo nativo, ajuste `DATABASE_URL`, `HARMONY_STORAGE_DIR` e `HARMONY_WEB_DIR` para os novos caminhos antes de iniciar.
 
-O Compose inicia `media-worker` após a API saudável. Requer kernelLinux6.2+ com Landlock ABI3 e seccomp disponíveis. Testar `docker compose run --rm media-worker --check-sandbox` antes de liberar uploads em novo host. A imagem compila FFmpeg9.0.2 da fonte oficial com SHA256 fixado, sem suporte de rede, GPL ou nonfree. Worker uid10001, rootfs somente leitura, tmpfs128MiB, memória768MiB, CPU1 e limite64 processos; subprocessos têm restrições adicionais. Consulte MEDIA-WORKER.md para leases/retries/limites.
+Para restaurar no Compose, use um checkout da mesma versão, copie a configuração restaurada mantendo permissão 0600 e escolha um nome de projeto novo. Crie os containers parados com `docker compose -p harmony-restaurado create harmony`. Importe `data/` em `harmony-restaurado_data`, ajustando dono para UID/GID 10001 e mantendo a instância anterior intacta. O volume deve estar vazio. Não inicie dois projetos simultaneamente nas mesmas portas; pare a instância antiga somente na janela de corte. Confirme login, busca, anexos, ACL e processamento antes de abrir o proxy público. Uma restauração em diretório local não comprova essa operação Docker; o CI e a validação operacional precisam registrar separadamente o ensaio realizado.
 
-`backup.sh` agora para o worker junto dos demais escritores; restauração mantém todos parados até inspeção. Não executar um worker externo ao Compose durante backup. A chave de atualização do desktop é custódia do mantenedor e exige backup criptografado próprio; não pertence ao backup de uma instância.
+## Diagnóstico P2P
+
+`HARMONY_P2P_DIAGNOSTICS=true` habilita o painel temporário. `HARMONY_P2P_STUN_URLS` aceita servidores STUN explícitos; fica vazio por padrão. Não há contratação de TURN. Dois participantes autorizados no mesmo canal podem medir RTT e vídeo sintético por até 120 segundos, sem câmera/microfone/tela. Veja [procedimento e limites](P2P-DIAGNOSTICS.md). Chamadas normais continuam usando LiveKit.
+
+## Windows e atualização
+
+`npm run desktop:build -- --bundles nsis` gera o instalador. O workflow em repositório público usa runners padrão e não usa armazenamento de artifacts/caches. `package=true` executa os gates e cria uma release assinada em rascunho; publicar o rascunho e o feed é uma ação posterior verificada.
+
+O updater Ed25519 está ativo desde 0.2.0, vincula assinatura à versão e recusa downgrade/adulteração. Instalação exige ação do usuário. Isso não é Authenticode. A chave privada pertence ao mantenedor, fora do Git, com backup criptografado próprio; não faz parte do backup de uma instância. Build, assinatura e instalação em runner não comprovam captura/áudio/desempenho no computador de um participante. Consulte [atualizações](UPDATES.md) e [validação](VALIDATION.md).

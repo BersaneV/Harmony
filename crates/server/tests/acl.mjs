@@ -27,7 +27,7 @@ if(process.env.HARMONY_TEST_STORAGE==='1'){
  assert.ok(!oversized.ok,'Signed Content-Length must reject an oversized PUT before finalization');checks++;
  const put=await fetch(upload.url,{method:'PUT',headers:upload.headers,body:bytes});assert.ok(put.ok);checks++;
  await call('POST',`/uploads/${upload.id}/complete`,{},mt);
- const rewritten=await fetch(upload.url,{method:'PUT',headers:upload.headers,body:Buffer.alloc(bytes.length,65)});assert.ok(rewritten.ok);checks++;
+ const rewritten=await fetch(upload.url,{method:'PUT',headers:upload.headers,body:Buffer.alloc(bytes.length,65)});assert.equal(rewritten.status,409,'Completed upload rejects replay of its temporary PUT URL');checks++;
  const ready=await call('GET',`/uploads/${upload.id}/download`,undefined,mt);
  assert.deepEqual(Buffer.from(await(await fetch(ready.url)).arrayBuffer()),bytes,'Final object must be immutable after reusing temporary PUT URL');checks++;
 }

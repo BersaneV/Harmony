@@ -49,4 +49,4 @@ await validate(media.token, null, [401, 403]);
 // Node26's native WebSocket was observed reporting CLOSING after emitting close.
 // The close event is the transport observation; this raw peer does not answer SDP.
 await until(() => disconnected, 'Reset must close an existing LiveKit signaling connection');
-console.log(JSON.stringify({ status: 'PASS', checks: 9, close_code: closeCode, actual_services: ['Harmony', 'PostgreSQL', 'Caddy', 'LiveKit'], covered: ['header/query precedence', 'forged header rejected', 'admin surface hidden', 'RTC signaling', 'reset rejects old media token', 'signaling close event'], not_covered: ['full RTC negotiation', 'Windows capture', 'media packets', 'external TURN/TLS'] }));
+console.log(JSON.stringify({ status: 'PASS', checks: 9, close_code: closeCode, actual_services: ['Harmony', 'SQLite', 'Caddy', 'LiveKit'], covered: ['header/query precedence', 'forged header rejected', 'admin surface hidden', 'RTC signaling', 'reset rejects old media token', 'signaling close event'], not_covered: ['full RTC negotiation', 'Windows capture', 'media packets', 'external TURN/TLS'] }));

@@ -1,4 +1,4 @@
-// Real PG + authenticated private S3 + FFmpeg + HTTP ACL, disposable test accounts.
+// Real SQLite + private object storage + FFmpeg + HTTP ACL, disposable test accounts.
 import assert from 'node:assert/strict';
 import {randomBytes,randomUUID,createHash} from 'node:crypto';
 import {spawn,spawnSync} from 'node:child_process';
@@ -9,7 +9,8 @@ const base=process.env.HARMONY_TEST_URL??'http://127.0.0.1:8080';
 const worker=resolve(process.env.HARMONY_WORKER_BIN??'target/debug/harmony-media-worker');
 const ffmpeg=process.env.FFMPEG_PATH??'/usr/bin/ffmpeg';
 const ffprobe=process.env.FFPROBE_PATH??'/usr/bin/ffprobe';
-const psql=process.env.PSQL_PATH??'psql';
+const dbCli=resolve(process.env.HARMONY_DB_BIN??'target/debug/harmony-db');
+const uuidHex=value=>{assert.match(value,/^[0-9a-f-]{36}$/i);return value.replaceAll('-','')};
 const dir=mkdtempSync(join(tmpdir(),'harmony-worker-test-'));
 const suffix=randomBytes(4).toString('hex'),password=`Worker-${randomBytes(20).toString('hex')}`;
 const results=[];
@@ -19,7 +20,7 @@ async function call(method,path,token,body,expected=200){
  const text=await r.text();let data;try{data=text?JSON.parse(text):null}catch{throw new Error(`Non JSON ${path}: ${r.status}`)}
  assert.ok([expected].flat().includes(r.status),`${method} ${path}: ${r.status} ${data?.error?.code??''}`);return data;
 }
-function sql(query){const db=new URL(process.env.DATABASE_URL);const r=spawnSync(psql,['-X','-A','-t','-v','ON_ERROR_STOP=1','-c',query],{encoding:'utf8',env:{...process.env,PGHOST:db.hostname,PGPORT:db.port||'5432',PGDATABASE:decodeURIComponent(db.pathname.slice(1)),PGUSER:decodeURIComponent(db.username),PGPASSWORD:decodeURIComponent(db.password)},maxBuffer:1024*1024});assert.equal(r.status,0,`SQL test failed: ${r.stderr?.slice(0,500)}`);return r.stdout.trim();}
+function sql(query){const r=spawnSync(dbCli,['query'],{input:query,encoding:'utf8',env:process.env,maxBuffer:1024*1024});assert.equal(r.status,0,`SQL test failed: ${r.stderr?.slice(0,500)}`);return JSON.parse(r.stdout).map(row=>row.map(v=>v??'').join('|')).join('\n');}
 function make(name,args){const path=join(dir,name);const r=spawnSync(ffmpeg,['-v','error','-nostdin','-y',...args,path],{encoding:'utf8',timeout:30000});assert.equal(r.status,0,`Fixture ${name}: ${r.stderr?.slice(0,1000)}`);return readFileSync(path);}
 function runWorker(extra={},mode='--drain'){return new Promise((resolve,reject)=>{const p=spawn(worker,[mode],{env:{...process.env,FFMPEG_PATH:ffmpeg,FFPROBE_PATH:ffprobe,...extra},stdio:['ignore','pipe','pipe']});let logs='';for(const stream of[p.stdout,p.stderr])stream.on('data',d=>{logs=(logs+d).slice(-64000)});const t=setTimeout(()=>{p.kill('SIGKILL');reject(new Error('Worker test timeout'))},240000);p.on('error',reject);p.on('exit',code=>{clearTimeout(t);if(code===0)resolve(logs);else reject(new Error(`Worker exit ${code}: ${logs.slice(-3000)}`))});});}
 async function until(fn,ms=15000){const end=Date.now()+ms;while(Date.now()<end){if(await fn())return;await new Promise(r=>setTimeout(r,50))}throw new Error('Timed out waiting for worker state')}
@@ -53,7 +54,7 @@ try{
   const thumb=media.derivatives.find(d=>d.kind==='thumbnail');check(`${kind}: thumbnail exists`,thumb?.size>0&&thumb.content_type==='image/jpeg');
   const signed=await call('GET',`/uploads/${u.id}/derivatives/thumbnail`,owner.access_token);const r=await fetch(signed.url);const bytes=Buffer.from(await r.arrayBuffer());check(`${kind}: real private JPEG`,r.ok&&bytes[0]===255&&bytes[1]===216&&bytes.length===thumb.size);
   const publicUrl=new URL(signed.url);publicUrl.search='';check('Unsigned derivative denied',!(await fetch(publicUrl)).ok);
-  check('Exclusive claim across two workers',sql(`SELECT attempts FROM media_jobs WHERE upload_id='${u.id}'`)==='1');
+  check('Exclusive claim across two workers',sql(`SELECT attempts FROM media_jobs WHERE upload_id=X'${uuidHex(u.id)}'`)==='1');
  }
  check('Malformed media fails boundedly',(await call('GET',`/uploads/${malformed.id}/media`,owner.access_token)).status==='failed');
  const fast=await call('GET',`/uploads/${movie.id}/derivatives/faststart`,reader.access_token);const fastr=await fetch(fast.url);const fastbytes=Buffer.from(await fastr.arrayBuffer());check('MP4 faststart moov precedes mdat',fastr.ok&&fastbytes.indexOf('moov')>0&&fastbytes.indexOf('moov')<fastbytes.indexOf('mdat'));
@@ -62,19 +63,19 @@ try{
  await call('PUT',`/channels/${channel.id}/permissions`,owner.access_token,{role_id:null,allow:'0',deny:'1'},204);
  await call('GET',`/uploads/${movie.id}/media`,reader.access_token,undefined,403);await call('GET',`/uploads/${movie.id}/derivatives/faststart`,reader.access_token,undefined,403);check('VIEW revocation covers metadata and derivative signing',true);
  await call('PUT',`/channels/${channel.id}/permissions`,owner.access_token,{role_id:null,allow:'0',deny:'0'},204);
- const storage=Number(sql('SELECT harmony_storage_used()'));
+ const storage=Number(sql('SELECT used_bytes FROM harmony_storage_usage'));
  const derived=Number(sql('SELECT COALESCE(sum(d.size),0) FROM media_derivatives d JOIN media_attempts a ON a.id=d.attempt_id WHERE a.state=\'published\''));
- const originals=Number(sql("SELECT COALESCE(sum(size),0) FROM uploads WHERE status='ready' OR (status='pending' AND expires_at>now())"));
+ const originals=Number(sql("SELECT COALESCE(sum(size),0) FROM uploads WHERE status='ready' OR (status='pending' AND julianday(expires_at)>julianday('now'))"));
  const reserved=Number(sql('SELECT COALESCE(sum(reserved_bytes),0) FROM media_attempts'));
  check('Quota counts originals plus derivatives and all reservations',storage===originals+derived+reserved&&derived>0);
  const stats=await call('GET','/admin/stats',admin.access_token);check('Admin reports same inclusive storage',stats.storage_bytes===storage);
  const deferred=await upload('quota.png','image/png',png);
  await runWorker({HARMONY_STORAGE_QUOTA_BYTES:String(storage+png.length+1)});
- const waiting=await call('GET',`/uploads/${deferred.id}/media`,owner.access_token);check('Insufficient derivative quota defers without charge or attempt',waiting.status==='queued'&&waiting.error_code==='quota_wait'&&sql(`SELECT attempts FROM media_jobs WHERE upload_id='${deferred.id}'`)==='0');
- sql(`UPDATE media_jobs SET available_at=now() WHERE upload_id='${deferred.id}'`);await runWorker();check('Deferred work resumes after quota available',(await call('GET',`/uploads/${deferred.id}/media`,owner.access_token)).status==='ready');
+ const waiting=await call('GET',`/uploads/${deferred.id}/media`,owner.access_token);check('Insufficient derivative quota defers without charge or attempt',waiting.status==='queued'&&waiting.error_code==='quota_wait'&&sql(`SELECT attempts FROM media_jobs WHERE upload_id=X'${uuidHex(deferred.id)}'`)==='0');
+ sql(`UPDATE media_jobs SET available_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE upload_id=X'${uuidHex(deferred.id)}'`);await runWorker();check('Deferred work resumes after quota available',(await call('GET',`/uploads/${deferred.id}/media`,owner.access_token)).status==='ready');
  const retry=await upload('retry.png','image/png',png);
- for(let n=1;n<=3;n++){sql(`UPDATE media_jobs SET available_at=now() WHERE upload_id='${retry.id}'`);await runWorker({S3_ENDPOINT:'http://127.0.0.1:1'},'--once');check(`Transient retry attempt ${n}`,sql(`SELECT attempts FROM media_jobs WHERE upload_id='${retry.id}'`)===String(n));sql(`UPDATE media_jobs SET available_at=now()+interval '1 hour' WHERE upload_id='${retry.id}'`);await runWorker();}
- check('Three failures are terminal',(await call('GET',`/uploads/${retry.id}/media`,owner.access_token)).status==='failed');await runWorker();check('Failure cleanup releases reservations',sql(`SELECT count(*) FROM media_attempts WHERE upload_id='${retry.id}'`)==='0');
+ for(let n=1;n<=3;n++){sql(`UPDATE media_jobs SET available_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE upload_id=X'${uuidHex(retry.id)}'`);await runWorker({HARMONY_STORAGE_BACKEND:'local',HARMONY_STORAGE_DIR:join(dir,'missing-originals')},'--once');check(`Transient retry attempt ${n}`,sql(`SELECT attempts FROM media_jobs WHERE upload_id=X'${uuidHex(retry.id)}'`)===String(n));sql(`UPDATE media_jobs SET available_at=strftime('%Y-%m-%dT%H:%M:%fZ','now','+1 hour') WHERE upload_id=X'${uuidHex(retry.id)}'`);await runWorker();}
+ check('Three failures are terminal',(await call('GET',`/uploads/${retry.id}/media`,owner.access_token)).status==='failed');await runWorker();check('Failure cleanup releases reservations',sql(`SELECT count(*) FROM media_attempts WHERE upload_id=X'${uuidHex(retry.id)}'`)==='0');
  // A controlled ffprobe barrier lets the test kill or supersede a real worker
  // after claim/download. FFmpeg still renders the actual bytes with its sandbox.
  const barrier=join(dir,'probe-barrier');const source=join(dir,'probe-barrier.c');
@@ -82,24 +83,24 @@ try{
  const compile=spawnSync(process.env.CC??'cc',[source,'-o',barrier],{encoding:'utf8'});assert.equal(compile.status,0,compile.stderr);
  const crashed=await upload('restart.png','image/png',png);
  const killed=spawn(worker,['--once'],{env:{...process.env,FFMPEG_PATH:ffmpeg,FFPROBE_PATH:barrier},stdio:'ignore'});
- await until(()=>sql(`SELECT status FROM media_jobs WHERE upload_id='${crashed.id}'`)==='processing');
- const attempt=sql(`SELECT attempt_id FROM media_jobs WHERE upload_id='${crashed.id}'`);
+ await until(()=>sql(`SELECT status FROM media_jobs WHERE upload_id=X'${uuidHex(crashed.id)}'`)==='processing');
+ const attempt=sql(`SELECT attempt_id FROM media_jobs WHERE upload_id=X'${uuidHex(crashed.id)}'`);
  killed.kill('SIGKILL');await new Promise(r=>killed.once('exit',r));
- sql(`UPDATE media_jobs SET lease_until=now()-interval '1 second' WHERE upload_id='${crashed.id}'`);
- await runWorker();check('Killed worker lease is recovered',(await call('GET',`/uploads/${crashed.id}/media`,owner.access_token)).status==='ready'&&sql(`SELECT attempts FROM media_jobs WHERE upload_id='${crashed.id}'`)==='2');check('Obsolete attempt removed without touching winner',sql(`SELECT count(*) FROM media_attempts WHERE id='${attempt}'`)==='0');
+ sql(`UPDATE media_jobs SET lease_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 second') WHERE upload_id=X'${uuidHex(crashed.id)}'`);
+ await runWorker();check('Killed worker lease is recovered',(await call('GET',`/uploads/${crashed.id}/media`,owner.access_token)).status==='ready'&&sql(`SELECT attempts FROM media_jobs WHERE upload_id=X'${uuidHex(crashed.id)}'`)==='2');check('Obsolete attempt removed without touching winner',sql(`SELECT count(*) FROM media_attempts WHERE id=X'${uuidHex(attempt)}'`)==='0');
  const fenced=await upload('fencing.png','image/png',png);
  const oldRun=runWorker({FFPROBE_PATH:barrier},'--once');
- await until(()=>sql(`SELECT status FROM media_jobs WHERE upload_id='${fenced.id}'`)==='processing');
- const oldAttempt=sql(`SELECT attempt_id FROM media_jobs WHERE upload_id='${fenced.id}'`);
- sql(`UPDATE media_jobs SET lease_until=now()-interval '1 second' WHERE upload_id='${fenced.id}'`);
+ await until(()=>sql(`SELECT status FROM media_jobs WHERE upload_id=X'${uuidHex(fenced.id)}'`)==='processing');
+ const oldAttempt=sql(`SELECT attempt_id FROM media_jobs WHERE upload_id=X'${uuidHex(fenced.id)}'`);
+ sql(`UPDATE media_jobs SET lease_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 second') WHERE upload_id=X'${uuidHex(fenced.id)}'`);
  await runWorker();await oldRun;await runWorker();
- check('Live stale worker cannot publish over replacement',(await call('GET',`/uploads/${fenced.id}/media`,owner.access_token)).status==='ready'&&sql(`SELECT attempt_id FROM media_jobs WHERE upload_id='${fenced.id}'`)!==oldAttempt&&sql(`SELECT count(*) FROM media_attempts WHERE upload_id='${fenced.id}'`)==='1');
- const pixels=await upload('pixel-limit.png','image/png',png);await runWorker({WORKER_MAX_PIXELS:'1000'});check('Pixel limit rejects before derivative publication',(await call('GET',`/uploads/${pixels.id}/media`,owner.access_token)).status==='failed'&&sql(`SELECT count(*) FROM media_derivatives d JOIN media_jobs j ON j.attempt_id=d.attempt_id WHERE j.upload_id='${pixels.id}' AND d.ready`)==='0');
+ check('Live stale worker cannot publish over replacement',(await call('GET',`/uploads/${fenced.id}/media`,owner.access_token)).status==='ready'&&sql(`SELECT attempt_id FROM media_jobs WHERE upload_id=X'${uuidHex(fenced.id)}'`)!==oldAttempt&&sql(`SELECT count(*) FROM media_attempts WHERE upload_id=X'${uuidHex(fenced.id)}'`)==='1');
+ const pixels=await upload('pixel-limit.png','image/png',png);await runWorker({WORKER_MAX_PIXELS:'1000'});check('Pixel limit rejects before derivative publication',(await call('GET',`/uploads/${pixels.id}/media`,owner.access_token)).status==='failed'&&sql(`SELECT count(*) FROM media_derivatives d JOIN media_jobs j ON j.attempt_id=d.attempt_id WHERE j.upload_id=X'${uuidHex(pixels.id)}' AND d.ready`)==='0');
  const inputLimited=await upload('input-limit.png','image/png',png);await runWorker({WORKER_MAX_INPUT_BYTES:'1'});check('Input byte limit is enforced',(await call('GET',`/uploads/${inputLimited.id}/media`,owner.access_token)).error_code==='input_limit');
- const removedDuring=await upload('delete-during.png','image/png',png);const deletingRun=runWorker({FFPROBE_PATH:barrier},'--once');await until(()=>sql(`SELECT status FROM media_jobs WHERE upload_id='${removedDuring.id}'`)==='processing');await call('DELETE',`/messages/${removedDuring.message.id}`,owner.access_token,undefined,204);await deletingRun;await runWorker();check('Deletion during processing never publishes output',sql(`SELECT status||':'||error_code FROM media_jobs WHERE upload_id='${removedDuring.id}'`)==='failed:source_deleted'&&sql(`SELECT count(*) FROM media_attempts WHERE upload_id='${removedDuring.id}'`)==='0');
+ const removedDuring=await upload('delete-during.png','image/png',png);const deletingRun=runWorker({FFPROBE_PATH:barrier},'--once');await until(()=>sql(`SELECT status FROM media_jobs WHERE upload_id=X'${uuidHex(removedDuring.id)}'`)==='processing');await call('DELETE',`/messages/${removedDuring.message.id}`,owner.access_token,undefined,204);await deletingRun;await runWorker();check('Deletion during processing never publishes output',sql(`SELECT status||':'||error_code FROM media_jobs WHERE upload_id=X'${uuidHex(removedDuring.id)}'`)==='failed:source_deleted'&&sql(`SELECT count(*) FROM media_attempts WHERE upload_id=X'${uuidHex(removedDuring.id)}'`)==='0');
  const deleteUrl=(await call('GET',`/uploads/${animated.id}/derivatives/thumbnail`,reader.access_token)).url;
  await call('DELETE',`/messages/${animated.message.id}`,owner.access_token,undefined,204);
- await call('GET',`/uploads/${animated.id}/media`,reader.access_token,undefined,403);await call('GET',`/uploads/${animated.id}/derivatives/thumbnail`,reader.access_token,undefined,403);await runWorker();check('Deleted message derivatives collected',!(await fetch(deleteUrl)).ok&&sql(`SELECT count(*) FROM media_attempts WHERE upload_id='${animated.id}'`)==='0');
- const idempotent=sql(`SELECT attempt_id FROM media_jobs WHERE upload_id='${movie.id}'`);await runWorker();check('Ready job never reruns or duplicates derivatives',sql(`SELECT attempt_id FROM media_jobs WHERE upload_id='${movie.id}'`)===idempotent);
+ await call('GET',`/uploads/${animated.id}/media`,reader.access_token,undefined,403);await call('GET',`/uploads/${animated.id}/derivatives/thumbnail`,reader.access_token,undefined,403);await runWorker();check('Deleted message derivatives collected',!(await fetch(deleteUrl)).ok&&sql(`SELECT count(*) FROM media_attempts WHERE upload_id=X'${uuidHex(animated.id)}'`)==='0');
+ const idempotent=sql(`SELECT attempt_id FROM media_jobs WHERE upload_id=X'${uuidHex(movie.id)}'`);await runWorker();check('Ready job never reruns or duplicates derivatives',sql(`SELECT attempt_id FROM media_jobs WHERE upload_id=X'${uuidHex(movie.id)}'`)===idempotent);
  const report={status:'PASS',checks:results.length,criteria:results,worker_sha256:createHash('sha256').update(readFileSync(worker)).digest('hex')};mkdirSync('.local/qa-worker',{recursive:true});writeFileSync('.local/qa-worker/result.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }finally{rmSync(dir,{recursive:true,force:true})}

@@ -3,11 +3,7 @@ use std::{env, path::PathBuf};
 #[derive(Clone)]
 pub struct Config {
     pub database_url: String,
-    pub endpoint: String,
-    pub region: String,
-    pub bucket: String,
-    pub access: String,
-    pub secret: String,
+    pub storage: harmony_storage::StorageConfig,
     pub quota: i64,
     pub temp: PathBuf,
     pub ffmpeg: PathBuf,
@@ -48,11 +44,8 @@ impl Config {
         }
         Ok(Self {
             database_url: required("DATABASE_URL")?,
-            endpoint: required("S3_ENDPOINT")?,
-            region: env::var("S3_REGION").unwrap_or("us-east-1".into()),
-            bucket: env::var("S3_BUCKET").unwrap_or("harmony".into()),
-            access: required("S3_ACCESS_KEY")?,
-            secret: required("S3_SECRET_KEY")?,
+            storage: harmony_storage::StorageConfig::from_env()
+                .map_err(|_| Failure::permanent("storage_configuration"))?,
             quota: number(
                 "HARMONY_STORAGE_QUOTA_BYTES",
                 1073741824,

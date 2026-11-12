@@ -23,7 +23,7 @@ def load_env(path=Path(".env")):
     return result
 
 
-def request(env, method, key="", query="", body=b"", headers=None):
+def request(env, method, key="", query="", body=b"", headers=None, opener=None):
     endpoint = urllib.parse.urlsplit(env["S3_ENDPOINT"])
     if endpoint.scheme not in ("http", "https") or endpoint.username or endpoint.password:
         raise ValueError("Invalid S3 endpoint")
@@ -43,7 +43,8 @@ def request(env, method, key="", query="", body=b"", headers=None):
     signed_headers["Authorization"] = f"AWS4-HMAC-SHA256 Credential={env['S3_ACCESS_KEY']}/{scope}, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature={signature}"
     signed_headers.update(headers or {})
     url = urllib.parse.urlunsplit((endpoint.scheme, endpoint.netloc, path, query, ""))
-    return urllib.request.urlopen(urllib.request.Request(url, data=body if method in ("PUT", "POST") else None, method=method, headers=signed_headers), timeout=30)
+    open_url = opener.open if opener is not None else urllib.request.urlopen
+    return open_url(urllib.request.Request(url, data=body if method in ("PUT", "POST") else None, method=method, headers=signed_headers), timeout=30)
 
 
 def initialize(env):

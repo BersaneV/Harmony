@@ -93,7 +93,7 @@ pub async fn token(
     if !matches!(kind.as_str(), "voice" | "dm" | "group") {
         return Err(Error::Invalid("Este canal não aceita chamadas".into()).into());
     }
-    let banned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM media_bans WHERE channel_id=$1 AND user_id=$2 AND until_at>now())").bind(cid).bind(a.user.id).fetch_one(&s.pool).await?;
+    let banned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM media_bans WHERE channel_id=$1 AND user_id=$2 AND julianday(until_at)>julianday('now'))").bind(cid).bind(a.user.id).fetch_one(&s.pool).await?;
     if banned {
         return Err(Error::Forbidden.into());
     }
@@ -126,7 +126,7 @@ pub async fn token(
         Some(&a.user.display_name),
         json!({"roomJoin":true,"room":room,"canPublish":can_publish,"canSubscribe":true,"canPublishData":false,"canUpdateOwnMetadata":false}),
     )?;
-    sqlx::query("INSERT INTO media_members(channel_id,user_id,session_id,identity) VALUES($1,$2,$3,$4) ON CONFLICT(channel_id,session_id) DO UPDATE SET issued_at=now(),identity=EXCLUDED.identity").bind(cid).bind(a.user.id).bind(a.sid).bind(identity).execute(&s.pool).await?;
+    sqlx::query("INSERT INTO media_members(channel_id,user_id,session_id,identity) VALUES($1,$2,$3,$4) ON CONFLICT(channel_id,session_id) DO UPDATE SET issued_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),identity=EXCLUDED.identity").bind(cid).bind(a.user.id).bind(a.sid).bind(identity).execute(&s.pool).await?;
     let (_, _, url, _) = credentials(&s)?;
     Ok(Json(
         json!({"token":token,"url":url,"room":room,"max_video_bitrate":s.config.max_bitrate,"expires_in":60,"muted":muted,"effective_permissions":effective.to_string()}),
@@ -161,9 +161,9 @@ pub async fn moderate(
         return Err(Error::Invalid("Ação inválida".into()).into());
     }
     credentials(&s)?;
-    let mut tx = s.pool.begin().await?;
+    let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     if b.action == "remove" {
-        sqlx::query("INSERT INTO media_bans(channel_id,user_id,until_at) VALUES($1,$2,now()+interval '65 seconds') ON CONFLICT(channel_id,user_id) DO UPDATE SET until_at=EXCLUDED.until_at").bind(cid).bind(b.user_id).execute(&mut *tx).await?;
+        sqlx::query("INSERT INTO media_bans(channel_id,user_id,until_at) VALUES($1,$2,strftime('%Y-%m-%dT%H:%M:%fZ','now','+65 seconds')) ON CONFLICT(channel_id,user_id) DO UPDATE SET until_at=EXCLUDED.until_at").bind(cid).bind(b.user_id).execute(&mut *tx).await?;
     } else if b.action == "mute" {
         sqlx::query(
             "INSERT INTO media_mutes(channel_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
@@ -276,9 +276,9 @@ async fn reconcile_room(s: &AppState, room: String, cid: Uuid) {
         let mut allowed = false;
         let mut can_publish = false;
         if let Some((uid, sid)) = parsed {
-            let active=sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM sessions ss JOIN users u ON u.id=ss.user_id WHERE ss.id=$1 AND u.id=$2 AND ss.revoked_at IS NULL AND ss.expires_at>now() AND NOT u.disabled)")
+            let active=sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM sessions ss JOIN users u ON u.id=ss.user_id WHERE ss.id=$1 AND u.id=$2 AND ss.revoked_at IS NULL AND julianday(ss.expires_at)>julianday('now') AND NOT u.disabled)")
                 .bind(sid).bind(uid).fetch_one(&s.pool).await.unwrap_or(false);
-            let banned=sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM media_bans WHERE channel_id=$1 AND user_id=$2 AND until_at>now())")
+            let banned=sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM media_bans WHERE channel_id=$1 AND user_id=$2 AND julianday(until_at)>julianday('now'))")
                 .bind(cid).bind(uid).fetch_one(&s.pool).await.unwrap_or(true);
             let effective = db::permissions(&s.pool, cid, uid).await.unwrap_or(0);
             allowed = active && !banned && effective & p::CONNECT != 0;
@@ -388,12 +388,12 @@ pub async fn admit(
         .and_then(|v| v.strip_prefix("harmony-"))
         .and_then(|v| v.parse().ok())
         .ok_or(Error::Unauthorized)?;
-    let active:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sessions ss JOIN users u ON u.id=ss.user_id WHERE ss.id=$1 AND u.id=$2 AND ss.revoked_at IS NULL AND ss.expires_at>now() AND NOT u.disabled)").bind(sid).bind(uid).fetch_one(&s.pool).await?;
+    let active:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sessions ss JOIN users u ON u.id=ss.user_id WHERE ss.id=$1 AND u.id=$2 AND ss.revoked_at IS NULL AND julianday(ss.expires_at)>julianday('now') AND NOT u.disabled)").bind(sid).bind(uid).fetch_one(&s.pool).await?;
     if !active {
         return Err(Error::Unauthorized.into());
     }
     db::require_permission(&s.pool, cid, uid, p::CONNECT).await?;
-    let banned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM media_bans WHERE channel_id=$1 AND user_id=$2 AND until_at>now())").bind(cid).bind(uid).fetch_one(&s.pool).await?;
+    let banned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM media_bans WHERE channel_id=$1 AND user_id=$2 AND julianday(until_at)>julianday('now'))").bind(cid).bind(uid).fetch_one(&s.pool).await?;
     if banned {
         return Err(Error::Forbidden.into());
     }

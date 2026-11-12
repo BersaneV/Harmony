@@ -16,18 +16,7 @@ concurrency:
 jobs:
   server:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    services:
-      postgres:
-        image: postgres:18.6-bookworm@sha256:f1ea2a1a4fb7b68d4836be1fdcb8a6466a89b072158bf9d97663600538c294c5
-        env:
-          POSTGRES_USER: harmony
-          POSTGRES_PASSWORD: ci-disposable-database
-          POSTGRES_DB: harmony
-        ports: ["15432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U harmony -d harmony"
-          --health-interval 5s --health-timeout 3s --health-retries 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -36,66 +25,86 @@ jobs:
         with: {toolchain: "1.99.1", components: "rustfmt, clippy"}
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - run: cargo test --workspace --locked
+      - name: Generate disposable embedded instance
+        run: python3 scripts/configure.py
+      - run: python3 scripts/with-env.py cargo test --workspace --locked -- --include-ignored
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
-      - name: Install media fixture tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
-      - name: Generate disposable test credentials
-        run: |
-          python3 scripts/configure.py
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('.env')
-          values = dict(line.split('=', 1) for line in path.read_text().splitlines())
-          values['DATABASE_URL'] = 'postgres://harmony:ci-disposable-database@127.0.0.1:15432/harmony'
-          path.write_text(''.join(f'{k}={v}\n' for k, v in values.items()))
-          PY
-      - name: PostgreSQL concurrency tests
-        run: python3 scripts/with-env.py cargo test --workspace --locked -- --include-ignored
-      - name: Start private storage and media
-        run: |
-          docker run -d --name harmony-storage --network host --tmpfs /run/harmony:size=1m,mode=0700 --entrypoint /bin/sh -v "$PWD/infra/seaweed-entrypoint.sh:/etc/harmony/storage-entrypoint.sh:ro" -v "$PWD/.local/deploy/s3.json:/etc/harmony/s3-source.json:ro" chrislusf/seaweedfs:4.53@sha256:ccad23e18639c8b98cee17e7100b95830a06077b56d8e5b006d6dcf8ec5e94a0 /etc/harmony/storage-entrypoint.sh server -ip=127.0.0.1 -ip.bind=127.0.0.1 -volume.port=8082 -volume.max=16 -s3 -s3.config=/run/harmony/s3.json -master.volumeSizeLimitMB=256
-          docker run -d --name harmony-livekit --network host -v "$PWD/.local/deploy/livekit.yaml:/etc/livekit.yaml:ro" livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20 --config /etc/livekit.yaml
-          for attempt in $(seq 1 30); do
-            if python3 scripts/storage-init.py; then break; fi
-            sleep 1
-          done
-          python3 scripts/storage-init.py
-          printf 'fs.configure -locationPrefix=/buckets/ -volumeGrowthCount=1 -apply\n' | docker exec -i harmony-storage weed shell -master=127.0.0.1:9333
+      - run: npm ci
+      - run: npm run build
+      - name: Start private LiveKit
+        run: docker run -d --name harmony-livekit --network host -v "$PWD/.local/deploy/livekit.yaml:/etc/livekit.yaml:ro" livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20 --config /etc/livekit.yaml
       - name: Build the pinned media parsers
         run: |
-          docker build --target ffmpeg -f infra/Dockerfile.worker -t harmony-ffmpeg:ci .
+          docker build --target ffmpeg -f infra/Dockerfile.harmony -t harmony-ffmpeg:ci .
           mkdir -p .local/vendor-ci
           docker create --name harmony-ffmpeg-export harmony-ffmpeg:ci /bin/true
           docker cp harmony-ffmpeg-export:/opt/ffmpeg .local/vendor-ci/
           docker rm harmony-ffmpeg-export
-      - name: Integration through HTTP and WebSocket
+      - name: Build the media admission gateway and test dependencies
+        run: |
+          docker build -f infra/Dockerfile.caddy -t harmony-caddy:ci .
+          docker create --name harmony-caddy-export harmony-caddy:ci /bin/true
+          docker cp harmony-caddy-export:/usr/bin/caddy .local/vendor-ci/caddy
+          docker rm harmony-caddy-export
+          python3 -m venv .local/rtc-venv
+          .local/rtc-venv/bin/pip install livekit==1.2.1 livekit-api==1.2.2
+          python3 scripts/configure-media-test.py --output .local/media-ci.json
+          CADDY_BIN="$PWD/.local/vendor-ci/caddy" HARMONY_REQUIRE_CADDY=1 python3 -m unittest discover -s scripts -p test_media_proxy.py
+      - name: Embedded integration through HTTP, WebSocket and real WebRTC
         env:
+          HARMONY_TRUST_PROXY: "true"
           HARMONY_TEST_STORAGE: "1"
           HARMONY_TEST_MEDIA: "1"
+          HARMONY_CHROME: /usr/bin/google-chrome
         run: |
           cargo build --workspace --locked
           python3 scripts/with-env.py target/debug/harmony-server > .local/server-ci.log 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 30); do
+          npm run dev > .local/vite-ci.log 2>&1 &
+          web_pid=$!
+          .local/vendor-ci/caddy run --config .local/media-ci.json > .local/media-ci.log 2>&1 &
+          gateway_pid=$!
+          trap 'kill "$server_pid" "$web_pid" "$gateway_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:8080/health > /dev/null; then break; fi
             sleep 1
           done
+          curl -fsS http://127.0.0.1:8080/health
           python3 scripts/with-env.py node scripts/smoke.mjs
           python3 scripts/with-env.py node crates/server/tests/acl.mjs
+          node scripts/test_local_storage.mjs
+          python3 scripts/with-env.py node scripts/test-media-admission.mjs
+          python3 scripts/with-env.py .local/rtc-venv/bin/python scripts/test_media_rtc.py
           FFMPEG_PATH="$PWD/.local/vendor-ci/ffmpeg/bin/ffmpeg" FFPROBE_PATH="$PWD/.local/vendor-ci/ffmpeg/bin/ffprobe" python3 scripts/with-env.py node scripts/test_worker.mjs
           python3 scripts/test_worker_sandbox.py --output .local/qa-worker-sandbox/linux-result.json
-      - name: Verify deployed media worker sandbox
+          python3 scripts/with-env.py node scripts/p2p-browser-test.mjs
+      - name: Build and exercise the supervised deployment
         run: |
-          docker build -f infra/Dockerfile.worker -t harmony-worker:ci .
-          docker run --rm --env-file .env --env WORKER_TEMP_DIR=/tmp/harmony-media --network host --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 768m --cpus 1 --tmpfs /tmp/harmony-media:size=128m,mode=0700,uid=10001,gid=10001 harmony-worker:ci --check-sandbox
-      - name: Container diagnostics on failure
+          docker rm -f harmony-livekit
+          docker compose build harmony
+          docker compose up -d harmony
+          trap 'docker compose down' EXIT
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/health > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/health
+          curl -fsS http://127.0.0.1:8080/ > /dev/null
+          HARMONY_TEST_STORAGE=1 HARMONY_TEST_MEDIA=1 python3 scripts/with-env.py node scripts/smoke.mjs
+          sh scripts/backup.sh "$PWD/.local/ci-backup"
+          sh scripts/restore.sh "$PWD/.local/ci-backup" "$PWD/.local/ci-restored"
+          docker compose restart harmony
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/health > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/health
+      - name: Diagnostics on failure
         if: failure()
         run: |
           docker ps -a --format '{{.Names}} {{.Status}}'
-          docker logs --tail 40 harmony-storage 2>&1 || true
-          docker logs --tail 40 harmony-livekit 2>&1 || true
+          docker compose logs --tail 40 harmony livekit 2>&1 || true
+          tail -60 .local/server-ci.log 2>/dev/null || true
   desktop:
     needs: server
     runs-on: windows-2022
@@ -156,7 +165,7 @@ jobs:
         run: |
           $version = (Get-Content apps/desktop/src-tauri/tauri.conf.json | ConvertFrom-Json).version
           $tag = "v$version"
-          $notes = "Harmony $version, commit $env:GITHUB_SHA. Atualizador com assinatura Ed25519 e versão vinculada; não é Authenticode. Worker de mídia e personalização avançada. Captura, áudio e redes Windows exigem homologação física. Consulte docs/VALIDATION.md e docs/UPDATES.md."
+          $notes = "Harmony $version, commit $env:GITHUB_SHA. Atualizador com assinatura Ed25519 e versão vinculada; não é Authenticode. SQLite, arquivos locais, worker isolado, personalização e diagnóstico P2P. Captura, áudio e redes Windows exigem homologação física; P2P permanece diagnóstico temporário. Consulte docs/VALIDATION.md e docs/UPDATES.md."
           $notes | Out-File -Encoding utf8 release-notes.txt
           $files = (Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*).FullName
           gh release create $tag @files .local/qa-updater/windows-release.json .local/qa-updater/windows-install.json --draft --prerelease --target $env:GITHUB_SHA --title "Harmony $version — Windows" --notes-file release-notes.txt

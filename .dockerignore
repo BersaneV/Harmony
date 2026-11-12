@@ -11,3 +11,9 @@
 **/*.dmg
 **/*.exe
 **/*.db
+
+data
+**/*.db-wal
+**/*.db-shm
+**/*.db.lock
+**/*.sqlite*

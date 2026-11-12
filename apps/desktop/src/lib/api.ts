@@ -28,7 +28,10 @@ export function normalizeServer(input: string): string {
 function initialServer() {
   try {
     return normalizeServer(
-      localStorage.getItem("harmony.server") || "http://127.0.0.1:8080",
+      localStorage.getItem("harmony.server") ||
+        (!isTauri() && window.location.protocol === "https:"
+          ? window.location.origin
+          : "http://127.0.0.1:8080"),
     );
   } catch {
     return "http://127.0.0.1:8080";

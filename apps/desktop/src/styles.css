@@ -633,7 +633,7 @@ strong {
 .workspace {
   display: flex;
   height: 100dvh;
-  min-height: 460px;
+  min-height: 0;
   overflow: hidden;
   background: var(--bg);
 }
@@ -1600,7 +1600,7 @@ strong {
 }
 .stream-form {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 20px;
 }
 .admin-users {
@@ -2165,6 +2165,12 @@ strong {
   }
   .mobile-menu {
     display: flex;
+    width: auto;
+    min-width: 82px;
+    min-height: 44px;
+    gap: 5px;
+    padding: 0 6px;
+    font-size: 0.78rem;
     margin-right: 0;
   }
   .main-header {
@@ -2803,4 +2809,305 @@ strong {
   height: 10px;
   accent-color: var(--accent);
   margin: 12px 0;
+}
+
+/* Adaptive navigation and panels. Keep theme preferences within the viewport. */
+.navigation-close,
+.navigation-backdrop {
+  display: none;
+}
+.workspace,
+.content-layout,
+.channel-sidebar,
+.chat,
+.field,
+.settings-profile,
+.member-row > div,
+.attachment > div {
+  min-width: 0;
+  min-height: 0;
+}
+.modal {
+  max-height: calc(100dvh - 32px);
+  overscroll-behavior: contain;
+}
+.modal > section {
+  overflow-wrap: anywhere;
+}
+.modal > section > header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--panel);
+  padding-block: 8px;
+}
+.modal-actions,
+.call-controls,
+.call-heading-actions,
+.video-options,
+.moderation-list > div {
+  flex-wrap: wrap;
+}
+.check-field {
+  align-items: flex-start;
+}
+.check-field input {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.call-header > div:not(.call-heading-actions) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.connection-dot {
+  flex-shrink: 0;
+}
+.diagnostic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.diagnostic-status {
+  margin-top: 20px;
+  color: var(--muted);
+}
+.diagnostic-metrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px 16px;
+  font-size: 0.86rem;
+}
+.diagnostic-metrics dt {
+  color: var(--muted);
+}
+.diagnostic-metrics dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.attachment strong {
+  max-width: 100%;
+}
+.attachment > svg {
+  flex-shrink: 0;
+}
+.message-body > header {
+  flex-wrap: wrap;
+}
+.auth-screen {
+  min-height: 100dvh;
+}
+@media (max-width: 800px) {
+  .workspace {
+    --navigation-rail-width: 62px;
+  }
+  .server-rail {
+    width: var(--navigation-rail-width);
+    padding: max(12px, env(safe-area-inset-top)) 8px max(12px, env(safe-area-inset-bottom));
+    z-index: 14;
+    overscroll-behavior: contain;
+  }
+  .channel-sidebar {
+    display: none;
+    position: absolute;
+    inset: 0 auto 0 var(--navigation-rail-width);
+    width: min(max(260px, var(--sidebar-width, 260px)), calc(100vw - var(--navigation-rail-width) - 20px));
+    z-index: 14;
+    box-shadow: 25px 0 70px #0007;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mobile-nav-open .channel-sidebar {
+    display: flex;
+  }
+  .navigation-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0 0 0 var(--navigation-rail-width);
+    z-index: 13;
+    background: #080b1470;
+    cursor: default;
+  }
+  .navigation-close {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+  }
+  .sidebar-header {
+    flex-shrink: 0;
+  }
+  .sidebar-header > div {
+    flex: 1;
+  }
+  .mobile-menu {
+    display: inline-flex;
+    width: auto;
+    min-width: 82px;
+    min-height: 44px;
+    gap: 5px;
+    padding: 0 6px;
+    font-size: 0.78rem;
+  }
+  .main-header {
+    height: auto;
+    min-height: 62px;
+    padding: 7px 10px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .channel-title {
+    flex: 1;
+  }
+  .header-actions {
+    gap: 4px;
+    margin-left: auto;
+  }
+  .header-actions .icon-button,
+  .search-trigger,
+  .rail-settings,
+  .list-heading .icon-button,
+  .user-panel .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+  .search-trigger {
+    justify-content: center;
+  }
+  .channel-item {
+    min-height: 44px;
+  }
+  .sidebar-bottom {
+    flex-shrink: 0;
+  }
+  .content-layout {
+    position: relative;
+  }
+  .members-panel {
+    top: 0;
+    width: min(280px, 100%);
+  }
+  .composer-wrap {
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .composer .icon-button,
+  .send-button,
+  .call-controls .call-button {
+    width: 44px;
+    height: 44px;
+  }
+  .composer textarea,
+  .modal input:not([type="range"]):not([type="checkbox"]),
+  .modal select,
+  .modal textarea,
+  .auth-form-wrap input {
+    font-size: 16px;
+  }
+  .call-controls > .button,
+  .modal .button {
+    min-height: 44px;
+  }
+  .call-heading-actions .text-button {
+    min-height: 44px;
+    font-size: 0.76rem;
+    gap: 5px;
+  }
+  .call-header {
+    flex-wrap: wrap;
+  }
+  .call-heading-actions {
+    margin-left: auto;
+    gap: 8px;
+  }
+  .call-panel {
+    max-height: 65%;
+  }
+  .modal > section > header .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (max-width: 480px) {
+  .header-actions {
+    justify-content: flex-end;
+    flex-basis: 100%;
+  }
+  .main-header:has(.header-actions:empty) .header-actions {
+    display: none;
+  }
+  .channel-title > strong {
+    font-size: 1rem;
+  }
+  .modal,
+  .modal.wide {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 12px;
+  }
+  .modal > section {
+    padding: 14px;
+  }
+  .stream-form,
+  .diagnostic-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .diagnostic-metrics dd {
+    margin-bottom: 8px;
+  }
+  .tabs {
+    gap: 15px;
+    overflow-x: auto;
+  }
+  .tabs > button {
+    flex-shrink: 0;
+  }
+  .section-heading,
+  .member-row,
+  .friend-card {
+    flex-wrap: wrap;
+  }
+  .member-row > div,
+  .friend-card > div {
+    min-width: 100px;
+    overflow-wrap: anywhere;
+  }
+  .local-assets {
+    padding: 12px;
+  }
+  .asset-list li {
+    flex-wrap: wrap;
+  }
+  .auth-story {
+    padding: 20px;
+  }
+  .auth-panel {
+    padding: 24px 20px;
+  }
+}
+@media (pointer: coarse) {
+  .message {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 8px 10px;
+  }
+  .message-body {
+    grid-column: 2;
+  }
+  .message-actions {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+    width: fit-content;
+    margin-top: 8px;
+    grid-column: 2;
+    justify-self: end;
+  }
+  .message-actions .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+  .reaction-picker {
+    flex-wrap: wrap;
+    width: max-content;
+    max-width: calc(100vw - 100px);
+  }
 }

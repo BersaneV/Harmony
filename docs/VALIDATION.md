@@ -83,3 +83,31 @@ A primeira execução deste recorte falhou por inferência do tipo do monitor no
 O probe `public-channel` acessou o [feed HTTPS real](https://github.com/BersaneV/Harmony/releases/download/update-channel/latest.json), sem autenticação nem exceção HTTP. Com versão corrente simulada 0.1.0: ofereceu 0.2.0, baixou 4035172 bytes e verificou a assinatura/versão com o mesmo SHA acima. Com 0.2.0: retornou `no_update`. Os JSONs `public-channel-upgrade.json` e `public-channel-current.json` estão anexos à release. Esse probe usa MockRuntime com alvo Windows x64; ele não executa o instalador. O teste de instalação/remoção separado ocorreu realmente no runner Windows.
 
 Permanecem sem homologação física: atualização sobre uma instalação usada no dia a dia, captura/áudio/dispositivos Windows, desempenho 1440p/2160p, redes externas/TURN e host definitivo. Não houve provisionamento pago. A assinatura do updater não equivale a Authenticode.
+
+## Perfil simplificado 0.3.0 — provas locais
+
+SQLite e arquivos locais substituem os serviços PostgreSQL/S3 na execução normal; as provas acima identificam a implementação histórica. As migrações preservaram as fontes e foram feitas em destinos descartáveis. Resultados do perfil novo:
+
+- Rust: 33 testes incluindo concorrência/lock/ACL; Clippy sem warnings. HTTP/WS: 63 critérios; ACL: 103; armazenamento local: 29 com worker; FFmpeg/queue: 51 critérios.
+- Importação PostgreSQL: 25 tabelas e 934 linhas verificadas, seguida por migration/backfill; 5 testes negativos/atomicidade. Objetos S3: 65 copiados e conferidos em snapshot de ensaio, com 8 negativos de migração. Isso não é corte da implantação original.
+- Busca: oracle PostgreSQL real com 416 casos/69 consultas; revisão independente do parser C e harness ASan/UBSan com 40.000 entradas e concorrência. View ACL conferida em 12.000 combinações/60.000 assertivas. Não afirma equivalência universal entre versões/locales Unicode nem ausência universal de falhas em C.
+- Backup/restauração: 7 testes; supervisor: 2; configuração: 5. Gateway Caddy real: 16 critérios de proxy/admission/limites. Revisão independente identificou e levou à correção da ordem das variáveis no CI e da execução dos scripts via `sh`.
+- P2P: 34 verificações em dois processos Chromium no mesmo computador, vídeo sintético 720p/1440p a 30 FPS e RTT local mediano de 0,9 ms. Esse número não mede a rede móvel, não representa captura de jogo e não comprova redução dos 137 ms externos. O ensaio WAN posterior está registrado abaixo.
+
+A publicação 0.3.0, execução Linux/Windows dessa versão, restauração Docker real, teste WAN e homologação física Windows devem receber seus resultados próprios. Não herdam automaticamente PASS da versão 0.2.0.
+
+### Ensaio WAN com celular 5G
+
+Em 12/11/2026 às 16:35 BRT, o usuário confirmou Android no 5G com Wi-Fi desligado e recebeu o vídeo enviado pelo navegador do Mac. O diagnóstico durou 119,5s, incluindo cerca de 64s de espera pela entrada do participante; foram colhidas 56 amostras conectadas. A rota ICE foi direta UDP (tipos host/host), sem relay contratado. O relatório exportado não inclui IPs, tokens ou SDP.
+
+Resultado no emissor: ping de aplicação mediano60,2ms/p95 681,2ms; RTT ICE mediano46ms (32–642ms). Dos55 pings,47 retornaram,7 expiraram e1 estava pendente no encerramento. Isso não é medição de porcentagem de perda RTP. Vídeo sintético1280×720 solicitado30FPS/2Mb/s: FPS observado1–28, mediana6; bitrate mediano~0,089Mb/s. Conteúdo sintético não consome necessariamente o teto configurado. O receptor confirmou vídeo, mas seu relatório não foi coletado.
+
+O resultado confirma conectividade entre redes e um ping central menor que a referência histórica137ms. Não é comparação A/B controlada: alvo, protocolo e condições diferem. A fluidez não passou no critério30FPS. Visibilidade das abas e carga dos dispositivos não foram registradas, e uma compilação local começou perto do encerramento; não é possível atribuir a instabilidade à rede ou a um componente específico. Windows físico, áudio/captura e teste prolongado continuam pendentes.
+
+### Navegação responsiva
+
+A seleção repetida da comunidade agora preserva canal, componente de chat e rascunho. Em até800px, a lista abre como painel com botãoCanais, X, backdrop e Escape; no desktop permanece lateral. Formulários, personalização e diagnóstico têm rolagem e controles adaptados. CUA verificou360/390/768/1280px, incluindo abertura/fechamento e rascunho preservado; em360×420 o campo de mensagem permaneceu inteiro e a página não excedeu a largura. O usuário confirmou acesso ao painel P2P no Android5G após recarregar. Isso não simula todos os teclados/dispositivos nem é homologação físicaWindows.
+
+Depois da integração0.3.0:69testesVitest,4testesindependentesdetema,typecheck/build,33testesRust eClippy PASS. Inventário regenerado:816pacotes,392textosdeavisos,48semarquivolocal,nenhumsemdeclaraçãodelicença; parserPostgreSQL incluídoexplicitamentecomhasheseCOPYRIGHT.
+
+Integração de mídia repetida em0.3.0/SQLite:9critérios do gateway de admissão e17critérios RTC PASS, com137frames de áudio sintético e10framesVP8 decodificados; reset desconectou o emissor em0,336s e impediu reconexão. O primeiro ensaio retornou403 porque a configuração isolada não havia habilitado o proxy local confiável; o controle foi mantido e a configuração de teste corrigida.28testesPython (incluindoCaddyreal) PASS. Docker/Windows remoto desta versão permanecem pendentes até o gateCI correspondente.
