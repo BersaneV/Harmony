@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { can, canSendMessage, Permission } from "../lib/permissions";
 import AttachmentViewer from "./AttachmentViewer";
 import { fetchAttachmentBlob, previewKind } from "../lib/attachments";
 import { openExternal } from "../lib/desktop";
@@ -82,6 +83,10 @@ export default function Chat({
   typingCount: number;
 }) {
   const cache = useQueryClient();
+  const canView = can(channel, Permission.View);
+  const canSend = can(channel, Permission.Send);
+  const canAttach = canSend && can(channel, Permission.Attach);
+  const canReact = can(channel, Permission.React);
   const [older, setOlder] = useState<Message[]>([]);
   const [hasOlder, setHasOlder] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -108,6 +113,7 @@ export default function Chat({
   const markRead = useCallback(
     (seq: string | undefined) => {
       if (
+        !canView ||
         !seq ||
         document.visibilityState !== "visible" ||
         !nearBottom.current ||
@@ -154,7 +160,7 @@ export default function Chat({
           if (pendingRead.current === seq) pendingRead.current = "0";
         });
     },
-    [cache, channel.id],
+    [cache, channel.id, canView],
   );
   const query = useQuery({
     queryKey: ["messages", channel.id],
@@ -181,6 +187,7 @@ export default function Chat({
       return result;
     },
     refetchInterval: 30000,
+    enabled: canView,
   });
   const messages = mergeMessages(older, query.data?.items || []);
   useEffect(() => {
@@ -226,6 +233,14 @@ export default function Chat({
     }
   }
   async function deliver(item: Pending) {
+    if (!canSendMessage(channel, item.attachment_ids.length)) {
+      setError(
+        item.attachment_ids.length > 0 && !canAttach
+          ? "Você não tem permissão para enviar os anexos desta mensagem."
+          : "Você não tem permissão para enviar mensagens neste canal.",
+      );
+      return;
+    }
     setPending((current) =>
       current.map((p) =>
         p.nonce === item.nonce ? { ...p, status: "sending" } : p,
@@ -261,7 +276,12 @@ export default function Chat({
     }
   }
   function send() {
-    if ((!content.trim() && !attachments.length) || uploading) return;
+    if (
+      !canSendMessage(channel, attachments.length) ||
+      (!content.trim() && !attachments.length) ||
+      uploading
+    )
+      return;
     const item: Pending = {
       nonce: crypto.randomUUID(),
       content: content.trim(),
@@ -275,6 +295,10 @@ export default function Chat({
     void deliver(item);
   }
   async function upload(files: FileList | null) {
+    if (!canAttach) {
+      setError("Você não tem permissão para anexar arquivos neste canal.");
+      return;
+    }
     if (!files) return;
     setUploading(true);
     setError("");
@@ -345,6 +369,10 @@ export default function Chat({
     }
   }
   async function react(message: Message, emoji: string) {
+    if (!canReact) {
+      setError("Você não tem permissão para reagir neste canal.");
+      return;
+    }
     setReactionFor(null);
     try {
       const mine = message.reactions?.find((r) => r.emoji === emoji)?.me;
@@ -358,7 +386,7 @@ export default function Chat({
     }
   }
   async function saveEdit() {
-    if (!editing) return;
+    if (!editing || !canSend) return;
     setBusy(true);
     try {
       await api(`/api/messages/${editing.id}`, {
@@ -387,6 +415,12 @@ export default function Chat({
       setBusy(false);
     }
   }
+  if (!canView)
+    return (
+      <Empty title="Acesso ao canal indisponível.">
+        <p>Suas permissões foram atualizadas. Escolha outro canal.</p>
+      </Empty>
+    );
   return (
     <div className="chat">
       <div
@@ -549,6 +583,7 @@ export default function Chat({
                             <button
                               key={r.emoji}
                               className={r.me ? "selected" : ""}
+                              disabled={!canReact}
                               onClick={() => void react(message, r.emoji)}
                               aria-label={`${r.emoji}, ${r.count} reações${r.me ? ", sua reação" : ""}`}
                             >
@@ -561,7 +596,10 @@ export default function Chat({
                     </div>
                     <div className="message-actions">
                       <IconButton
-                        label="Reagir"
+                        label={
+                          canReact ? "Reagir" : "Sem permissão para reagir"
+                        }
+                        disabled={!canReact}
                         onClick={() =>
                           setReactionFor(
                             reactionFor === message.id ? null : message.id,
@@ -582,7 +620,7 @@ export default function Chat({
                       )}
                       {menu === message.id && (
                         <div className="message-menu">
-                          {message.author.id === user.id && (
+                          {message.author.id === user.id && canSend && (
                             <button
                               onClick={() => {
                                 setEditing(message);
@@ -606,7 +644,7 @@ export default function Chat({
                           </button>
                         </div>
                       )}
-                      {reactionFor === message.id && (
+                      {canReact && reactionFor === message.id && (
                         <div className="reaction-picker">
                           {["👍", "❤️", "😂", "🎉", "👀", "✅"].map((emoji) => (
                             <button
@@ -657,6 +695,9 @@ export default function Chat({
       </div>
       <div className="composer-wrap">
         <ErrorBanner message={error} />
+        {attachments.length > 0 && !canAttach && (
+          <ErrorBanner message="A permissão para anexar arquivos foi removida. Remova os anexos para enviar somente o texto." />
+        )}
         {attachments.length > 0 && (
           <div className="attachment-drafts">
             {attachments.map((a) => (
@@ -685,17 +726,20 @@ export default function Chat({
           />
           <IconButton
             label="Anexar arquivos"
-            disabled={uploading}
+            disabled={uploading || !canAttach}
             onClick={() => file.current?.click()}
           >
             <Paperclip size={21} />
           </IconButton>
           <textarea
             aria-label="Mensagem"
+            disabled={!canSend}
             placeholder={
-              uploading
-                ? "Enviando arquivo…"
-                : `Conversar em ${channel.guild_id ? "#" : ""}${channel.name}`
+              !canSend
+                ? "Você não tem permissão para enviar neste canal."
+                : uploading
+                  ? "Enviando arquivo…"
+                  : `Conversar em ${channel.guild_id ? "#" : ""}${channel.name}`
             }
             value={content}
             onChange={(e) => {
@@ -718,7 +762,11 @@ export default function Chat({
           <button
             className="send-button"
             aria-label="Enviar mensagem"
-            disabled={(!content.trim() && !attachments.length) || uploading}
+            disabled={
+              !canSendMessage(channel, attachments.length) ||
+              (!content.trim() && !attachments.length) ||
+              uploading
+            }
             onClick={send}
           >
             <Send size={19} />
@@ -726,7 +774,9 @@ export default function Chat({
         </div>
         <div className="composer-hint">
           <span>
-            {typingCount > 0 ? (
+            {!canSend ? (
+              <span role="status">Canal somente para leitura.</span>
+            ) : typingCount > 0 ? (
               `${typingCount === 1 ? "Alguém está" : `${typingCount} pessoas estão`} digitando…`
             ) : (
               <>
@@ -760,18 +810,26 @@ export default function Chat({
             <textarea
               rows={5}
               value={editValue}
+              disabled={!canSend}
               maxLength={4000}
               onChange={(e) => setEditValue(e.target.value)}
               autoFocus
             />
           </Field>
+          <ErrorBanner
+            message={
+              !canSend
+                ? "Sua permissão para editar mensagens foi removida."
+                : error
+            }
+          />
           <div className="modal-actions">
             <button className="button" onClick={() => setEditing(null)}>
               Cancelar
             </button>
             <button
               className="button primary"
-              disabled={busy || !editValue.trim()}
+              disabled={busy || !canSend || !editValue.trim()}
               onClick={() => void saveEdit()}
             >
               Salvar alterações

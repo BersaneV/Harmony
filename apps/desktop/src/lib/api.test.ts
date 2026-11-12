@@ -136,6 +136,21 @@ describe("origens e sessão", () => {
     await rejection;
     expect(client.getSession()).toBeNull();
   });
+  it("informa revogação ou expiração quando o refresh real é recusado", async () => {
+    await client.saveSession(session);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json(
+          { error: { code: "invalid_session", message: "Sessão inválida" } },
+          401,
+        ),
+      ),
+    );
+    await expect(client.refreshSession()).rejects.toThrow("Sessão inválida");
+    expect(client.getSession()).toBeNull();
+    expect(client.getSessionNotice()).toContain("expirou ou foi revogada");
+  });
   it("reenvia uma requisição autenticada com o novo access token depois de 401", async () => {
     await client.saveSession(session);
     const requests: string[] = [];

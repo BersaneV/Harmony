@@ -11,15 +11,17 @@ Revisão independente da implementação inicial do Harmony: autenticação, aut
 | Refresh do cliente podia restaurar sessão após logout ou salvar credencial na origem seguinte. | `api.ts`: geração da sessão, origem capturada, gravação serializada e rechecagem após leitura do corpo da resposta. |
 | Tokens LiveKit renovados pelo servidor sobreviviam à curta validade do token inicial. | `media.rs` e Caddy: admissão consulta sessão/ACL/ban/mute atuais antes de cada conexão; reconciliação consulta participantes ativos, inclusive sem registro histórico local. |
 | Polling de todo o histórico de mídia acumulava RPCs de remoção. | Reconciliação usa salas e participantes ativos, com quatro salas simultâneas. Remoção de membro desconecta apenas a comunidade correspondente. |
+| Revogar PUBLISH durante chamada ativa não retirava a publicação: a resposta Twirp era lida com `canPublish`, mas o campo canônico é `can_publish`. | `media.rs`: leitura do campo canônico com compatibilidade camelCase, teste do contrato e repetição do mesmo ensaio RTC que havia falhado. A revogação, restauração e remoção por CONNECT passaram depois da correção. |
 | Validação de anexos podia deixar cópias órfãs; reenvio tardio recriava objeto temporário. | `uploads.rs`: chave final determinística, limpeza posterior à expiração da URL também para anexos prontos e controle transacional da cota. |
 | Limpeza podia apagar o objeto durante a conclusão do upload. | Limpeza trava a linha com `FOR UPDATE SKIP LOCKED`; conclusão revalida a expiração antes de marcar o anexo pronto. |
+| Reserva de upload podia esperar a cota e emitir URL depois de uma revogação de ATTACH. | Reserva e conclusão mantêm bloqueio compartilhado da ACL antes da cota; a permissão é revalidada dentro da transação. |
 | API LiveKit podia escutar publicamente; proxy perdia IP real. | `configure.py`: controle LiveKit em loopback; TURN com bind separado; PROXYv2 nos hops web/mídia e confiança limitada ao proxy local. |
 | Valores de exemplo podiam ser aceitos como segredos; cliente desktop ficava fora do CORS. | Rejeição dos placeholders de JWT/senha inicial; origens Tauri explícitas, sem wildcard. |
 | Nova pasta de restauração podia reutilizar volumes Compose existentes. | `restore.sh`: projeto Compose novo e verificações de contêineres, volumes e porta antes de iniciar; backup interrompido encerra antes de religar os serviços. |
 
 ## Verificações independentes executadas
 
-`scripts/test_media_proxy.py` passou com Caddy 2.11.9 e o módulo L4, usando a configuração gerada, TLS local, portas dinâmicas e backends HTTP controlados. Os 14 cenários verificam encaminhamento somente após autorização, precedência consistente de token por header/query, sobrescrita do header interno forjado, negação sem token, bloqueio de rotas administrativas e preservação do IP por PROXYv2 com remoção de X-Forwarded-For forjado.
+`scripts/test_media_proxy.py` passou com Caddy 2.11.9 e o módulo L4, usando a configuração gerada, TLS local, portas dinâmicas e backends HTTP controlados. Os 16 cenários verificam encaminhamento somente após autorização, precedência consistente de token por header/query, sobrescrita do header interno forjado, negação sem token, bloqueio de rotas administrativas, preservação do IP por PROXYv2 com remoção de X-Forwarded-For forjado e limite de corpo de upload.
 
 ```sh
 CADDY_BIN=/caminho/para/caddy HARMONY_REQUIRE_CADDY=1 python3 scripts/test_media_proxy.py
@@ -30,6 +32,10 @@ Sem binário ou módulos, o teste informa `skipped`; com `HARMONY_REQUIRE_CADDY=
 Uma consulta anônima ao bucket S3 local retornou HTTP403. A inspeção Tauri conferiu comandos específicos para cofre/abertura de links, origem validada, navegação restrita e ausência de permissões remotas genéricas. Os testes funcionais executados pelos componentes e as provas da integração real são registrados em [VALIDATION.md](VALIDATION.md), separados deste teste de proxy.
 
 Uma prova independente posterior com dois peers do SDK oficial confirmou áudio/vídeo sintéticos, remoção do transmissor após reset e rejeição de reconexão com token revogado ainda dentro da validade. Versões, contagens, tempo observado e limites estão em [MEDIA-RTC-VALIDATION.md](MEDIA-RTC-VALIDATION.md). Ela cobre RTC local em macOS arm64; não homologa captura ou instalação no Windows.
+
+A revisão de ACL granular conferiu FKs compostas contra associação entre comunidades, permissões atuais nas operações REST/WS e autorização transacional de escrita. O ensaio RTC de 25 critérios confirmou PUBLISH negado/restaurado e CONNECT negado durante mídia ativa. A base herdada é63: permissões base de cargos não restringem sozinhas; o mecanismo efetivo de restrição desta versão são os overrides de canal, como explicado na UI e em [API.md](API.md).
+
+O dump/restore nativo em banco separado também passou: 23 tabelas e 411 linhas do mesmo snapshot, com comparação de esquema e digests. A origem permaneceu ativa e somente leitura durante o ensaio. O escopo e os limites estão em [RESTORE-VALIDATION.md](RESTORE-VALIDATION.md).
 
 `npm audit --json` retornou zero vulnerabilidades conhecidas para o lockfile desta revisão (229 dependências totais, incluindo desenvolvimento). Isso representa a consulta ao catálogo naquele momento; não é garantia sobre todas as dependências Rust, os binários ou vulnerabilidades desconhecidas.
 

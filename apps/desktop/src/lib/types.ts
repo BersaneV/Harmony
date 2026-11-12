@@ -7,6 +7,7 @@ export interface User {
   preferences: Record<string, unknown>;
   created_at: string;
   role?: "owner" | "admin" | "member";
+  role_ids?: string[];
 }
 export interface Session {
   access_token: string;
@@ -24,8 +25,20 @@ export interface Channel {
   name: string;
   kind: "text" | "voice" | "dm" | "group";
   last_seq: string;
+  effective_permissions: string;
   read_seq?: string;
   participants?: User[];
+}
+export interface GuildRole {
+  id: string;
+  guild_id: string;
+  name: string;
+  permissions: string;
+}
+export interface ChannelOverride {
+  role_id: string | null;
+  allow: string;
+  deny: string;
 }
 export interface Attachment {
   id: string;

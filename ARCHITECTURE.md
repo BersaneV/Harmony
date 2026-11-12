@@ -1,6 +1,6 @@
 # Harmony — arquitetura v1
 
-Data: 12/11/2026. Estado: arquitetura de referência. A implementação inicial e suas provas constam nos READMEs e em docs/BACKEND.md; itens deste desenho não são automaticamente funcionalidades concluídas. Sem hospedagem pública ou desempenho Windows homologado. Autor das escolhas técnicas: Codex, conforme delegação de Victor.
+Data: 12/11/2026. Estado: arquitetura de referência. A implementação inicial e suas provas constam nos READMEs e em docs/BACKEND.md; itens deste desenho não são automaticamente funcionalidades concluídas. O estado detalhado está em [docs/VALIDATION.md](docs/VALIDATION.md). Sem hospedagem pública ou desempenho Windows homologado. Autor das escolhas técnicas: Codex, conforme delegação de Victor.
 
 ## 1. Objetivo e fontes
 
@@ -233,12 +233,12 @@ O repositório pessoal [BersaneV/Harmony](https://github.com/BersaneV/Harmony) �
 | Captura/áudio do Windows | Tela/janela, áudio, permissão negada, cancelamento, mudança de monitor/dispositivo, suspensão e PTT em .exe real | Não executado |
 | Qualidade e escala | 144p a 2160p disponíveis; seleção de FPS/bitrate antes e durante a transmissão; soma de camadas respeita orçamento; bitrate efetivo sob congestionamento; CPU/RAM/GPU por máquina e múltiplos espectadores | Não executado |
 | Conectividade externa | Rede residencial e móvel; UDP bloqueado; TURN/TLS 443 e DNS/SNI reais | Não executado |
-| Autorização | Negativas de acesso em REST, WS, busca, anexos e mídia; troca de cargos/bloqueio durante chamada | Não executado |
-| Reset de senha | Código expirado/usado, concorrência, limitação de tentativas, revogação de sessões e janela de token de mídia | Não executado |
+| Autorização | Negativas de acesso em REST, WS, busca, anexos e mídia; troca de cargos/bloqueio durante chamada | Matriz local de 103 cenários PASS; ver VALIDATION.md e revisão de segurança |
+| Reset de senha | Código expirado/usado, concorrência, limitação de tentativas, revogação de sessões e janela de token de mídia | Provas HTTP/PG e RTC local executadas; ver MEDIA-RTC-VALIDATION.md |
 | Persistência | Retry sem duplicação, queda após commit, outbox, cursor, reconexão e reinício de host | Não executado |
 | Recursos gratuitos | Conta/shape elegível, todos os limites efetivos, esgotamento de cotas e disco sem recurso pago criado | Não verificado na conta |
 | Recuperação | Restore integral em outro ambiente com anexos e chaves | Sem destino de backup |
 | Distribuição | Instalador, WebView2, atualização assinada válida/inválida e falha durante update | Não executado |
-| Dependências | Lockfiles, imagens fixadas, vulnerabilidades, licenças, binários ARM64/x64 | Sem implementação |
+| Dependências | Lockfiles, imagens fixadas, vulnerabilidades, licenças, binários ARM64/x64 | Locks e manifests implementados; auditoria npm executada, revisão de distribuição continua necessária |
 
-Esta arquitetura está suficientemente definida para iniciar a fase 0. Não está homologada para afirmar capacidade, latência, gratuidade permanente ou funcionamento integral. Hospedagem elegível, nomes DNS, backup e prova de captura são condições concretas para o piloto público.
+A implementação de desenvolvimento está disponível na main; a fase de homologação Windows e externa permanece aberta. Não está homologada para afirmar capacidade, latência, gratuidade permanente ou funcionamento integral. Hospedagem elegível, nomes DNS, backup e prova de captura são condições concretas para o piloto público.

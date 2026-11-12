@@ -11,7 +11,7 @@ Na raiz do repositório, `npm ci`, `npm run dev` (porta 1420), `npm run test` e 
 ## Funcionalidades implementadas
 
 - Entrada, cadastro por convite, recuperação com código administrativo e troca da instância.
-- Comunidades e canais de texto/voz, convites, lista de membros, cargo de moderador e remoção.
+- Comunidades e canais de texto/voz, convites, lista de membros, cargo de moderador e remoção. Cargos personalizados têm seis concessões, atribuição a membros e exceções de canal com Herdar/Permitir/Negar para Todos ou cargo.
 - Amigos, pedidos e conversas diretas/grupos.
 - Mensagens Markdown sem HTML ativo ou carregamento automático de imagens externas; edição, exclusão, reações, busca, paginação, anexos e download autorizado. Imagens/GIFs, vídeos e áudios têm visualização/reprodução explícita por clique, com blobs limitados e revogados ao fechar. HTML/SVG não são exibidos inline.
 - Retry de mensagem preserva nonce; recuperação incremental usa o cursor de alterações do servidor, inclusive edições/exclusões/reações anteriores, e preserva BIGINT como string/BigInt.
@@ -22,6 +22,14 @@ Na raiz do repositório, `npm ci`, `npm run dev` (porta 1420), `npm run test` e 
 - Temas claro/escuro, cor validada, fonte do sistema, tamanho, densidade e fundo. Preferências persistidas no servidor; nenhum CSS/JS de terceiros.
 - Administração de contas, desativação, convite de cadastro, código de reset com reautenticação, auditoria e métricas disponíveis na API.
 - Notificações mediante permissão, enquanto o aplicativo está aberto.
+
+## Permissões por canal
+
+O servidor calcula `effective_permissions` com os bits Ver (1), Enviar (2), Anexar (4), Reagir (8), Conectar (16) e Publicar mídia (32). A UI usa essa resposta, sem inferir autorização de nomes de cargo. Ausência, máscara inválida ou ausência de Ver bloqueiam os controles; o backend continua sendo a autoridade obrigatória em toda operação.
+
+Membros básicos começam com as seis permissões. Concessões dos cargos somam direitos e não retiram os herdados. As restrições são definidas nos overrides de canal: Todos primeiro, depois os cargos; permitir em algum cargo prevalece sobre negar em outro. Responsáveis e moderadores mantêm bypass administrativo. Esta semântica também aparece no modal, para não confundir desmarcar uma concessão com negar acesso.
+
+Eventos `permissions.updated` atualizam canais, membros, cargos, histórico e controles. A chamada ativa acompanha seu próprio canal mesmo quando o usuário navega para outra comunidade. Retirar Publicar interrompe captura/publicação local e desabilita microfone/câmera/tela/PTT; retirar Conectar encerra a chamada. O servidor também atualiza permissões no SFU. O histórico cacheado não é exibido quando Ver deixa de estar autorizado. Reset/revogação de sessão volta à entrada com aviso explícito.
 
 ## Fronteiras de segurança
 

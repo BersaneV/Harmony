@@ -13,6 +13,8 @@ python3 scripts/storage-init.py
 
 Os segredos ficam em `.env` e `.local/deploy/`, com permissão0600 e ignorados pelo Git. O script recusa substituir arquivos existentes. A senha inicial está no campo `HARMONY_BOOTSTRAP_PASSWORD`; o bootstrap só cria o primeiro administrador quando não existe conta. Não compartilhe esse arquivo. O backend deve recusar chaves ausentes/fracas. Para o cliente web de desenvolvimento: `npm ci && npm run dev`; informe o servidor `http://127.0.0.1:8080`.
 
+O entrypoint do storage copia a configuração privada para um tmpfs com acesso exclusivo do UID1000 e depois entrega ao entrypoint oficial, que reduz os privilégios. O arquivo no host continua0600. O gateway de arquivos18083 limita o corpo do upload ao valor gerado de `HARMONY_MAX_UPLOAD_BYTES`; ao alterar essa variável, ajuste também o `max_size` em `caddy.json`. A URL de PUT assina o tamanho exato reservado.
+
 O login normal não usa token de administração do LiveKit nem chaves S3. Essas chaves ficam no servidor. Não existe cadastro aberto: crie convite no painel administrativo e entregue pelo contato combinado com o usuário.
 
 ## Host público
@@ -31,7 +33,7 @@ Execute também a configuração de crescimento de volumes mostrada acima. Seawe
 | TCP7881 | ICE/TCP de contingência |
 | UDP3478 | TURN/UDP |
 
-No firewall, bloquear acesso externo a15432,8080,7880,8333,5349,18081,2019 e às portas administrativas SeaweedFS. PostgreSQL, API, S3 e HTTP do LiveKit escutam em loopback. O listener TURN5349 exige PROXYv2 do proxy local confiável; não deve ficar público. O endpoint de health não comprova conectividade WebRTC.
+No firewall, bloquear acesso externo a15432,8080,7880,8333,5349,18081,18082,18083,2019 e às portas administrativas SeaweedFS. PostgreSQL, API, S3 e HTTP do LiveKit escutam em loopback. O listener TURN5349 exige PROXYv2 do proxy local confiável; não deve ficar público. O endpoint de health não comprova conectividade WebRTC.
 
 LiveKit1.13.11 anuncia TURN/TLS443 no código da versão fixada, mesmo recebendo o tráfego terminado pelo Caddy em5349. A validação completa depende de DNS/certificado e clientes em redes diferentes. A configuração não comprova que o provedor permitirá UDP ou acesso público à VM.
 

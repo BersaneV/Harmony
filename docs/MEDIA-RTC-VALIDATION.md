@@ -32,3 +32,21 @@ O relatório sem tokens fica em `.local/qa-media/result.json`, com data, versõe
 Captura/áudio do Windows, resoluções altas, FPS elevados, bitrate efetivo, múltiplos espectadores, reconexão após troca de rede, NAT e TURN público ainda exigem provas próprias. A ocorrência anterior com WebSocket bruto sem negociação RTC permanece distinta; esta execução demonstrou revogação de um participante com mídia ativa.
 
 Referências usadas: [publicação de áudio/vídeo](https://docs.livekit.io/transport/media/publish/), [SDK Python oficial](https://github.com/livekit/python-sdks), [API de salas](https://docs.livekit.io/reference/python/livekit/api/room_service.html).
+
+## ACL alterada durante mídia ativa
+
+O teste independente de ACL encontrou uma falha real: após negar PUBLISH a um membro comum, a permissão de publicação no LiveKit permaneceu ativa por mais de15s. A reconciliação lia `canPublish`, enquanto a resposta Twirp retornava `can_publish`; o valor ausente era interpretado como false e a revogação não era enviada. O backend corrigiu a leitura canônica e acrescentou um teste de contrato. O mesmo ensaio passou depois da correção, sem alterar seus critérios.
+
+A regressão foi promovida para [test_media_acl_rtc.py](../scripts/test_media_acl_rtc.py), ajustando apenas localização da raiz, documentação e nome de uma métrica. A execução pública foi repetida em `2026-11-12T17:21:47Z`, SHA256 `c05829e8dd9994822b17c56b399a60f7934cecc9229538a12e022a6e931b4d00`, e passou em25 critérios:
+
+- Dois peers reais conectados; áudio não silencioso e vídeo variável decodificados.
+- PUBLISH negado alterou a permissão do participante, interrompeu os frames e preservou ambas as conexões.
+- PUBLISH restaurado permitiu publicar novas tracks e voltar a receber áudio/vídeo.
+- CONNECT negado desconectou o transmissor em3,969s nesta execução; o receptor permaneceu conectado e foi o único participante listado.
+- A entrega de mídia parou e o token ainda dentro da validade foi recusado tanto pelo gateway quanto pelo SDK na reconexão.
+
+```sh
+python3 scripts/with-env.py .local/qa-media/venv/bin/python scripts/test_media_acl_rtc.py
+```
+
+A preparação usou o receptor como proprietário da comunidade e o transmissor como membro comum, evitando o bypass administrativo previsto. As evidências de antes/depois permanecem em `.local/qa-media/acl-before-twirp-fix.json`, `acl-after-twirp-fix.json` e `acl-result.json`. Este ensaio tem os mesmos limites de plataforma/rede da prova de reset; o intervalo observado não é uma garantia de latência.

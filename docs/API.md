@@ -39,7 +39,7 @@ Prefixo `/api`. JSON UTF-8. IDs UUID como strings, sequências BIGINT como strin
 
 ## Mídia/anexos/admin
 
-- `POST /api/channels/{id}/media-token` → `{token,url,room,max_video_bitrate}`. TTL curto, identidade vincula usuário/sessão; só canal voice ou DM/group. `POST /api/channels/{id}/moderate` `{user_id,action:"mute"|"remove"}` →204, exige dono/admin comunidade. Desconexão global em reset/bloqueio.
+- `POST /api/channels/{id}/media-token` → `{token,url,room,max_video_bitrate}`. TTL curto, identidade vincula usuário/sessão; só canal voice ou DM/group. `POST /api/channels/{id}/moderate` `{user_id,action:"mute"|"unmute"|"remove"}` →204, exige dono/admin comunidade. Desconexão global em reset/bloqueio.
 - `POST /api/channels/{id}/uploads` `{name,size,content_type}` → `{id,url,headers}`; PUT direto do cliente ao storage. `POST /api/uploads/{id}/complete` → metadata após validação do objeto. `GET /api/uploads/{id}/download` → `{url}` com ACL corrente.
 - `GET /api/admin/users` → Users. `PATCH /api/admin/users/{id}` `{disabled}` →User. `POST /api/admin/users/{id}/reset` `{password}` (senha atual do admin para reauth) → `{token,expires_at}`. `POST /api/admin/invites` `{expires_hours?,max_uses?}` → código de cadastro.
 - `GET /api/admin/audit` → eventos sem segredos. `GET /api/admin/stats` → contagens e limites de configuração.

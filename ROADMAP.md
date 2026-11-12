@@ -1,6 +1,6 @@
 # Roadmap do Harmony
 
-Este arquivo descreve trabalho futuro. Nenhum item abaixo é um resultado de teste já executado.
+Este arquivo preserva as fases do projeto. A primeira implementação cobre o núcleo e parte das fases de mídia/operação. Consulte [VALIDATION.md](docs/VALIDATION.md) para provas executadas e pendências; a presença de um item aqui não significa que esteja entregue ou homologado.
 
 ## Fase 0 — provas de mídia e Windows
 

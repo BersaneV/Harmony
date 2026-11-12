@@ -22,13 +22,17 @@
       }
     ],
     "security": {
-      "capabilities": ["main"],
+      "capabilities": [
+        "main"
+      ],
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost https: wss: http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'none'; worker-src 'self' blob:"
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "shortDescription": "Voz, mensagens e tela para sua comunidade",
     "category": "SocialNetworking",
     "icon": [
@@ -40,10 +44,15 @@
     ],
     "windows": {
       "nsis": {
-        "languages": ["PortugueseBR"],
+        "languages": [
+          "PortugueseBR"
+        ],
         "displayLanguageSelector": false,
         "installMode": "currentUser"
       }
-    }
+    },
+    "resources": [
+      "resources/THIRD-PARTY-NOTICES.txt"
+    ]
   }
 }

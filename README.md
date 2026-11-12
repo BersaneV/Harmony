@@ -7,7 +7,7 @@ Comunidades, conversas e compartilhamento de tela em uma plataforma open source,
 ## O que já funciona
 
 - Cadastro por convite, login, sessões rotativas e recuperação administrada, com revogação de sessões.
-- Comunidades, canais de texto/voz, membros, amigos, conversas diretas e grupos.
+- Comunidades, canais de texto/voz, membros, cargos personalizados, permissões por canal, amigos, conversas diretas e grupos.
 - Chat com histórico PostgreSQL, atualização ao vivo, edição, exclusão, busca, reações, leitura e retry sem mensagens duplicadas.
 - Anexos privados com upload/download autorizados e prévia de imagens, GIFs, áudio e vídeo por clique.
 - Voz, câmera e tela com LiveKit. Prévia antes de transmitir, controles de resolução 144p–2160p, FPS 15/24/30/60, bitrate e estatísticas efetivas. Perfis de qualidade dependem da máquina e da rede.
@@ -53,6 +53,7 @@ Os testes de integração exigem serviços locais e usam contas descartáveis. V
 - [Arquitetura e diagrama](ARCHITECTURE.md) · [SVG](arquitetura-v1.svg) · [Mermaid](arquitetura-v1.mmd)
 - [Contrato de API](docs/API.md) · [Servidor](docs/BACKEND.md) · [Cliente](apps/desktop/README.md)
 - [Operação, backup e build](docs/OPERATIONS.md) · [Roadmap](ROADMAP.md)
+- [Validação e pendências da versão](docs/VALIDATION.md)
 - [Revisão de segurança](docs/SECURITY-REVIEW.md) · [Teste de mídia real](docs/MEDIA-RTC-VALIDATION.md)
 - [Análise REA do Discord](docs/REA-DISCORD.md)
 
@@ -60,6 +61,6 @@ Os testes de integração exigem serviços locais e usam contas descartáveis. V
 
 ## Licença e custos
 
-Código próprio sob [Apache-2.0](LICENSE). Dependências mantêm suas licenças. O projeto não incorpora código ou assets proprietários do Discord/Crystal, não é um cliente alternativo autenticado no Discord e não depende desses serviços para funcionar.
+Código próprio sob [Apache-2.0](LICENSE). Dependências mantêm suas licenças. O [inventário de versões/licenças](docs/dependency-licenses.json) e os [avisos de terceiros](apps/desktop/src-tauri/resources/THIRD-PARTY-NOTICES.txt) são gerados a partir dos pacotes fixados; os avisos acompanham o instalador. O projeto não incorpora código ou assets proprietários do Discord/Crystal, não é um cliente alternativo autenticado no Discord e não depende desses serviços para funcionar.
 
 Software sem assinatura não elimina consumo de internet, disco ou energia. Nenhum script provisiona recurso faturável, faz upgrade automático ou contrata hospedagem. Cotas e políticas do host precisam ser aplicadas e medidas antes de liberar o piloto. O conteúdo não é E2EE nesta versão; o administrador da infraestrutura pode acessar dados persistidos. Não há gravação automática de chamadas.

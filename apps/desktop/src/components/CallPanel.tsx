@@ -28,6 +28,7 @@ import {
   VideoOff,
   Volume2,
 } from "lucide-react";
+import { can, Permission } from "../lib/permissions";
 import { api, errorMessage } from "../lib/api";
 import type { Channel, MediaToken } from "../lib/types";
 import {
@@ -298,6 +299,15 @@ export default function CallPanel({
   onExpand: () => void;
   canModerate: boolean;
 }) {
+  const canConnect = can(channel, Permission.Connect);
+  const channelAllowsPublishing =
+    canConnect && can(channel, Permission.Publish);
+  const channelPublishAllowed = useRef(channelAllowsPublishing);
+  channelPublishAllowed.current = channelAllowsPublishing;
+  const [mediaAllowsPublishing, setMediaAllowsPublishing] = useState(false);
+  const canPublish = channelAllowsPublishing && mediaAllowsPublishing;
+  const publishAllowed = useRef(canPublish);
+  publishAllowed.current = canPublish;
   const [room, setRoom] = useState<Room | null>(null);
   const [connecting, setConnecting] = useState(true);
   const [error, setError] = useState("");
@@ -320,6 +330,11 @@ export default function CallPanel({
   >({});
   const [status, setStatus] = useState("Conectando");
   useEffect(() => {
+    if (!can(channel, Permission.Connect)) {
+      setError("Você não tem permissão para entrar nesta chamada.");
+      setConnecting(false);
+      return;
+    }
     const next = new Room({
       adaptiveStream: true,
       dynacast: true,
@@ -336,6 +351,13 @@ export default function CallPanel({
     });
     let stopped = false;
     const update = () => setTick((v) => v + 1);
+    const syncPublishingPermission = () => {
+      if (stopped) return;
+      const allowed = next.localParticipant.permissions?.canPublish === true;
+      // In-flight capture must see revocation before React renders again.
+      publishAllowed.current = allowed && channelPublishAllowed.current;
+      setMediaAllowsPublishing(allowed);
+    };
     const listen = [
       RoomEvent.ParticipantConnected,
       RoomEvent.ParticipantDisconnected,
@@ -350,7 +372,20 @@ export default function CallPanel({
       RoomEvent.ActiveSpeakersChanged,
     ] as const;
     for (const event of listen) next.on(event, update);
+    next.on(
+      RoomEvent.ParticipantPermissionsChanged,
+      (_previous, participant) => {
+        if (participant === next.localParticipant) syncPublishingPermission();
+      },
+    );
+    next.on(RoomEvent.LocalTrackPublished, (publication) => {
+      if (!publishAllowed.current && publication.track)
+        void next.localParticipant
+          .unpublishTrack(publication.track, true)
+          .catch(() => {});
+    });
     next.on(RoomEvent.ConnectionStateChanged, (value) => {
+      if (value === ConnectionState.Connected) syncPublishingPermission();
       setStatus(
         value === ConnectionState.Connected
           ? "Conectado"
@@ -361,6 +396,8 @@ export default function CallPanel({
     });
     next.on(RoomEvent.Disconnected, () => {
       if (!stopped) {
+        publishAllowed.current = false;
+        setMediaAllowsPublishing(false);
         setError(
           "Você foi desconectado da chamada. Entre novamente no canal para continuar.",
         );
@@ -368,6 +405,7 @@ export default function CallPanel({
       }
     });
     setConnecting(true);
+    setMediaAllowsPublishing(false);
     setError("");
     void (async () => {
       try {
@@ -382,6 +420,7 @@ export default function CallPanel({
           await next.disconnect();
           return;
         }
+        syncPublishingPermission();
         setRoom(next);
         setStatus("Conectado");
         await next.startAudio();
@@ -404,7 +443,7 @@ export default function CallPanel({
     previewRef.current = preview;
   }, [preview]);
   useEffect(() => {
-    if (!room || !ptt || deafened) return;
+    if (!room || !ptt || deafened || !canPublish) return;
     let held = false;
     let stopped = false;
     let cleanupGlobal: (() => Promise<void>) | undefined;
@@ -413,12 +452,12 @@ export default function CallPanel({
       void room.localParticipant.setMicrophoneEnabled(false);
     };
     const press = () => {
-      if (held) return;
+      if (held || !publishAllowed.current) return;
       held = true;
       void room.localParticipant
         .setMicrophoneEnabled(true)
         .then(() => {
-          if (!held || stopped)
+          if (!held || stopped || !publishAllowed.current)
             void room.localParticipant.setMicrophoneEnabled(false);
         })
         .catch((e) => setError(errorMessage(e)));
@@ -465,7 +504,39 @@ export default function CallPanel({
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", mute);
     };
-  }, [room, ptt, deafened]);
+  }, [room, ptt, deafened, canPublish]);
+  useEffect(() => {
+    if (!room || canPublish) return;
+    setPtt(false);
+    setSharing(false);
+    captureGeneration.current++;
+    previewRef.current.forEach((track) => track.stop());
+    setPreview([]);
+    const tracks = [
+      ...room.localParticipant.trackPublications.values(),
+    ].flatMap((publication) => (publication.track ? [publication.track] : []));
+    if (tracks.length) {
+      void Promise.allSettled(
+        tracks.map((track) =>
+          room.localParticipant.unpublishTrack(track, true),
+        ),
+      ).then(() => {
+        setApplied(null);
+        setTick((value) => value + 1);
+      });
+      setError(
+        "Sua permissão para transmitir foi removida. Você pode continuar ouvindo e assistindo.",
+      );
+    }
+  }, [room, canPublish]);
+  useEffect(() => {
+    if (room && !canConnect) {
+      void room.disconnect(true);
+      setError(
+        "Sua permissão de conexão foi removida. A chamada foi encerrada.",
+      );
+    }
+  }, [room, canConnect]);
   const local = room?.localParticipant;
   const screenPublication = local?.getTrackPublication(
     Track.Source.ScreenShare,
@@ -516,7 +587,7 @@ export default function CallPanel({
     setTick((v) => v + 1);
   }
   async function capture() {
-    if (!local) return;
+    if (!local || !publishAllowed.current) return;
     const attempt = ++captureGeneration.current;
     setError("");
     try {
@@ -524,7 +595,7 @@ export default function CallPanel({
       preview.forEach((track) => track.stop());
       setPreview([]);
       const tracks = await local.createScreenTracks(captureOptions(profile));
-      if (attempt !== captureGeneration.current) {
+      if (attempt !== captureGeneration.current || !publishAllowed.current) {
         tracks.forEach((track) => track.stop());
         return;
       }
@@ -538,12 +609,14 @@ export default function CallPanel({
     }
   }
   async function publish() {
-    if (!local || !preview.length) return;
+    if (!local || !preview.length || !publishAllowed.current) return;
     await stopSharing();
     const options = publishOptions(profile, maxBitrate);
     const published: LocalTrack[] = [];
     try {
       for (const track of preview) {
+        if (!publishAllowed.current)
+          throw new Error("Sua permissão para transmitir foi removida.");
         if (track.mediaStreamTrack.readyState !== "live")
           throw new Error("A captura terminou. Escolha a tela novamente.");
         await local.publishTrack(track, {
@@ -554,6 +627,8 @@ export default function CallPanel({
               : Track.Source.ScreenShareAudio,
         });
         published.push(track);
+        if (!publishAllowed.current)
+          throw new Error("Sua permissão para transmitir foi removida.");
         if (track.kind === Track.Kind.Video)
           track.mediaStreamTrack.addEventListener(
             "ended",
@@ -575,7 +650,12 @@ export default function CallPanel({
     setTick((v) => v + 1);
   }
   async function changeProfile() {
-    if (!local || !(screenTrack instanceof LocalVideoTrack)) return;
+    if (
+      !local ||
+      !(screenTrack instanceof LocalVideoTrack) ||
+      !publishAllowed.current
+    )
+      return;
     validateProfile(profile, maxBitrate);
     const original = screenTrack.mediaStreamTrack.getSettings();
     const ratio = (original.width || 16) / (original.height || 9);
@@ -592,6 +672,8 @@ export default function CallPanel({
         ...publishOptions(profile, maxBitrate),
         source: Track.Source.ScreenShare,
       });
+      if (!publishAllowed.current)
+        throw new Error("Sua permissão para transmitir foi removida.");
     } catch (error) {
       screenTrack.stop();
       await stopSharing();
@@ -736,6 +818,12 @@ export default function CallPanel({
               )}
             </div>
           )}
+          {!canPublish && room && (
+            <p className="call-permission-note" role="status">
+              Você pode ouvir e assistir. A transmissão de microfone, câmera e
+              tela não está autorizada.
+            </p>
+          )}
           <ErrorBanner message={error} />
           {room && (
             <div className="call-controls">
@@ -748,7 +836,7 @@ export default function CallPanel({
                       ? "Desligar microfone"
                       : "Ligar microfone"
                 }
-                disabled={busy || ptt}
+                disabled={busy || ptt || !canPublish}
                 onClick={() =>
                   void action(() =>
                     local!.setMicrophoneEnabled(!local!.isMicrophoneEnabled),
@@ -781,7 +869,7 @@ export default function CallPanel({
                 title={
                   local?.isCameraEnabled ? "Desligar câmera" : "Ligar câmera"
                 }
-                disabled={busy}
+                disabled={busy || !canPublish}
                 onClick={() =>
                   void action(() =>
                     local!.setCameraEnabled(
@@ -808,7 +896,7 @@ export default function CallPanel({
               </button>
               <button
                 className={`button ${screenTrack ? "live-button" : "primary"}`}
-                disabled={busy}
+                disabled={busy || !canPublish}
                 onClick={() => setSharing(true)}
               >
                 <MonitorUp size={18} />
@@ -817,7 +905,7 @@ export default function CallPanel({
               {sharedAudio && (
                 <button
                   className="button"
-                  disabled={busy}
+                  disabled={busy || (!canPublish && sharedAudio.isMuted)}
                   onClick={() =>
                     void action(() =>
                       sharedAudio.isMuted
@@ -1005,14 +1093,14 @@ export default function CallPanel({
             <button
               className="button"
               onClick={() => void capture()}
-              disabled={busy}
+              disabled={busy || !canPublish}
             >
               Escolher {screenTrack ? "nova fonte" : "tela ou janela"}
             </button>
             {screenTrack && !preview.length && (
               <button
                 className="button primary"
-                disabled={busy}
+                disabled={busy || !canPublish}
                 onClick={() => void action(changeProfile)}
               >
                 Aplicar à transmissão
@@ -1021,7 +1109,7 @@ export default function CallPanel({
             {preview.length > 0 && (
               <button
                 className="button primary"
-                disabled={busy}
+                disabled={busy || !canPublish}
                 onClick={() => void action(publish)}
               >
                 <Radio size={17} />
@@ -1037,6 +1125,7 @@ export default function CallPanel({
             <input
               type="checkbox"
               checked={ptt}
+              disabled={!canPublish}
               onChange={(e) => setPtt(e.target.checked)}
             />
             Push-to-talk: segure{" "}

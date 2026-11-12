@@ -36,12 +36,14 @@ function initialServer() {
 }
 let server = initialServer();
 let session: Session | null = null;
+let sessionNotice = "";
 let epoch = 0;
 let refreshing: Promise<Session> | null = null;
 let storageQueue: Promise<unknown> = Promise.resolve();
 const listeners = new Set<(value: Session | null) => void>();
 export const getServer = () => server;
 export const getSession = () => session;
+export const getSessionNotice = () => sessionNotice;
 export function onSession(callback: (value: Session | null) => void) {
   listeners.add(callback);
   return () => {
@@ -68,6 +70,7 @@ async function persist(origin: string, token: string | null) {
   await operation;
 }
 export async function saveSession(next: Session | null) {
+  if (next) sessionNotice = "";
   const origin = server;
   const generation = ++epoch;
   refreshing = null;
@@ -79,6 +82,7 @@ export async function saveSession(next: Session | null) {
 export async function setServer(value: string) {
   const normalized = normalizeServer(value);
   if (normalized === server) return;
+  sessionNotice = "";
   await saveSession(null);
   server = normalized;
   localStorage.setItem("harmony.server", server);
@@ -98,6 +102,7 @@ export async function refreshSession(): Promise<Session> {
   if (refreshing) return refreshing;
   const origin = server;
   const generation = epoch;
+  let attemptedRefresh = false;
   const flight = (async () => {
     const token =
       session?.refresh_token ||
@@ -111,6 +116,7 @@ export async function refreshSession(): Promise<Session> {
         "session_expired",
         "Entre na sua conta para continuar.",
       );
+    attemptedRefresh = true;
     const next = await parseResponse<Session>(
       await fetch(origin + "/api/auth/refresh", {
         method: "POST",
@@ -131,8 +137,12 @@ export async function refreshSession(): Promise<Session> {
       error.status === 401 &&
       generation === epoch &&
       origin === server
-    )
+    ) {
+      sessionNotice = attemptedRefresh
+        ? "Sua sessão expirou ou foi revogada. Entre novamente para continuar."
+        : "";
       await saveSession(null);
+    }
     throw error;
   });
   refreshing = flight;
@@ -182,6 +192,7 @@ export async function api<T>(
   return value;
 }
 export async function logout() {
+  sessionNotice = "";
   const origin = server;
   const token = session?.refresh_token;
   await saveSession(null);

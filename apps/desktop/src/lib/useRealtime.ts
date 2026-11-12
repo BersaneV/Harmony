@@ -34,6 +34,10 @@ export function useRealtime(userId: string) {
       void client.invalidateQueries({ queryKey: ["conversations"] });
       void client.invalidateQueries({ queryKey: ["guilds"] });
       void client.invalidateQueries({ queryKey: ["friends"] });
+      void client.invalidateQueries({ queryKey: ["members"] });
+      void client.invalidateQueries({ queryKey: ["roles"] });
+      void client.invalidateQueries({ queryKey: ["channel-permissions"] });
+      void client.invalidateQueries({ queryKey: ["search"] });
     };
     async function connect() {
       if (stopped) return;
@@ -89,6 +93,7 @@ export function useRealtime(userId: string) {
             } else if (
               event.channel_id ||
               event.type === "resync" ||
+              event.type === "permissions.updated" ||
               event.type === "membership.updated" ||
               event.type === "friend.updated"
             ) {

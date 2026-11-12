@@ -11,6 +11,7 @@ import {
   api,
   errorMessage,
   getServer,
+  getSessionNotice,
   saveSession,
   setServer,
 } from "../lib/api";
@@ -23,7 +24,7 @@ export default function Auth() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(getSessionNotice());
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState("");
   async function submit(e: FormEvent) {

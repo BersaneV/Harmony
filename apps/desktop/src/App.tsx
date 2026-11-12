@@ -31,12 +31,19 @@ import { initials } from "./lib/messages";
 import type {
   Channel,
   Guild,
+  GuildRole,
   Instance,
   Items,
   Message,
   Session,
   User,
 } from "./lib/types";
+import { can, Permission } from "./lib/permissions";
+import {
+  RolesManager,
+  MemberRoles,
+  ChannelPermissions,
+} from "./components/Roles";
 import Auth from "./components/Auth";
 import Chat from "./components/Chat";
 import Friends from "./components/Friends";
@@ -89,6 +96,9 @@ function Workspace({ session }: { session: Session }) {
   const [showMembers, setShowMembers] = useState(false);
   const [settings, setSettings] = useState(false);
   const [admin, setAdmin] = useState(false);
+  const [rolesOpen, setRolesOpen] = useState(false);
+  const [permissionsOpen, setPermissionsOpen] = useState(false);
+  const [roleMemberId, setRoleMemberId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<
     "guild" | "channel" | "join" | "invite" | null
   >(null);
@@ -120,11 +130,24 @@ function Workspace({ session }: { session: Session }) {
     queryKey: ["channels", guildId],
     queryFn: () => api<Items<Channel>>(`/api/guilds/${guildId}/channels`),
     enabled: !!guildId,
+    refetchInterval: 15000,
   });
   const members = useQuery({
     queryKey: ["members", guildId],
     queryFn: () => api<Items<User>>(`/api/guilds/${guildId}/members`),
     enabled: !!guildId,
+  });
+  const roles = useQuery({
+    queryKey: ["roles", guildId],
+    queryFn: () => api<Items<GuildRole>>(`/api/guilds/${guildId}/roles`),
+    enabled: !!guildId,
+  });
+  const callChannels = useQuery({
+    queryKey: ["channels", call?.guild_id],
+    queryFn: () =>
+      api<Items<Channel>>(`/api/guilds/${call?.guild_id}/channels`),
+    enabled: !!call?.guild_id,
+    refetchInterval: 15000,
   });
   const instance = useQuery({
     queryKey: ["instance"],
@@ -157,26 +180,64 @@ function Workspace({ session }: { session: Session }) {
   }, [guildId, guilds.data, guilds.isPending]);
   useEffect(() => {
     if (guildId && channels.data) {
-      if (
-        channel?.guild_id === guildId &&
-        !channels.data.items.some((c) => c.id === channel.id)
-      )
-        setChannel(null);
-      if (!channel || channel.guild_id !== guildId) {
-        const first = channels.data.items.find((c) => c.kind === "text");
+      if (channel?.guild_id === guildId) {
+        const latest = channels.data.items.find(
+          (item) => item.id === channel.id,
+        );
+        if (!latest || !can(latest, Permission.View)) {
+          setChannel(null);
+          setError(
+            "Seu acesso ao canal foi removido. Escolha outro canal disponível.",
+          );
+        } else if (latest !== channel) setChannel(latest);
+      } else if (!channel || channel.guild_id !== guildId) {
+        const first = channels.data.items.find(
+          (item) => item.kind === "text" && can(item, Permission.View),
+        );
         if (first) setChannel(first);
       }
     }
   }, [guildId, channels.data, channel]);
+  useEffect(() => {
+    if (!guildId && channel && conversations.data) {
+      const latest = conversations.data.items.find(
+        (item) => item.id === channel.id,
+      );
+      if (latest && latest !== channel) setChannel(latest);
+    }
+  }, [guildId, channel, conversations.data]);
+  useEffect(() => {
+    if (call?.guild_id && callChannels.data) {
+      const latest = callChannels.data.items.find(
+        (item) => item.id === call.id,
+      );
+      if (!latest || !can(latest, Permission.Connect)) {
+        setCall(null);
+        setError(
+          "Sua permissão de chamada foi removida. A conexão foi encerrada.",
+        );
+      } else if (latest !== call) setCall(latest);
+    }
+  }, [call, callChannels.data]);
+  useEffect(() => {
+    if (!canModerate) {
+      setRolesOpen(false);
+      setPermissionsOpen(false);
+      setRoleMemberId(null);
+    }
+  }, [canModerate]);
   function openGuild(id: string | null) {
     setGuildId(id);
     setChannel(null);
     setMobileNav(false);
+    setRolesOpen(false);
+    setPermissionsOpen(false);
+    setRoleMemberId(null);
   }
   function openChannel(next: Channel) {
     setChannel(next);
     setMobileNav(false);
-    if (next.kind === "voice") {
+    if (next.kind === "voice" && can(next, Permission.Connect)) {
       setCall(next);
       setCallExpanded(true);
     }
@@ -310,6 +371,14 @@ function Workspace({ session }: { session: Session }) {
             </IconButton>
           )}
         </header>
+        {guild && canModerate && (
+          <div className="guild-tools">
+            <button className="text-button" onClick={() => setRolesOpen(true)}>
+              <ShieldCheck size={14} />
+              Cargos e permissões
+            </button>
+          </div>
+        )}
         {!guildId && (
           <button
             className={`friends-link ${!channel ? "selected" : ""}`}
@@ -465,9 +534,22 @@ function Workspace({ session }: { session: Session }) {
             )}
           </div>
           <div className="header-actions">
+            {channel?.guild_id && canModerate && (
+              <IconButton
+                label="Permissões do canal"
+                onClick={() => setPermissionsOpen(true)}
+              >
+                <ShieldCheck size={19} />
+              </IconButton>
+            )}
             {channel && channel.kind !== "text" && channel.kind !== "voice" && (
               <IconButton
-                label="Entrar na chamada"
+                label={
+                  can(channel, Permission.Connect)
+                    ? "Entrar na chamada"
+                    : "Sem permissão para entrar na chamada"
+                }
+                disabled={!can(channel, Permission.Connect)}
                 onClick={() => {
                   setCall(channel);
                   setCallExpanded(true);
@@ -588,6 +670,26 @@ function Workspace({ session }: { session: Session }) {
                         </small>
                       </div>
                     </div>
+                    {!!target.role_ids?.length && (
+                      <div className="member-role-chips">
+                        {target.role_ids.map((id) => {
+                          const role = roles.data?.items.find(
+                            (item) => item.id === id,
+                          );
+                          return role ? (
+                            <span key={id}>{role.name}</span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+                    {canModerate && (
+                      <button
+                        className="text-button member-roles-button"
+                        onClick={() => setRoleMemberId(target.id)}
+                      >
+                        Gerenciar cargos
+                      </button>
+                    )}
                     {canModerate &&
                       target.id !== user.id &&
                       target.role !== "owner" && (
@@ -628,6 +730,31 @@ function Workspace({ session }: { session: Session }) {
           )}
         </div>
       </main>
+      {rolesOpen && guild && canModerate && (
+        <RolesManager guild={guild} onClose={() => setRolesOpen(false)} />
+      )}
+      {permissionsOpen &&
+        guild &&
+        channel?.guild_id === guild.id &&
+        canModerate && (
+          <ChannelPermissions
+            guild={guild}
+            channel={channel}
+            onClose={() => setPermissionsOpen(false)}
+          />
+        )}
+      {roleMemberId &&
+        guild &&
+        canModerate &&
+        members.data?.items.some((item) => item.id === roleMemberId) && (
+          <MemberRoles
+            guild={guild}
+            member={members.data.items.find(
+              (item) => item.id === roleMemberId,
+            )!}
+            onClose={() => setRoleMemberId(null)}
+          />
+        )}
       {settings && <Settings user={user} onClose={() => setSettings(false)} />}{" "}
       {admin && <Admin onClose={() => setAdmin(false)} />}{" "}
       {dialog && (
