@@ -27,6 +27,16 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Generate disposable embedded instance
         run: python3 scripts/configure.py
+      - name: Validate parsed deployment mounts before compilation
+        run: |
+          umask 077
+          docker compose config --format json > .local/compose-ci.json
+          python3 - <<'PY'
+          import json
+          with open('.local/compose-ci.json') as source:
+              mounts = json.load(source)['services']['harmony']['tmpfs']
+          assert mounts and all(mount.split(':', 1)[0].startswith('/') for mount in mounts), 'Every tmpfs target must be an absolute path'
+          PY
       - run: python3 scripts/with-env.py cargo test --workspace --locked -- --include-ignored
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - run: npm ci
