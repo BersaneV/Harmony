@@ -1,0 +1,21 @@
+# Arquivos locais e credenciais
+.DS_Store
+.planning/
+.local/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite3
+*.db
+backups/
+# Artefatos de build
+target/
+node_modules/
+dist/
+coverage/
+*.log
