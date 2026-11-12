@@ -13,4 +13,3 @@ cc = "1.2"
 
 [dev-dependencies]
 serde_json.workspace = true
-
