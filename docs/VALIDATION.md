@@ -2,6 +2,8 @@
 
 Data: 12/11/2026. A implementação está na `main`. Esta página distingue código entregue, provas executadas e aceite operacional. Os testes locais usam dados descartáveis; senhas, tokens, bancos e pacotes proprietários analisados não estão no Git.
 
+Os primeiros quadros preservam a evidência histórica da implementação inicial. A publicação atual está registrada em **Release 0.3.0 publicada e conferida**, ao final desta página.
+
 ## Caminhos executados
 
 | Recorte | Prova | Resultado e limite |
@@ -133,3 +135,25 @@ O teste real reproduziu HTTP503 ao silenciar um usuário que tinha uma identidad
 Regressão RTC posterior: 26 critérios passaram com LiveKit/Caddy reais, incluindo mute/unmute, mudança de permissão no SDK, remoção da publicação e publicação novamente, além de áudio/vídeo e reset/reconexão. A primeira repetição detectou uma leitura imediata antes de ListParticipants refletir a republicação; o harness passou a aguardar o SID exato, mantendo o critério e preservando o resultado intermediário.
 
 A revisão independente acrescentou seis verificações HTTP de cadastro: conta comum e nome canônico, convite explícito inválido sem criar conta, rollback do consumo do convite ao colidir nome, convite opcional válido associado à comunidade certa, convite esgotado sem criar usuário/associação e isolamento de contas públicas. Resultado PASS.
+
+### Correções encontradas na implantação 0.3.0
+
+A execução [43296555851](https://github.com/BersaneV/Harmony/actions/runs/43296555851) detectou opções de tmpfs interpretadas como mounts separados na lista YAML; as entradas passaram a ser strings entre aspas. A tentativa seguinte criou o contêiner, mas não alcançou readiness, e seu cleanup removeu os logs antes do diagnóstico. A coleta foi corrigida para ocorrer antes da remoção.
+
+Com os logs preservados, a execução [43304407690](https://github.com/BersaneV/Harmony/actions/runs/43304407690) confirmou que o sandbox de mídia passava e a migração 2 falhava com SQLite6410 (`SQLITE_IOERR_GETTEMPPATH`): não havia diretório temporário gravável nos caminhos procurados pelo banco. A correção em `c22bb12` configura `SQLITE_TMPDIR` em tmpfs privado separado de 128 MiB, mantendo o filesystem da imagem somente leitura e os limites do parser. O CI agora verifica a escrita efetiva nas duas áreas temporárias como UID10001 e a recusa de escrita em `/tmp`.
+
+A reprodução independente local usou o binário real `harmony-db`/SQLite3.51.3 em sandbox: sem o diretório, o mesmo erro6410 ocorreu na migração2; com a configuração corrigida, a migração passou. O mesmo banco antes falho foi recuperado, com `integrity_check=ok`, nenhuma violação de FK e migrações1/2 registradas uma única vez. Nova inicialização permaneceu íntegra e idempotente. Essa reprodução macOS não substitui a execução Compose/Linux da release.
+
+## Release 0.3.0 publicada e conferida
+
+Código empacotado: `c22bb12fdfe75aaa1b20e6f5382fc4049660e34c`. A execução [43307922953](https://github.com/BersaneV/Harmony/actions/runs/43307922953) passou nos jobs Linux e Windows. A [release pública 0.3.0](https://github.com/BersaneV/Harmony/releases/tag/v0.3.0) é uma prévia para testes e inclui cadastro aberto, comunidades com entrada controlada, navegação responsiva, participação P2P pelo canal e o perfil simplificado, preservando worker, personalização e atualizador.
+
+- Linux: fmt/Clippy, 34 testes Rust, suítes Python e gateway Caddy real; 71 verificações HTTP/WS, 103 ACL, 29 armazenamento, 51 worker, seis negativas do sandbox, nove de admissão e 26 de RTC. Descoberta P2P passou em 30 critérios, incluindo expiração real; os dois navegadores no mesmo runner passaram em 34 verificações. A descoberta e o teste de vídeo continuam separados das chamadas LiveKit.
+- Compose real: escrita nos dois tmpfs privados como UID10001 e `EROFS` no filesystem da imagem; inicialização e migrações da API, frontend HTTP, nova execução das 71 verificações, backup offline com cinco arquivos no manifesto, verificação e restauração em diretório novo, seguida de reinício saudável da instância original. A restauração não iniciou uma segunda instância nem um volume restaurado; recuperação operacional em outro host permanece pendente.
+- Windows: typecheck, 69 testes frontend, quatro de tema e quatro de política nativa; NSIS gerado e assinado, 17 verificações do updater com artefato real e nove verificações de instalação/remoção silenciosas no runner. O aplicativo não foi aberto por esse teste de instalação.
+
+Artefato: `Harmony_0.3.0_x64-setup.exe`, 4.042.098 bytes. SHA-256: `683fe9221dba8cd17c076f01d59a49e5a3a38c35e636e0b89cfb348b4c134536`. O download local coincidiu com o digest do GitHub e repetiu os 17 critérios de assinatura/versão. O executável da 0.2.0 foi preservado.
+
+O probe do canal público acessou HTTPS sem autenticação: partindo de 0.2.0, ofereceu 0.3.0, baixou o instalador e verificou assinatura, versão e o mesmo SHA acima. Partindo de 0.3.0, retornou `no_update`. Os relatórios `public-channel-upgrade.json` e `public-channel-current.json` acompanham a release. Esse probe usa MockRuntime com alvo Windows x64 e não executa o instalador; a prova de instalação é a execução Windows separada.
+
+Continuam pendentes: captura/áudio, atualização de uma instalação em uso e desempenho em Windows físico; fluidez sustentada no ensaio WAN; host externo definitivo gratuito e recuperação em destino independente. O diagnóstico P2P não converteu chamadas normais em P2P. O túnel de teste depende do computador de desenvolvimento. A assinatura do updater não é Authenticode.

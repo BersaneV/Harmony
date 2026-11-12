@@ -1,5 +1,7 @@
 # Harmony
 
+[Baixar a prévia 0.3.0 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.3.0/Harmony_0.3.0_x64-setup.exe) · [Notas e relatórios da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.3.0). O cliente precisa do endereço de uma instância Harmony. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
+
 Comunidades, conversas e compartilhamento de tela em uma plataforma open source, hospedada por você. Cliente Windows com Tauri 2, React e TypeScript; servidor Rust com SQLite, arquivos locais privados e LiveKit.
 
 **Versão de desenvolvimento.** O núcleo funciona com serviços reais e possui testes de integração. Execução/captura no Windows, TURN em redes externas e hospedagem pública ainda precisam das provas descritas na documentação. Não há servidor comercial nem conta obrigatória em serviço pago.
