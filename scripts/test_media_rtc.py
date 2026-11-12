@@ -8,6 +8,7 @@ speaker playback occurs. It does not certify the Windows client or public TURN.
 """
 import array
 import asyncio
+import base64
 from datetime import datetime, timezone
 import hashlib
 import importlib.metadata
@@ -97,6 +98,7 @@ async def main():
                 headers = {"Authorization": "Bearer " + token} if token else {}
                 async with http.post(origin + "/api" + path, json=body, headers=headers) as response:
                     if response.status not in (200, 201, 204):
+                        REPORT["http_failure_status"] = response.status
                         raise RuntimeError(f"Harmony HTTP {response.status}")
                     return await response.json() if response.status != 204 else None
 
@@ -104,14 +106,24 @@ async def main():
             admin = await post("/auth/login", {"username": os.environ["HARMONY_BOOTSTRAP_USERNAME"], "password": os.environ["HARMONY_BOOTSTRAP_PASSWORD"]})
             invite = await post("/admin/invites", {"max_uses": 2, "expires_hours": 1}, admin["access_token"])
             users = []
+            passwords = []
             suffix = secrets.token_hex(4)
             for index in range(2):
-                users.append(await post("/auth/register", {"username": f"rtc_{suffix}_{index}", "display_name": "Synthetic RTC test", "password": secrets.token_urlsafe(24), "invite_token": invite["token"]}))
+                passwords.append(secrets.token_urlsafe(24))
+                users.append(await post("/auth/register", {"username": f"rtc_{suffix}_{index}", "display_name": "Synthetic RTC test", "password": passwords[index], "invite_token": invite["token"]}))
             first, second = users
             guild = await post("/guilds", {"name": "Synthetic RTC integration"}, first["access_token"])
             invite = await post(f"/guilds/{guild['id']}/invites", {"max_uses": 1, "expires_hours": 1}, first["access_token"])
             await post("/invites/accept", {"token": invite["token"]}, second["access_token"])
             channel = await post(f"/guilds/{guild['id']}/channels", {"name": "Synthetic media", "kind": "voice"}, first["access_token"])
+            # Issue a token from an older session without joining RTC. This leaves
+            # a real media_members identity that LiveKit cannot find; a new login
+            # supplies the active session that moderation still needs to update.
+            stale_media = await post(f"/channels/{channel['id']}/media-token", {}, second["access_token"])
+            encoded = stale_media["token"].split(".")[1]
+            stale_identity = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))["sub"]
+            second = await post("/auth/login", {"username": second["user"]["username"], "password": passwords[1]})
+            users[1] = second
             media = [await post(f"/channels/{channel['id']}/media-token", {}, user["access_token"]) for user in users]
             issued = time.monotonic()
             websocket = gateway.replace("http://", "ws://", 1).replace("https://", "wss://", 1)
@@ -121,6 +133,38 @@ async def main():
             check(publisher.isconnected() and receiver.isconnected(), "two SDK peers RTC connected through Caddy")
             members = await control.room.list_participants(api.ListParticipantsRequest(room=media[0]["room"]))
             check(len(members.participants) == 2, "LiveKit lists both participants")
+            check(stale_identity != receiver.local_participant.identity and
+                  all(member.identity != stale_identity for member in members.participants),
+                  "older issued session is absent while newer session is actively connected")
+
+            REPORT["stage"] = "moderate live session after stale identity"
+            receiver_source = rtc.AudioSource(48000, 1)
+            receiver_track = rtc.LocalAudioTrack.create_audio_track("synthetic-moderation", receiver_source)
+            await receiver.local_participant.publish_track(receiver_track, rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE))
+            for action, allowed in [("mute", False), ("unmute", True)]:
+                await post(f"/channels/{channel['id']}/moderate", {"user_id": second["user"]["id"], "action": action}, first["access_token"])
+                check(True, f"{action} succeeds despite a stale media_members identity")
+                members = await control.room.list_participants(api.ListParticipantsRequest(room=media[0]["room"]))
+                live = next(member for member in members.participants if member.identity == receiver.local_participant.identity)
+                check(live.permission.can_publish == allowed, f"{action} reaches the newer active LiveKit session")
+                await until(lambda: receiver.local_participant.permissions.can_publish == allowed,
+                            f"{action} permission change reaches the official SDK", seconds=5)
+                if not allowed:
+                    check(not live.tracks, "server mute removes the active session publication")
+            receiver_track = rtc.LocalAudioTrack.create_audio_track("synthetic-moderation-restored", receiver_source)
+            restored = await receiver.local_participant.publish_track(receiver_track, rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE))
+            # SDK publication acknowledgement and control-plane observation are
+            # asynchronous. Require the exact new SID, not an arbitrary delay or
+            # any old publication that could have survived the mute.
+            published, deadline = False, time.monotonic() + 5
+            while time.monotonic() < deadline:
+                members = await control.room.list_participants(api.ListParticipantsRequest(room=media[0]["room"]))
+                live = next(member for member in members.participants if member.identity == receiver.local_participant.identity)
+                if any(track.sid == restored.sid for track in live.tracks):
+                    published = True
+                    break
+                await asyncio.sleep(0.05)
+            check(published, "unmuted active session can publish again")
 
             REPORT["stage"] = "publish and receive synthetic media"
             audio_source = rtc.AudioSource(48000, 1)

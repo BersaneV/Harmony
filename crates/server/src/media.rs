@@ -69,8 +69,17 @@ async fn rpc(s: &AppState, method: &str, room: &str, body: Value) -> ApiResult<V
         .map_err(|_| Error::Unavailable("Servidor de mídia indisponível".into()))?;
     if !response.status().is_success() {
         let status = response.status();
-        if method == "RemoveParticipant" && status.as_u16() == 404 {
-            return Ok(json!({}));
+        if status == StatusCode::NOT_FOUND
+            && matches!(method, "UpdateParticipant" | "RemoveParticipant")
+        {
+            // media_members also tracks issued tokens that never connected and
+            // prior sessions. Their absence is idempotent for participant-only
+            // moderation; a generic proxy 404 or an auth/backend error is not.
+            if let Ok(error) = response.json::<Value>().await
+                && missing_participant(method, status, &error)
+            {
+                return Ok(json!({}));
+            }
         }
         tracing::warn!(%status,method,"LiveKit request failed");
         return Err(Error::Unavailable("Operação de mídia não confirmada".into()).into());
@@ -79,6 +88,13 @@ async fn rpc(s: &AppState, method: &str, room: &str, body: Value) -> ApiResult<V
         .json()
         .await
         .map_err(|_| Error::Unavailable("Resposta de mídia inválida".into()).into())
+}
+
+fn missing_participant(method: &str, status: StatusCode, error: &Value) -> bool {
+    matches!(method, "UpdateParticipant" | "RemoveParticipant")
+        && status == StatusCode::NOT_FOUND
+        && error.get("code").and_then(Value::as_str) == Some("not_found")
+        && error.get("msg").is_some_and(Value::is_string)
 }
 pub async fn token(
     State(s): State<AppState>,
@@ -416,6 +432,39 @@ pub async fn admit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn only_attested_twirp_missing_participants_are_idempotent() {
+        let absent = json!({"code":"not_found","msg":"participant does not exist"});
+        for method in ["UpdateParticipant", "RemoveParticipant"] {
+            assert!(missing_participant(method, StatusCode::NOT_FOUND, &absent));
+            for status in [
+                StatusCode::UNAUTHORIZED,
+                StatusCode::FORBIDDEN,
+                StatusCode::BAD_GATEWAY,
+            ] {
+                assert!(!missing_participant(method, status, &absent));
+            }
+            for body in [
+                json!("proxy page not found"),
+                json!({"code":"not_found"}),
+                json!({"code":"unauthenticated","msg":"invalid credentials"}),
+                json!({"code":"permission_denied","msg":"denied"}),
+                json!({"code":"internal","msg":"backend unavailable"}),
+            ] {
+                assert!(!missing_participant(method, StatusCode::NOT_FOUND, &body));
+            }
+        }
+        assert!(!missing_participant(
+            "CreateRoom",
+            StatusCode::NOT_FOUND,
+            &absent
+        ));
+        assert!(!missing_participant(
+            "ListParticipants",
+            StatusCode::NOT_FOUND,
+            &absent
+        ));
+    }
     #[test]
     fn twirp_participant_permissions_support_proto_names_and_camel_case() {
         // Canonical response shape observed from LiveKit 1.13.11 ListParticipants.
