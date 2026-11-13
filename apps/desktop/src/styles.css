@@ -1906,6 +1906,11 @@ strong {
   border-radius: 15px;
 }
 .call-controls {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--rail);
+  border-top: 1px solid var(--border);
   padding: 15px 20px;
   display: flex;
   align-items: center;
@@ -2991,6 +2996,7 @@ strong {
   }
   .composer .icon-button,
   .send-button,
+  .call-controls .icon-button,
   .call-controls .call-button {
     width: 44px;
     height: 44px;

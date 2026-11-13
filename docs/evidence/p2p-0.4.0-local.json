@@ -187,13 +187,26 @@
       "devices/PTT panel reachable",
       "deafen disables microphone; undeafen does not activate it",
       "call/modal widths360/768/1280 without horizontal overflow",
-      "leave removes call panel"
+      "leave removes call panel",
+      "two participants joined through channel without code",
+      "remote video rendered and played with advancing currentTime",
+      "remote audio element played with advancing currentTime; no microphone capture",
+      "1280x720 about29FPS observed after adaptation",
+      "receiver select360 caused temporary placeholder then640x360 about29FPS",
+      "volume slider changed to0",
+      "focusing remote hides local tile; sender leaving restores local tile and empty-room state",
+      "sticky controls visible with received video at1280x720",
+      "360x420 and390x844: controls44px, no horizontal overflow; deafen works",
+      "receiver resolution menu remains reachable; undeafen and leave work after responsive change"
     ],
     "not_verified": [
       "capture from physical Windows",
       "voice hardware or actual UI capture device flow",
-      "multiple participants in visual grid (RTC separately verified)"
-    ]
+      "grid with more than two participants",
+      "physical audio loudness; volume0 DOM readback unavailable, UI state verified"
+    ],
+    "styles_sha256": "9f296b56467f264a7a53cb2a02ec4b82c3346110792872b4028305422b847e59",
+    "responsive_review": "Independent call_transport review of six CSS additions: no blocking findings; followed by compiled UI CUA at1280x720,360x420,390x844."
   },
   "independent_review": {
     "status": "PASS_NO_BLOCKING_FINDINGS",
