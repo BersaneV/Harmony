@@ -187,3 +187,11 @@ Artefato: `Harmony_0.4.0_x64-setup.exe`, 4.058.308 bytes. SHA-256: `01405fa1b203
 O probe HTTPS público ofereceu 0.4.0 para um cliente 0.3.0, baixou o instalador e verificou assinatura, versão e o mesmo SHA acima. Para um cliente 0.4.0, retornou `no_update`. Os relatórios `public-channel-upgrade.json` e `public-channel-current.json` acompanham a release. Esse probe usa MockRuntime com alvo Windows x64 e não executa o instalador.
 
 As medições locais e de CI não comprovam ping ou conectividade entre redes diferentes. O ensaio 5G desta entrega não recebeu outro participante. Mantêm-se as pendências de Windows físico, NAT restritivo sem TURN, capacidade com 12 participantes, qualidade sustentada em alta resolução, hospedagem definitiva e recuperação em destino independente. Não foi contratado serviço pago. A assinatura do atualizador não é Authenticode.
+
+## Alvo de 5 a 8 participantes — retorno do usuário
+
+O usuário informou grupos de 5 a 8 pessoas e adiou o teste pelo 5G. O [ensaio de capacidade](evidence/p2p-0.4.0-capacity.json) complementa as provas da release sem alterar código ou instalador.
+
+Cinco clientes tiveram 20 fluxos direcionais de voz decodificados; uma tela animada chegou aos quatro espectadores em 540p e aproximadamente 29 FPS, com teto solicitado de 720p/30 FPS/2 Mb/s por espectador. Essa janela curta passou na recepção de mídia, mas não manteve a resolução solicitada. Oito WebSockets entregaram 504/504 sinais em duas provas sem mídia. Os ensaios de mídia com oito Chromes e uma repetição com cinco não passaram. Na repetição instrumentada, os logs registraram timeout de 500 ms na verificação de autorização; o operador observou carga alta do host nesse momento. Os motivos genéricos das tentativas anteriores não comprovam individualmente a mesma causa. O prazo e as permissões foram preservados; as fontes foram restauradas após instrumentação diagnóstica local.
+
+Esses resultados não homologam oito participantes com voz/tela nem uma qualidade sustentada de 720p/1440p. A validação em computadores separados, Windows físico e redes diferentes permanece pendente. O teste WAN está adiado a pedido do usuário, não aprovado nem considerado falha de conectividade.

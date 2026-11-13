@@ -1,0 +1,77 @@
+{
+  "status": "PARTIAL",
+  "date": "2026-11-13",
+  "version": "0.4.0",
+  "requested_group_size": [
+    5,
+    8
+  ],
+  "runtime_code_commit": "b106af26f9ed06e579bbaedc16aa75b30d9f9a0d",
+  "client_sha256": "6b12a20f0d29219db617a2f05a261e76a77eed9cfd651248a5046dcad55c9b45",
+  "server_source_sha256": "c71659c28b40e90123c9d61b9c48d3bc9132ba3a1b554dc473e5345d99a3ca66",
+  "scope": "Isolated loopback API and separate Chrome processes on one Mac; generated tones and animated screen; no physical devices or WAN",
+  "five_clients": {
+    "voice_flow": "PASS_IN_THIS_SAMPLE",
+    "directed_voice_streams": 20,
+    "voice_only_sample_seconds": 12.024,
+    "screen_flow": "PASS_IN_THIS_SAMPLE",
+    "screen_sample_seconds": 20.136,
+    "requested_height": 720,
+    "requested_fps": 30,
+    "requested_bitrate_mbps_per_viewer": 2,
+    "effective_heights": [
+      540,
+      540,
+      540,
+      540
+    ],
+    "effective_fps": [
+      28.804131903059197,
+      28.90345649582837,
+      28.90345649582837,
+      28.90345649582837
+    ],
+    "requested_resolution_met": false,
+    "sender_track_bitrates_sum_mbps": {
+      "min": 6.100025339953509,
+      "median": 8.670216323569992,
+      "max": 9.157180965194296
+    },
+    "bitrate_scope": "Sum of track rates reported by WebRTC; not total network interface traffic"
+  },
+  "eight_clients_signaling": {
+    "status": "PASS",
+    "original_binary": {
+      "sent": 504,
+      "received": 504,
+      "elapsed_ms": 2023,
+      "disconnects": 0
+    },
+    "diagnostic_binary": {
+      "sent": 504,
+      "received": 504,
+      "elapsed_ms": 1464,
+      "disconnects": 0
+    },
+    "scope": "Eight authenticated WebSockets and SDP/ICE relay; no RTC media"
+  },
+  "full_media_attempts": {
+    "status": "FAIL_NOT_VALIDATED",
+    "attempts": "Five-to-eight and separate eight-browser attempts; a later five-browser repeat also failed under host load",
+    "observation": "In the instrumented repeat, the server logged authorization checks reaching the500ms deadline: phase3(channel) or4(mute/ban), elapsed506..542ms, poolsize8 and idle1..4. Earlier attempts preserved generic close reasons and do not individually prove the same cause.",
+    "host_logical_cpus": 10,
+    "observed_host_load_average_1min": 49.59,
+    "interpretation": "Timeout was confirmed during high host load. This does not establish normal performance with clients on separate devices or isolate CPU versus other scheduling/I/O delays.",
+    "host_load_source": "Operator observation from sysctl/uptime terminal output during the instrumented repeat (2026-11-13 around18:24 America/Sao_Paulo); not a metric from the authorization log."
+  },
+  "product_changes": false,
+  "security_deadline_changed": false,
+  "wan_test": "DEFERRED_BY_USER",
+  "limits": [
+    "Five-client sample is brief and does not establish sustained performance",
+    "Requested720p was not maintained in the animated screen sample",
+    "Eight-party real media and physical Windows remain unvalidated",
+    "No new5G RTT measurement",
+    "No paid resource was provisioned"
+  ]
+}

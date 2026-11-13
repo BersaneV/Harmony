@@ -12,6 +12,25 @@ O limite `HARMONY_MAX_ROOM_PARTICIPANTS` é 2–12 em P2P (padrão 12), até 256
 
 O modo `HARMONY_MEDIA_TRANSPORT=livekit` preserva o caminho SFU anterior. Em instalação nova, use `scripts/configure.py --media-transport livekit`, os nomes DNS do modo e `docker compose --profile public --profile sfu up -d --build`. O modo é escolhido por instância, sem fallback automático. Servidor P2P recusa tokens de mídia LiveKit; atualize os clientes 0.3 junto do servidor. Cliente 0.4 reconhece explicitamente servidores 0.1–0.3 antigos e usa o transporte legado, sem contornar 403 ou erros de servidores atuais.
 
+## Alvo de uso: 5 a 8 pessoas
+
+Victor definiu grupos de 5 a 8 pessoas como alvo. Isso não transforma o limite configurável de 12 em capacidade homologada. O teste entre redes diferentes ficou para depois por decisão do usuário.
+
+Em uma sala com uma tela transmitida, o emissor atende quatro espectadores com cinco pessoas, ou sete com oito. O bitrate selecionado é por espectador:
+
+| Pessoas na sala | Espectadores | Tela a 2 Mb/s por espectador | Tela a 4 Mb/s por espectador |
+|---|---:|---:|---:|
+| 5 | 4 | 8 Mb/s | 16 Mb/s |
+| 8 | 7 | 14 Mb/s | 28 Mb/s |
+
+Esses valores são orçamentos de configuração para o vídeo. Acrescente voz, áudio da tela e tráfego de rede; a adaptação do encoder pode reduzir a taxa e a resolução. Câmeras ou outras telas simultâneas acrescentam processamento e tráfego. O valor escolhido não garante aquela qualidade efetiva.
+
+O ensaio local com cinco Chromes recebeu 20 fluxos direcionais de voz e uma tela nos quatro espectadores. Com teto de 720p/30 FPS e 2 Mb/s por espectador, o vídeo recebido foi **540p a cerca de 29 FPS**; a resolução solicitada não foi mantida. A soma das taxas de saída das faixas do emissor teve mediana de 8,67 Mb/s nessa janela de aproximadamente 20 s.
+
+Oito conexões de sinalização entregaram 504/504 mensagens sem desconexão em duas provas. Os ensaios completos com oito navegadores no mesmo Mac não passaram; uma repetição com cinco também não passou. Na repetição instrumentada, o servidor registrou o prazo de 500 ms excedido ao confirmar autorização, e o operador observou carga alta do host. Os motivos genéricos das tentativas anteriores não comprovam individualmente a mesma causa. O diagnóstico preservou os controles de segurança e não isolou CPU de outras esperas de escalonamento ou I/O. **A capacidade de mídia para oito participantes continua sem validação.**
+
+O [registro de capacidade](evidence/p2p-0.4.0-capacity.json) preserva resultados, falhas e limites. A próxima prova deve distribuir os clientes por dispositivos reais, medir voz/tela e upload efetivo e repetir com cinco e oito usuários. As medições no mesmo Mac não substituem esse aceite.
+
 ## Fontes, controles e estatísticas
 
 Cada conexão usa quatro transceivers estáveis: microfone, câmera, tela e áudio da tela. A negociação trata ofertas concorrentes, publicação posterior à entrada, troca de fontes e saída de participantes. Falha de um par não deve interromper os demais; perda de sinalização ou autorização encerra a chamada local. Reconectar não abre dispositivos automaticamente.
