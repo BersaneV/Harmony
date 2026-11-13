@@ -1,6 +1,6 @@
-# Operar o Harmony 0.3.0
+# Operar o Harmony 0.4.0
 
-O perfil simplificado usa três serviços: `harmony` (API, frontend e worker em processos separados), `livekit` (voz/vídeo) e `caddy` (entrada pública). SQLite e os arquivos privados ficam no volume `data`. O aplicativo Windows é cliente e não instala esses serviços.
+O perfil P2P usa `harmony` (API, frontend e worker em processos separados) e, para entrada pública, `caddy`. O `livekit` é opcional, iniciado somente com `--profile sfu`. SQLite e os arquivos privados ficam no volume `data`. O aplicativo Windows é cliente e não instala esses serviços.
 
 Servidor: Linux dedicado com Docker Engine/Compose, disco local e Landlock ABI 3 (kernel 6.2+) com seccomp. O Compose usa rede do host; não é homologado no Docker Desktop de macOS/Windows. O supervisor verifica o sandbox antes de abrir a API. Sem suporte, a unidade falha e não processa arquivos sem isolamento.
 
@@ -17,15 +17,17 @@ Para desenvolvimento nativo, compile o frontend e os binários e use `scripts/wi
 
 ## Endereço público
 
-Em instalação nova, use `python3 scripts/configure.py --domain seu-dominio.example`. Os nomes `app`, `media` e `turn` devem apontar ao IP do host. Depois de conferir DNS, firewall e elegibilidade gratuita, execute `docker compose --profile public up -d --build`. Não há subdomínio de arquivos: o gateway autorizado usa `/api/files` na origem da aplicação. Caddy é compilado com o módulo L4 fixado; o binário comum não substitui esse build.
+Em instalação nova, use `python3 scripts/configure.py --domain seu-dominio.example`. No modo P2P, somente `app` deve apontar ao IP do host; basta HTTPS/WSS, sem portas de mídia no servidor. STUN e a mídia direta usam a conectividade dos participantes. Depois de conferir DNS, firewall e elegibilidade gratuita, execute `docker compose --profile public up -d --build`. Não há subdomínio de arquivos: o gateway autorizado usa `/api/files` na origem da aplicação. Caddy é compilado com o módulo L4 fixado; o binário comum não substitui esse build.
 
 | Porta externa | Função |
 |---|---|
 | TCP 80 | ACME/renovação |
-| TCP 443 | HTTPS/WSS da aplicação, sinalização de mídia e TURN/TLS por SNI |
-| UDP 7882 | ICE/WebRTC |
-| TCP 7881 | ICE/TCP de contingência |
-| UDP 3478 | TURN/UDP |
+| TCP 443 | HTTPS/WSS da aplicação e sinalização das chamadas |
+| UDP 7882, somente LiveKit | ICE/WebRTC |
+| TCP 7881, somente LiveKit | ICE/TCP de contingência |
+| UDP 3478, somente LiveKit | TURN/UDP |
+
+Para LiveKit em instalação nova, use `--media-transport livekit` no gerador e `docker compose --profile public --profile sfu up -d --build`. Nesse modo, aponte também `media` e `turn` ao host; o Caddy usa SNI na porta443 para mídia e TURN/TLS. Não basta trocar a variável: o proxy e os nomes DNS precisam corresponder ao modo.
 
 Bloqueie acesso externo a 8080, 7880, 5349, 18081, 18082 e 2019. API e sinalização privada escutam em loopback. TURN 5349 só aceita PROXYv2 do proxy local confiável. O gateway de mídia revalida sessão e ACL em cada conexão/reconexão; chamadas ativas são reconciliadas periodicamente. Health HTTP não comprova conectividade WebRTC.
 
@@ -51,7 +53,7 @@ Não execute o novo gerador sobre `.env` antigo nem aponte o servidor SQLite par
 sh scripts/backup.sh /caminho/privado/backup-novo
 ```
 
-A rotina para os três serviços, copia o volume parado, cria snapshot SQLite e manifesto SHA-256 dos objetos/configuração, verifica integridade/FKs/hashes e religa somente os serviços antes ativos. API e worker usam lease compartilhado; manutenção exige lock exclusivo. Não execute escritores externos durante o backup e não compartilhe SQLite por NFS/SMB.
+A rotina para Harmony e os serviços opcionais existentes, copia o volume parado, cria snapshot SQLite e manifesto SHA-256 dos objetos/configuração, verifica integridade/FKs/hashes e religa somente os serviços antes ativos. API e worker usam lease compartilhado; manutenção exige lock exclusivo. Não execute escritores externos durante o backup e não compartilhe SQLite por NFS/SMB.
 
 O diretório contém credenciais. Permissões privadas não substituem criptografia e um backup no mesmo disco não protege contra perda do host. Se `RESTIC_REPOSITORY` e `RESTIC_PASSWORD_FILE` apontarem a um destino previamente configurado, a rotina também executa `restic backup` e `restic check`. Não cria conta ou repositório pago. Não há exclusão automática de snapshots.
 
@@ -63,9 +65,15 @@ A restauração recusa destino existente, verifica o manifesto e cria `data/`, `
 
 Para restaurar no Compose, use um checkout da mesma versão, copie a configuração restaurada mantendo permissão 0600 e escolha um nome de projeto novo. Crie os containers parados com `docker compose -p harmony-restaurado create harmony`. Importe `data/` em `harmony-restaurado_data`, ajustando dono para UID/GID 10001 e mantendo a instância anterior intacta. O volume deve estar vazio. Não inicie dois projetos simultaneamente nas mesmas portas; pare a instância antiga somente na janela de corte. Confirme login, busca, anexos, ACL e processamento antes de abrir o proxy público. Uma restauração em diretório local não comprova essa operação Docker; o CI e a validação operacional precisam registrar separadamente o ensaio realizado.
 
-## Diagnóstico P2P
+## Chamadas reais e diagnóstico P2P
 
-`HARMONY_P2P_DIAGNOSTICS=true` habilita o painel temporário. `HARMONY_P2P_STUN_URLS` aceita servidores STUN explícitos; fica vazio por padrão. Não há contratação de TURN. Dois participantes autorizados no mesmo canal podem medir RTT e vídeo sintético por até 120 segundos, sem câmera/microfone/tela. Veja [procedimento e limites](P2P-DIAGNOSTICS.md). Chamadas normais continuam usando LiveKit.
+Para migrar uma instância0.3 existente, faça backup e atualize servidor e clientes juntos. Defina uma única entrada `HARMONY_MEDIA_TRANSPORT=p2p` no `.env` e `HARMONY_CALL_STUN_URLS=stun:stun.l.google.com:19302` (ou STUN próprio). O gerador não sobrescreve configurações antigas. Não execute dois modos no mesmo canal; a escolha é por instância. Preserve a configuração LiveKit para rollback explícito; não altere banco/arquivos. Reiniciar o servidor encerra chamadas ativas.
+
+O máximo configurável em P2P é12 participantes (padrão12), com até256 conexões na instância; isso é limite de admissão, não prova de capacidade. O bitrate0,5–32Mb/s é por destinatário. Sem TURN contratado, redes que impedem conexão direta mostram erro; não há fallback pago.
+
+### Diagnóstico separado
+
+`HARMONY_P2P_DIAGNOSTICS=true` habilita o painel temporário. `HARMONY_P2P_STUN_URLS` aceita servidores STUN explícitos; fica vazio por padrão. Não há contratação de TURN. Dois participantes autorizados no mesmo canal podem medir RTT e vídeo sintético por até 120 segundos, sem câmera/microfone/tela. Veja [procedimento e limites](P2P-DIAGNOSTICS.md). As chamadas normais são independentes desse diagnóstico e usam `HARMONY_MEDIA_TRANSPORT=p2p` por padrão. Veja [chamadas reais](P2P-CALLS.md). O painel de diagnóstico continua no cliente LiveKit; o cliente P2P mostra estatísticas da própria chamada.
 
 ## Windows e atualização
 

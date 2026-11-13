@@ -19,7 +19,7 @@ def main():
     args = parser.parse_args()
     if any(not 1 <= port <= 65535 for port in (args.api_port, args.livekit_port, args.port)):
         parser.error('Ports must be between 1 and 65535')
-    config = configuration('integration.invalid')[3]
+    config = configuration('integration.invalid', media_transport='livekit')[3]
     media = config['apps']['http']['servers']['media']
     media.pop('listener_wrappers')
     media['listen'] = [f'127.0.0.1:{args.port}']

@@ -5,7 +5,7 @@ Prefixo `/api`. JSON UTF-8. IDs UUID como strings, sequências BIGINT como strin
 ## Autenticação
 
 - `GET /health`: `{status:"ok"}` (fora de /api).
-- `GET /api/instance`: `{name,registration:"open",max_upload_bytes,max_video_bitrate,version}`. Bootstrap feito por variáveis de ambiente no primeiro start, nunca por endpoint público.
+- `GET /api/instance`: `{name,registration:"open",max_upload_bytes,max_video_bitrate,media_transport:"p2p"|"livekit",version}`. Bootstrap feito por variáveis de ambiente no primeiro start, nunca por endpoint público.
 - `POST /api/auth/login`: `{username,password}` → `{access_token,refresh_token,user}`.
 - `POST /api/auth/register`: `{username,password,display_name?,invite_token?}` → sessão como login. Cadastro sem convite é permitido e não concede acesso automático a comunidades nem privilégios administrativos. Nome de exibição ausente usa o login normalizado. Convite explícito é opcional e deve ser válido; quando vinculado a comunidade, adiciona a pessoa como membro na mesma transação.
 - `POST /api/auth/refresh`: `{refresh_token}` → sessão rotacionada.
@@ -39,7 +39,7 @@ Prefixo `/api`. JSON UTF-8. IDs UUID como strings, sequências BIGINT como strin
 
 ## Mídia/anexos/admin
 
-- `POST /api/channels/{id}/media-token` → `{token,url,room,max_video_bitrate}`. TTL curto, identidade vincula usuário/sessão; só canal voice ou DM/group. `POST /api/channels/{id}/moderate` `{user_id,action:"mute"|"unmute"|"remove"}` →204, exige dono/admin comunidade. Desconexão global em reset/bloqueio.
+- `POST /api/channels/{id}/media-token` → `{token,url,room,max_video_bitrate}`. Somente modo LiveKit (modo P2P retorna503 com orientação de atualizar o cliente). TTL curto, identidade vincula usuário/sessão; só canal voice ou DM/group. `POST /api/channels/{id}/moderate` `{user_id,action:"mute"|"unmute"|"remove"}` →204, exige dono/admin comunidade. Desconexão global em reset/bloqueio.
 - `POST /api/channels/{id}/uploads` `{name,size,content_type}` → `{id,url,headers}`; PUT direto do cliente ao storage. `POST /api/uploads/{id}/complete` → metadata após validação do objeto. `GET /api/uploads/{id}/download` → `{url}` com ACL corrente.
 - `GET /api/admin/users` → Users. `PATCH /api/admin/users/{id}` `{disabled}` →User. `POST /api/admin/users/{id}/reset` `{password}` (senha atual do admin para reauth) → `{token,expires_at}`. `POST /api/admin/invites` `{expires_hours?,max_uses?}` → código de cadastro.
 - `GET /api/admin/audit` → eventos sem segredos. `GET /api/admin/stats` → contagens e limites de configuração.
@@ -77,3 +77,20 @@ Mudanças de cargos/overrides emitem `{type:"permissions.updated",guild_id}` ap�
 - `admin/stats.storage_bytes` inclui originais, reservas e derivados, segundo `harmony_storage_used()`.
 
 Pipeline, limites, estados, recuperação e sandbox: [MEDIA-WORKER.md](MEDIA-WORKER.md).
+
+
+## Chamadas reais P2P
+
+Contrato separado do diagnóstico de120s. Configuração/limites e interpretação da moderação estão em [P2P-CALLS.md](P2P-CALLS.md).
+
+- `GET /api/channels/{id}/call` → `{transport,max_participants,max_video_bitrate,ice_servers,participants}`; exige sessão válida, VIEW/CONNECT, canal voice/dm/group e ausência de ban vigente.
+- `GET /api/calls` → WebSocket. Primeiro frame em até5s: `{type:"auth",token,channel_id}`. Resposta `{type:"ready",peer_id,channel_id,participants,max_participants,max_video_bitrate,ice_servers}`; somente quando o modo da instância é P2P.
+- Participante: `{peer_id,user_id,display_name,can_publish,media:{microphone,camera,screen,screen_audio}}`. A lista inclui o próprio usuário. `peer_id` é atribuído pelo servidor e muda após reentrada.
+- Servidor `{type:"roster",participants}` substitui a lista autorizada. Ausência remove a conexão; `can_publish:false` impede publicação e reprodução de mídia desse remetente no cliente oficial.
+- Cliente `{type:"signal",to,data}`; servidor encaminha `{type:"signal",from,data}` somente entre participantes atuais do mesmo canal. `data` contém exatamente um campo: `description:{type:"offer"|"answer",sdp}`, `candidate:RTCIceCandidateInit|null` ou `receive:{screen_height:0|144|240|360|480|720|1080|1440|2160}`. `from` não é aceito do cliente. Sinalização para quem já saiu é descartada.
+- Cliente `{type:"media",microphone,camera,screen,screen_audio}` atualiza flags, limitadas por PUBLISH/mute. `screen_audio` exige `screen`.
+- Cliente `{type:"ping"}` a cada10s; servidor `{type:"pong"}`. Inatividade de35s encerra o socket.
+- Cliente `{type:"reauth",token}` aceita somente token atual da mesma conta/sessão e responde `{type:"authenticated"}`; falha encerra.
+- Servidor `{type:"closed",reason,code}` precede fechamento quando possível. Sem log/persistência de SDP, ICE ou tokens.
+
+Frames até64KiB, SDP até48KiB, candidatos até4096bytes; fila de64 frames por destinatário, até384 frames/512KiB/48 descrições por janela de10s por conexão. Uma conexão por usuário, limite configurado por canal e256 na instância. Consumidor lento é removido sem bloquear os demais. A autorização é revalidada na entrada, sinalização, publicação e watchdog; a API de moderação existente atua no transporte escolhido. Não há gravação de mídia.

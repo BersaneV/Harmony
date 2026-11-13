@@ -119,7 +119,7 @@ class MediaProxyIntegration(unittest.TestCase):
         ports = {18081: free_port(used), 18082: free_port(used),
                  8080: admission.server_port, 7880: upstream.server_port}
         edge = free_port(used)
-        config = copy.deepcopy(configure.configuration("example.test")[3])
+        config = copy.deepcopy(configure.configuration("example.test", media_transport="livekit")[3])
         config["apps"]["http"]["servers"]["web"]["routes"][1]["handle"][0]["max_size"] = 128
         config["admin"] = {"disabled": True}
         config["apps"]["tls"]["automation"] = {"policies": [{"issuers": [{"module": "internal"}]}]}

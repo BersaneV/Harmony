@@ -2,7 +2,7 @@
 
 [Baixar a prévia 0.3.0 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.3.0/Harmony_0.3.0_x64-setup.exe) · [Notas e relatórios da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.3.0). O cliente precisa do endereço de uma instância Harmony. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
 
-Comunidades, conversas e compartilhamento de tela em uma plataforma open source, hospedada por você. Cliente Windows com Tauri 2, React e TypeScript; servidor Rust com SQLite, arquivos locais privados e LiveKit.
+Comunidades, conversas e compartilhamento de tela em uma plataforma open source, hospedada por você. Cliente Windows com Tauri 2, React e TypeScript; servidor Rust com SQLite, arquivos locais privados e chamadas WebRTC P2P; LiveKit opcional.
 
 **Versão de desenvolvimento.** O núcleo funciona com serviços reais e possui testes de integração. Execução/captura no Windows, TURN em redes externas e hospedagem pública ainda precisam das provas descritas na documentação. Não há servidor comercial nem conta obrigatória em serviço pago.
 
@@ -12,7 +12,7 @@ Comunidades, conversas e compartilhamento de tela em uma plataforma open source,
 - Comunidades, canais de texto/voz, membros, cargos personalizados, permissões por canal, amigos, conversas diretas e grupos.
 - Chat com histórico persistente SQLite, atualização ao vivo, edição, exclusão, busca, reações, leitura e retry sem mensagens duplicadas.
 - Anexos privados com upload/download autorizados e prévia de imagens, GIFs, áudio e vídeo por clique.
-- Voz, câmera e tela com LiveKit. Prévia antes de transmitir, controles de resolução 144p–2160p, FPS 15/24/30/60, bitrate e estatísticas efetivas. Perfis de qualidade dependem da máquina e da rede.
+- Voz, câmera, tela e áudio da tela com WebRTC P2P, entrando pelo canal sem códigos. Prévia antes de transmitir, controles de resolução 144p–2160p, FPS 15/24/30/60, bitrate e estatísticas efetivas. Perfis de qualidade dependem da máquina e da rede.
 - Volume individual, dispositivos, push-to-talk, moderação, temas e administração de contas.
 - Executável Tauri com credenciais no cofre do sistema, navegação restrita e build NSIS para Windows.
 
@@ -65,12 +65,13 @@ flowchart LR
   App --> Files[(Arquivos privados locais)]
   Worker[Worker Rust isolado + FFmpeg] --> DB
   Worker --> Files
-  Edge --> SFU[LiveKit / TURN]
-  Client <-->|WebRTC| SFU
-  Client <-.->|P2P opcional de diagnóstico| Peer[Segundo participante]
+  Client <-->|Voz / câmera / tela P2P| Peer[Outros participantes]
+  Client -.->|STUN: descobrir rota| STUN[Servidor STUN configurável]
+  Edge -.-> SFU[LiveKit / TURN opcional]
+  Client <-.->|Modo LiveKit explícito| SFU
 ```
 
-A arquitetura anterior está preservada no histórico e nos arquivos `arquitetura-v1.*`. O desenho acima representa o perfil simplificado atual. O diagnóstico P2P usa vídeo gerado e dura até dois minutos; as chamadas normais continuam no LiveKit. [Banco/migração](docs/EMBEDDED-DATABASE.md), [arquivos locais](docs/LOCAL-STORAGE.md) e [teste P2P](docs/P2P-DIAGNOSTICS.md) detalham os limites.
+A arquitetura anterior está preservada no histórico e nos arquivos `arquitetura-v1.*`. O desenho acima representa o perfil simplificado atual. Na versão 0.4.0, as chamadas reais usam P2P por padrão, sem prazo de dois minutos. O LiveKit fica no perfil opcional `sfu`. Conexões diretas podem falhar em redes restritivas e o upload cresce por espectador. [Banco/migração](docs/EMBEDDED-DATABASE.md), [arquivos locais](docs/LOCAL-STORAGE.md) e [chamadas P2P](docs/P2P-CALLS.md) detalham os limites.
 
 ## Licença e custos
 
@@ -80,4 +81,4 @@ Software sem assinatura não elimina consumo de internet, disco ou energia. Nenh
 
 ## Worker, personalização e atualizações
 
-A versão0.2.0 acrescenta o worker de mídia privado (miniaturas, metadados e MP4 faststart), temas avançados com imagens/fontes locais e atualizações Windows assinadas com versão vinculada. Consulte [worker](docs/MEDIA-WORKER.md), [personalização](docs/PERSONALIZATION.md) e [updater](docs/UPDATES.md). A versão 0.3.0 reúne API e worker como processos separados no serviço `harmony`. A implantação usa `harmony`, `livekit` e, no perfil público, `caddy`. Requer host Linux com Landlock ABI 3 (kernel 6.2+) e falha antes de abrir a API quando o isolamento não está disponível.
+A versão0.2.0 acrescenta o worker de mídia privado (miniaturas, metadados e MP4 faststart), temas avançados com imagens/fontes locais e atualizações Windows assinadas com versão vinculada. Consulte [worker](docs/MEDIA-WORKER.md), [personalização](docs/PERSONALIZATION.md) e [updater](docs/UPDATES.md). A versão 0.3.0 reúne API e worker como processos separados no serviço `harmony`. Desde 0.4.0, a implantação padrão usa `harmony` e, no perfil público, `caddy`; `livekit` só é iniciado explicitamente com `--profile sfu`. Requer host Linux com Landlock ABI 3 (kernel 6.2+) e falha antes de abrir a API quando o isolamento não está disponível.

@@ -101,6 +101,12 @@ pub async fn token(
     a: Auth,
     Path(cid): Path<Uuid>,
 ) -> ApiResult<Json<Value>> {
+    if s.config.media_transport != "livekit" {
+        return Err(Error::Unavailable(
+            "Esta instância usa chamadas P2P; atualize o cliente para participar".into(),
+        )
+        .into());
+    }
     db::require_permission(&s.pool, cid, a.user.id, p::CONNECT).await?;
     let kind: String = sqlx::query_scalar("SELECT kind FROM channels WHERE id=$1")
         .bind(cid)
@@ -176,7 +182,9 @@ pub async fn moderate(
     if !matches!(b.action.as_str(), "mute" | "unmute" | "remove") {
         return Err(Error::Invalid("Ação inválida".into()).into());
     }
-    credentials(&s)?;
+    if s.config.media_transport == "livekit" {
+        credentials(&s)?;
+    }
     let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
     if b.action == "remove" {
         sqlx::query("INSERT INTO media_bans(channel_id,user_id,until_at) VALUES($1,$2,strftime('%Y-%m-%dT%H:%M:%fZ','now','+65 seconds')) ON CONFLICT(channel_id,user_id) DO UPDATE SET until_at=EXCLUDED.until_at").bind(cid).bind(b.user_id).execute(&mut *tx).await?;
@@ -203,6 +211,12 @@ pub async fn moderate(
     )
     .await?;
     tx.commit().await?;
+    if b.action != "unmute" {
+        s.calls.moderate(cid, b.user_id, b.action == "remove");
+    }
+    if s.config.media_transport == "p2p" {
+        return Ok(StatusCode::NO_CONTENT);
+    }
     let identities: Vec<String> =
         sqlx::query_scalar("SELECT identity FROM media_members WHERE channel_id=$1 AND user_id=$2")
             .bind(cid)
@@ -226,7 +240,8 @@ pub async fn moderate(
     Ok(StatusCode::NO_CONTENT)
 }
 pub async fn revoke_user(s: &AppState, uid: Uuid) {
-    if credentials(s).is_err() {
+    s.calls.revoke_user(uid, None);
+    if s.config.media_transport != "livekit" || credentials(s).is_err() {
         return;
     }
     let rows = sqlx::query("SELECT channel_id,identity FROM media_members WHERE user_id=$1")
@@ -248,7 +263,8 @@ pub async fn revoke_user(s: &AppState, uid: Uuid) {
     }
 }
 pub async fn revoke_guild_user(s: &AppState, gid: Uuid, uid: Uuid) {
-    if credentials(s).is_err() {
+    s.calls.revoke_user(uid, Some(gid));
+    if s.config.media_transport != "livekit" || credentials(s).is_err() {
         return;
     }
     let rows=sqlx::query("SELECT mm.channel_id,mm.identity FROM media_members mm JOIN channels c ON c.id=mm.channel_id WHERE mm.user_id=$1 AND c.guild_id=$2")
@@ -323,6 +339,9 @@ async fn reconcile_room(s: &AppState, room: String, cid: Uuid) {
 }
 pub async fn reconcile(s: AppState) {
     use futures_util::StreamExt;
+    if s.config.media_transport != "livekit" {
+        return;
+    }
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
@@ -357,6 +376,9 @@ pub async fn admit(
     axum::extract::ConnectInfo(peer): axum::extract::ConnectInfo<std::net::SocketAddr>,
     headers: axum::http::HeaderMap,
 ) -> ApiResult<StatusCode> {
+    if s.config.media_transport != "livekit" {
+        return Err(Error::Forbidden.into());
+    }
     if !peer.ip().is_loopback() || std::env::var("HARMONY_TRUST_PROXY").as_deref() != Ok("true") {
         return Err(Error::Forbidden.into());
     }

@@ -39,12 +39,26 @@ class ConfigurationSecurity(unittest.TestCase):
         self.assertFalse(any(k.startswith("S3_") or k == "POSTGRES_PASSWORD" for k in env))
         self.assertEqual(env["HARMONY_PUBLIC_API_URL"], "https://app.example.org")
         self.assertIn("http://127.0.0.1:8080", configure.configuration()[0]["HARMONY_PUBLIC_ORIGIN"].split(","))
+        self.assertEqual(env["HARMONY_MEDIA_TRANSPORT"], "p2p")
+        self.assertEqual(env["HARMONY_CALL_STUN_URLS"], "stun:stun.l.google.com:19302")
+        self.assertEqual(set(caddy["apps"]["http"]["servers"]), {"web"})
+        self.assertEqual(caddy["apps"]["tls"]["certificates"]["automate"],
+                         ["app.example.org"])
+        self.assertEqual(len(caddy["apps"]["layer4"]["servers"]["main"]["routes"]), 1)
+
+    def test_optional_livekit_keeps_all_routes(self):
+        env, _, _, caddy = configure.configuration("example.org", media_transport="livekit")
+        self.assertEqual(env["HARMONY_MEDIA_TRANSPORT"], "livekit")
         self.assertEqual(set(caddy["apps"]["http"]["servers"]), {"web", "media"})
         self.assertEqual(caddy["apps"]["tls"]["certificates"]["automate"],
                          ["app.example.org", "media.example.org", "turn.example.org"])
 
+    def test_invalid_transport_is_rejected(self):
+        with self.assertRaises(ValueError):
+            configure.configuration(media_transport="automatic-paid-relay")
+
     def test_livekit_control_api_is_never_public_plaintext(self):
-        _, _, livekit, _ = configure.configuration("example.org")
+        _, _, livekit, _ = configure.configuration("example.org", media_transport="livekit")
         self.assertEqual(livekit["bind_addresses"], ["127.0.0.1"])
         self.assertTrue(livekit["turn"]["external_tls"])
         self.assertTrue(livekit["turn"]["proxy_protocol"])

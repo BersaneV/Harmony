@@ -10,7 +10,9 @@ import secrets
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def configuration(domain=None, data_directory=None):
+def configuration(domain=None, data_directory=None, media_transport="p2p"):
+    if media_transport not in ("p2p", "livekit"):
+        raise ValueError("Transporte de mídia inválido; use p2p ou livekit.")
     if domain and (not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?", domain)
                    or "." not in domain or ".." in domain):
         raise ValueError("Domínio DNS inválido; use somente o nome, sem protocolo ou porta.")
@@ -22,6 +24,8 @@ def configuration(domain=None, data_directory=None):
         "HARMONY_STORAGE_DIR": str(data / "files"),
         "HARMONY_PUBLIC_API_URL": f"https://app.{domain}" if domain else "http://127.0.0.1:8080",
         "HARMONY_WEB_DIR": str(ROOT / "apps/desktop/dist"),
+        "HARMONY_MEDIA_TRANSPORT": media_transport,
+        "HARMONY_CALL_STUN_URLS": "stun:stun.l.google.com:19302",
         "HARMONY_P2P_DIAGNOSTICS": "true",
         "HARMONY_P2P_STUN_URLS": "",
         "HARMONY_BIND": "127.0.0.1:8080",
@@ -67,7 +71,7 @@ def configuration(domain=None, data_directory=None):
             "request>uri", "request>headers>Authorization", "request>headers>Cookie",
             "request>headers>X-Livekit-Query-Token", "request>headers>X-Forwarded-Uri")},
     }
-    if domain:
+    if domain and media_transport == "livekit":
         admission = {"handler": "reverse_proxy", "upstreams": [{"dial": "127.0.0.1:8080"}],
                      "rewrite": {"method": "GET", "uri": "/api/internal/media-admit"},
                      "headers": {"request": {"set": {"X-Livekit-Query-Token": ["{http.request.uri.query.access_token}"]}}},
@@ -81,14 +85,18 @@ def configuration(domain=None, data_directory=None):
                 {"handle": [{"handler": "static_response", "status_code": 404}]},
             ],
         }
-        for server in ("web", "media"):
+    if domain:
+        for server in caddy["apps"]["http"]["servers"]:
             caddy["apps"]["http"]["servers"][server]["listener_wrappers"] = [
                 {"wrapper": "proxy_protocol", "allow": ["127.0.0.1/32", "::1/128"], "fallback_policy": "reject"}
             ]
-        names = [f"{prefix}.{domain}" for prefix in ("app", "media", "turn")]
+        endpoints = [("app", 18081)]
+        if media_transport == "livekit":
+            endpoints += [("media", 18082), ("turn", 5349)]
+        names = [f"{prefix}.{domain}" for prefix, _ in endpoints]
         caddy["apps"]["tls"] = {"certificates": {"automate": names}}
         routes = []
-        for prefix, port in [("app", 18081), ("media", 18082), ("turn", 5349)]:
+        for prefix, port in endpoints:
             tls = {"handler": "tls"}
             if prefix != "turn":
                 tls["connection_policies"] = [{"alpn": ["http/1.1"]}]
@@ -108,14 +116,15 @@ def write_private(path, data):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--domain", help="Domínio base; requer app/media/turn apontando ao host")
+    parser.add_argument("--domain", help="Domínio base; P2P requer app, LiveKit também media/turn apontando ao host")
+    parser.add_argument("--media-transport", choices=("p2p", "livekit"), default="p2p")
     parser.add_argument("--directory", type=Path, default=ROOT)
     args = parser.parse_args()
     base = args.directory.resolve()
     targets = [base / ".env"] + [base / ".local/deploy" / f for f in ("livekit.yaml", "caddy.json")]
     if any(p.exists() for p in targets):
         parser.error("Configuração já existe; nenhuma chave foi substituída. Use outro --directory para ensaio.")
-    env, _, livekit, caddy = configuration(args.domain, base / "data")
+    env, _, livekit, caddy = configuration(args.domain, base / "data", args.media_transport)
     write_private(targets[0], "".join(f"{k}={v}\n" for k, v in env.items()))
     for path, content in zip(targets[1:], (livekit, caddy)):
         write_private(path, json.dumps(content, indent=2) + "\n")  # JSON is valid YAML 1.2.

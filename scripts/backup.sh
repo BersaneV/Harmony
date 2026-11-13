@@ -1,5 +1,5 @@
 #!/bin/sh
-# Offline snapshot of the three-service deployment. No paid service is required.
+# Offline snapshot, including optional services already running. No paid service is required.
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
@@ -11,18 +11,18 @@ case "$output" in /*) ;; *) printf 'Use um destino absoluto.\n' >&2; exit 1 ;; e
 test ! -e "$output" || { printf 'Backup já existe; nada foi substituído.\n' >&2; exit 1; }
 container=$(docker compose ps -a -q harmony)
 test -n "$container" || { printf 'Instância Harmony não encontrada.\n' >&2; exit 1; }
-running=$(docker compose --profile public ps --status running --services)
+running=$(docker compose --profile public --profile sfu ps --status running --services)
 mkdir -p .local/backups
 raw=$(mktemp -d "$PWD/.local/backups/staging-XXXXXX")
 resume() {
   for service in $running; do
-    case "$service" in harmony|livekit|caddy) docker compose --profile public start "$service" >/dev/null || true ;; esac
+    case "$service" in harmony|livekit|caddy) docker compose --profile public --profile sfu start "$service" >/dev/null || true ;; esac
   done
 }
 trap resume EXIT
 trap 'exit 130' INT
 trap 'exit 143' HUP TERM
-docker compose --profile public stop caddy harmony livekit
+docker compose --profile public --profile sfu stop caddy harmony livekit
 # docker cp works on a stopped container and gives the local user the copy.
 docker cp "$container:/data/." "$raw/"
 mkdir -p "$(dirname "$output")"

@@ -19,7 +19,6 @@ services:
       WORKER_LEASE_SECONDS: "120"
       WORKER_MEMORY_BYTES: "536870912"
     volumes: ["data:/data"]
-    depends_on: [livekit]
     read_only: true
     tmpfs:
       - "/tmp/harmony-sqlite:size=128m,mode=0700,uid=10001,gid=10001"
@@ -39,6 +38,7 @@ services:
     restart: unless-stopped
     logging: *logging
   livekit:
+    profiles: [sfu]
     image: livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20
     command: ["--config", /etc/livekit.yaml]
     network_mode: host

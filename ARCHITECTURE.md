@@ -1,6 +1,6 @@
-# Harmony — arquitetura de instância única (0.3.0)
+# Harmony — arquitetura de instância única com chamadas P2P (0.4.0)
 
-Data: 12/11/2026. Estado: perfil simplificado autorizado em 12/11/2026, inspirado na operação de instância única do Backspace, sem incorporar código AGPL. A arquitetura anterior permanece no histórico Git. A implementação inicial e suas provas constam nos READMEs e em docs/BACKEND.md; itens deste desenho não são automaticamente funcionalidades concluídas. O estado detalhado está em [docs/VALIDATION.md](docs/VALIDATION.md). Sem hospedagem pública ou desempenho Windows homologado. Autor das escolhas técnicas: Codex, conforme delegação de Victor.
+Atualização: 13/11/2026. Chamadas reais P2P autorizadas expressamente por Victor, preservando LiveKit opcional. Estado: perfil simplificado autorizado em 12/11/2026, inspirado na operação de instância única do Backspace, sem incorporar código AGPL. A arquitetura anterior permanece no histórico Git. A implementação inicial e suas provas constam nos READMEs e em docs/BACKEND.md; itens deste desenho não são automaticamente funcionalidades concluídas. O estado detalhado está em [docs/VALIDATION.md](docs/VALIDATION.md). Sem hospedagem pública ou desempenho Windows homologado. Autor das escolhas técnicas: Codex, conforme delegação de Victor.
 
 ## 1. Objetivo e fontes
 
@@ -30,29 +30,29 @@ O túnel HTTPS temporário usado no ensaio de celular permite testar o aplicativ
 
 ## 4. Arquitetura escolhida
 
-O [diagrama atual no README](README.md) mostra três serviços: Harmony, LiveKit e Caddy. Os arquivos `arquitetura-v1.*` são a referência histórica anterior.
+O [diagrama atual no README](README.md) mostra Harmony e Caddy no perfil público padrão, mídia P2P entre clientes e LiveKit no perfil opcional `sfu`. Os arquivos `arquitetura-v1.*` são a referência histórica anterior.
 
 Uma implantação Linux, inicialmente com um único nó, executará Docker Engine e Compose. O cliente Windows se conecta a essa implantação; não carrega um banco e um servidor completos na máquina de cada participante.
 
 | Componente | Escolha | Responsabilidade |
 |---|---|---|
 | Cliente desktop | Tauri 2, React, TypeScript, Vite e CSS | Interface, atalhos, notificações, cache e integração Windows. |
-| Cliente de mídia | LiveKit Client SDK + WebRTC/Web Audio | Microfone, câmera, tela, reprodução e qualidade adaptativa. |
+| Cliente de mídia | RTCPeerConnection + Web Audio, LiveKit SDK opcional | Microfone, câmera, tela, reprodução e qualidade adaptativa. |
 | Entrada pública | Caddy com suporte a camada 4 | HTTPS/WSS, certificados e encaminhamento TLS para TURN no mesmo IP. |
 | Aplicação | Rust, Tokio, Axum, SQLx | API, WebSocket, regras de negócio, autenticação, ACL, mídia e administração. |
 | Persistência | SQLite 3.51.3 / WAL / FTS5 | Contas, mensagens, permissões, sessões, auditoria, busca, tarefas e outbox. |
 | Arquivos | Diretório privado local, adaptador S3 opcional | Anexos, avatares, temas, derivados e objetos privados. |
-| Voz/vídeo/tela | LiveKit Server self-hosted + TURN embutido | Encaminhar mídia entre participantes. |
+| Voz/vídeo/tela | WebRTC P2P mesh, LiveKit self-hosted opcional | Conexões diretas por participante; SFU/TURN somente no modo LiveKit explícito. |
 | Processamento | Worker Rust + FFmpeg/ffprobe | Inspeção, miniaturas e conversões assíncronas com limites. |
 | Backup | Snapshot offline verificado + restic opcional | Cópia criptografada de dados e configuração para destino independente. |
 
-O serviço `harmony` reúne o servidor, os assets React e um worker supervisionado em processo separado. Banco e objetos ficam no volume local `/data`; FFmpeg mantém o isolamento por Landlock/seccomp, sem rede ou credenciais. O supervisor impede startup sem sandbox e encerra o conjunto se API ou worker cair. LiveKit e Caddy continuam serviços separados; não são reescritos em Rust. O aplicativo Windows permanece apenas cliente.
+O serviço `harmony` reúne o servidor, os assets React e um worker supervisionado em processo separado. Banco e objetos ficam no volume local `/data`; FFmpeg mantém o isolamento por Landlock/seccomp, sem rede ou credenciais. O supervisor impede startup sem sandbox e encerra o conjunto se API ou worker cair. Caddy permanece separado. LiveKit permanece disponível sem reescrita, mas não inicia no perfil P2P. O aplicativo Windows permanece apenas cliente.
 
 SQLite não é compartilhado por NFS/SMB nem usado por réplicas em hosts diferentes. O perfil é de instância única. Escritas usam transações imediatas, mantendo sequenciamento, idempotência, ACL e cotas. A busca preserva o parser `simple` do PostgreSQL com código de origem sob licença PostgreSQL e comparação independente; veja [banco e limites](docs/EMBEDDED-DATABASE.md).
 
 ### Alternativas consideradas
 
-1. **Monólito modular próprio + LiveKit, escolhido:** atende à stack desejada e permite personalização, com operação inicial em um host.
+1. **Monólito modular próprio + P2P, com LiveKit opcional:** atende à stack desejada e permite personalização, com operação inicial em um host.
 2. **Plataforma pronta de terceiros:** poderia reduzir desenvolvimento, mas sua estrutura de conta, permissões e interface passaria a governar o produto. Não foi escolhida como base da stack própria pedida.
 3. **Serviços gerenciados/serverless:** simplificam algumas tarefas, mas acrescentam limites externos e possibilidade de cobrança. Não atendem ao orçamento como base permanente.
 
@@ -68,7 +68,7 @@ SQLite não é compartilhado por NFS/SMB nem usado por réplicas em hosts difere
 
 O monólito terá módulos de Identidade, Comunidades/Canais, Mensagens, Permissões/Moderação, Mídia, Arquivos, Personalização e Administração. Domínio e Aplicação não dependem de Axum, SQLx, S3 ou LiveKit. Portas internas definem persistência, relógio, objetos e controle de mídia; adaptadores implementam essas portas.
 
-O cliente chama HTTPS para operações e WSS para eventos. A mídia usa o transporte WebRTC diretamente com LiveKit/TURN. Banco, objetos e interfaces administrativas de infraestrutura não ficam públicos. O controle de mídia passa pelo backend: nunca embutir a chave secreta do LiveKit ou credenciais S3 no .exe.
+O cliente chama HTTPS para operações e WSS para eventos. No modo padrão, a mídia usa WebRTC diretamente entre pares, com sinalização autenticada em `/api/calls`. O modo LiveKit usa SFU/TURN. A instância escolhe um modo; não há fallback automático para serviço pago. Banco, objetos e interfaces administrativas de infraestrutura não ficam públicos. O controle de mídia passa pelo backend: nunca embutir a chave secreta do LiveKit ou credenciais S3 no .exe.
 
 Contrato HTTP versionado com OpenAPI e tipos TypeScript gerados. Eventos têm versão, ID, cursor de recuperação e chave de idempotência. Identificadores de entidades serão UUIDv7, serializados como strings; ordenação explícita por campos indexados, nunca ordem física presumida. Permissões serão nomes estáveis no contrato; representação numérica interna, se útil, terá conversão explícita sem depender de precisão de Number em JavaScript.
 
@@ -254,6 +254,12 @@ flowchart LR
   Native -->|HTTPS / assinatura e versão| GH[Releases públicas GitHub]
 ```
 
-## Diagnóstico P2P
+## Chamadas P2P reais
+
+A versão0.4.0 usa salas por canal e conexões mesh, sem IDs manuais e sem TTL de diagnóstico. Microfone, câmera, tela e áudio da tela ocupam slots separados; perfil de transmissão e teto de recepção são aplicados por conexão. O backend faz admissão e revalida sessão, ACL, mute e ban. O cliente oficial encerra mídia ao perder sinalização/autorização; não é possível impor corte de pacotes entre dois clientes modificados que cooperem para ignorar o servidor. O modo LiveKit continua disponível quando esse controle central ou escala forem necessários.
+
+STUN padrão configurável descobre rotas, sem retransmitir mídia. P2P expõe endereços de rede aos pares e multiplica upload pelo número de destinatários. Limite12 não equivale a12 telas4K homologadas. Redes restritivas podem falhar sem TURN; sem contratação automática. [Contrato, configuração, limites e ensaios](docs/P2P-CALLS.md). As seções de SFU/simulcast/TURN acima descrevem o modo LiveKit, não capacidades do modo P2P.
+
+## Diagnóstico P2P separado
 
 Experimento separado das chamadas: dois usuários distintos autorizados no mesmo canal trocam ping e vídeo sintético por WebRTC, sem câmera, microfone ou captura de tela. A sinalização exige sessão e ACL, possui limite e expira em até 120 segundos. O cliente mostra parâmetros solicitados e medidos, rota direta/relay e permite exportar métricas sem IPs ou credenciais. STUN é configurável; TURN pago não é contratado e não existe garantia de conexão direta através de NAT restritivo. As provas locais não representam latência entre redes.

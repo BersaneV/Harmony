@@ -1,6 +1,7 @@
 mod acl;
 mod admin;
 mod auth;
+mod calls;
 mod chat;
 mod community;
 pub mod config;
@@ -38,6 +39,7 @@ pub struct AppState {
     pub store: Arc<harmony_storage::Store>,
     pub file_slots: Arc<Semaphore>,
     pub p2p: p2p::ProbeRegistry,
+    pub calls: calls::CallRegistry,
     pub config: Arc<Config>,
     pub events: broadcast::Sender<Value>,
     pub password_slots: Arc<Semaphore>,
@@ -54,6 +56,7 @@ impl AppState {
             store: Arc::new(store),
             file_slots: Arc::new(Semaphore::new(4)),
             p2p: Default::default(),
+            calls: Default::default(),
             config: Arc::new(config),
             events,
             password_slots: Arc::new(Semaphore::new(2)),
@@ -133,7 +136,7 @@ async fn health(State(s): State<AppState>) -> ApiResult<Json<Value>> {
 }
 async fn instance(State(s): State<AppState>) -> Json<Value> {
     Json(
-        json!({"name":s.config.instance_name,"registration":"open","max_upload_bytes":s.config.max_upload,"max_video_bitrate":s.config.max_bitrate,"version":env!("CARGO_PKG_VERSION")}),
+        json!({"name":s.config.instance_name,"registration":"open","max_upload_bytes":s.config.max_upload,"max_video_bitrate":s.config.max_bitrate,"media_transport":s.config.media_transport,"version":env!("CARGO_PKG_VERSION")}),
     )
 }
 pub fn router(s: AppState) -> Router {
@@ -242,6 +245,8 @@ pub fn router(s: AppState) -> Router {
             get(p2p::info).post(p2p::create),
         )
         .route("/api/p2p/ws", get(p2p::upgrade))
+        .route("/api/channels/{id}/call", get(calls::info))
+        .route("/api/calls", get(calls::upgrade))
         .route("/api/channels/{id}/media-token", post(media::token))
         .route("/api/channels/{id}/moderate", post(media::moderate))
         .route("/api/channels/{id}/uploads", post(uploads::reserve))

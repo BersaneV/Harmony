@@ -1,6 +1,6 @@
 # Diagnóstico P2P gratuito
 
-O Harmony oferece um experimento opcional para avaliar conexão direta entre dois participantes. As chamadas, permissões e moderação continuam no LiveKit. O experimento não é um segundo modo de chamada: transmite pings e um vídeo sintético gerado por canvas, sem pedir acesso ao microfone, câmera ou compartilhamento de tela.
+O Harmony oferece um experimento opcional para avaliar conexão direta entre dois participantes. Desde0.4.0 as chamadas reais têm [transporte P2P próprio](P2P-CALLS.md); este documento descreve somente o experimento de120s, mantido no painel do modo LiveKit. O experimento não é um segundo modo de chamada: transmite pings e um vídeo sintético gerado por canvas, sem pedir acesso ao microfone, câmera ou compartilhamento de tela.
 
 ## Ativação
 
@@ -29,7 +29,7 @@ A navegação por canal e participação com um clique segue a referência públ
 - Somente duas identidades distintas podem participar. A reserva da vaga é atômica, incluindo entradas simultâneas. A entrada revalida também a sessão e as permissões do criador. Oferta e resposta têm papéis fixos e não aceitam destinatário arbitrário. SDP com áudio é recusado. Sinalização, candidatos, tamanho de mensagens e ping são limitados.
 - Sessão, CONNECT/PUBLISH, mute e ban são verificados na entrada, em sinalização e a cada dois segundos. Fechamento de qualquer lado encerra o teste inteiro. Estado, SDP e ICE não são persistidos nem registrados em log.
 
-Uma vez estabelecida conexão direta, um servidor não controla o tráfego de clientes modificados da mesma maneira que um SFU. Por isso o experimento permanece restrito ao diagnóstico e não substitui o caminho de chamadas/moderação. O cliente oficial não captura mídia privada, para e libera todas as tracks/conexões quando o teste termina.
+Uma vez estabelecida conexão direta, um servidor não controla o tráfego de clientes modificados da mesma maneira que um SFU. O diagnóstico permanece separado; o transporte de chamadas reais documenta essa mesma limitação de controle central e preserva LiveKit como opção. O cliente oficial não captura mídia privada, para e libera todas as tracks/conexões quando o teste termina.
 
 ## Verificação automatizada
 

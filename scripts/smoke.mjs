@@ -113,9 +113,17 @@ if (process.env.HARMONY_TEST_STORAGE === '1') {
 }
 if (process.env.HARMONY_TEST_MEDIA === '1') {
   const voice = await call('POST', `/guilds/${guild.id}/channels`, { name: 'Voice', kind: 'voice' }, alice.access_token, [200, 201]);
-  const media = await call('POST', `/channels/${voice.id}/media-token`, null, bob.access_token);
-  assert.ok(media.token && media.url && media.max_video_bitrate > 0);
-  await call('POST', `/channels/${voice.id}/media-token`, null, eve.access_token, [403, 404]);
+  const instance = await call('GET', '/instance');
+  if (instance.media_transport === 'p2p') {
+    const media = await call('GET', `/channels/${voice.id}/call`, null, bob.access_token);
+    assert.equal(media.transport, 'p2p');
+    assert.ok(media.max_participants > 1 && media.max_video_bitrate > 0);
+    await call('GET', `/channels/${voice.id}/call`, null, eve.access_token, [403, 404]);
+  } else {
+    const media = await call('POST', `/channels/${voice.id}/media-token`, null, bob.access_token);
+    assert.ok(media.token && media.url && media.max_video_bitrate > 0);
+    await call('POST', `/channels/${voice.id}/media-token`, null, eve.access_token, [403, 404]);
+  }
 }
 
 const oldRefresh = eve.refresh_token;

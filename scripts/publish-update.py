@@ -64,7 +64,7 @@ def main():
         "--output", str(directory / "local-signature-verification.json")], check=True, cwd=ROOT)
     manifest = {
         "version": args.version,
-        "notes": "Cadastro aberto, navegação responsiva e testes P2P com participação pelo canal, sem copiar códigos. Servidor simplificado com SQLite e arquivos locais; worker, personalização e atualizações assinadas preservados. Consulte as notas da versão no GitHub.",
+        "notes": "Chamadas P2P reais com voz, câmera, compartilhamento de tela e áudio, entrando pelo canal sem códigos. Controles de resolução, FPS e bitrate; LiveKit opcional. Conexão direta depende da rede. Worker, personalização e atualizações assinadas preservados. Consulte as notas da versão no GitHub.",
         "pub_date": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "platforms": {"windows-x86_64": {
             "signature": (directory / (name + ".sig")).read_text().strip(),
