@@ -67,7 +67,7 @@ Para restaurar no Compose, use um checkout da mesma versão, copie a configuraç
 
 ## Chamadas reais e diagnóstico P2P
 
-Para migrar uma instância0.3 existente, faça backup e atualize servidor e clientes juntos. Defina uma única entrada `HARMONY_MEDIA_TRANSPORT=p2p` no `.env` e `HARMONY_CALL_STUN_URLS=stun:stun.l.google.com:19302` (ou STUN próprio). O gerador não sobrescreve configurações antigas. Não execute dois modos no mesmo canal; a escolha é por instância. Preserve a configuração LiveKit para rollback explícito; não altere banco/arquivos. Reiniciar o servidor encerra chamadas ativas.
+Para migrar uma instância 0.3 existente, faça backup e atualize servidor e clientes juntos. Finalize as chamadas LiveKit e pare o serviço SFU durante o corte para P2P; reiniciar somente a API não é um procedimento de encerramento das sessões no SFU. Defina uma única entrada `HARMONY_MEDIA_TRANSPORT=p2p` no `.env` e `HARMONY_CALL_STUN_URLS=stun:stun.l.google.com:19302` (ou STUN próprio). O gerador não sobrescreve configurações antigas. Não execute dois modos no mesmo canal; a escolha é por instância. Preserve a configuração LiveKit para rollback explícito; não altere banco/arquivos. No modo P2P, perder a sinalização ao reiniciar a API encerra a chamada nos clientes oficiais.
 
 O máximo configurável em P2P é12 participantes (padrão12), com até256 conexões na instância; isso é limite de admissão, não prova de capacidade. O bitrate0,5–32Mb/s é por destinatário. Sem TURN contratado, redes que impedem conexão direta mostram erro; não há fallback pago.
 

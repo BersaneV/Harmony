@@ -22,6 +22,12 @@ Referências: [Tauri Updater](https://v2.tauri.app/plugin/updater/), [releases d
 
 A release [0.2.0](https://github.com/BersaneV/Harmony/releases/tag/v0.2.0) e o canal público estão ativos. O artefato passou por assinatura/versão e instalação/remoção no Windows CI; o feed foi consultado por HTTPS com download e verificação reais. Veja VALIDATION.md para SHA, execução e limites. O publicador local trata drafts por listagem autorizada: o endpoint por tag pode retornar404 antes de existir uma referência Git publicada.
 
-## Canal atual: 0.3.0
+## Publicação anterior: 0.3.0
 
 A [prévia 0.3.0 para Windows x64](https://github.com/BersaneV/Harmony/releases/tag/v0.3.0) foi publicada após a execução [43307922953](https://github.com/BersaneV/Harmony/actions/runs/43307922953), no código `c22bb12fdfe75aaa1b20e6f5382fc4049660e34c`. Assinatura/versão e instalação/remoção passaram no Windows; a assinatura foi repetida localmente no arquivo baixado. A consulta HTTPS pública confirmou atualização de 0.2.0 para 0.3.0 e ausência de atualização para quem já está na 0.3.0. O teste usa o plugin real sem executar a instalação no Mac; a atualização sobre uma instalação física em uso ainda precisa de homologação. Os hashes, relatórios e limites estão em [VALIDATION.md](VALIDATION.md).
+
+## Canal atual: 0.4.0
+
+A [prévia 0.4.0 para Windows x64](https://github.com/BersaneV/Harmony/releases/tag/v0.4.0) foi publicada após a execução [43486904230](https://github.com/BersaneV/Harmony/actions/runs/43486904230), no código `b106af26f9ed06e579bbaedc16aa75b30d9f9a0d`. O artefato passou por 17 verificações de assinatura/versão e nove de instalação/remoção no Windows CI; a verificação criptográfica foi repetida no download local. O feed público ofereceu 0.4.0 para 0.3.0 e retornou `no_update` para 0.4.0. O alvo Windows no probe é explícito, mas sua execução usa MockRuntime e não instala no Mac. Captura e atualização sobre instalação física em uso continuam sem homologação.
+
+Atualize servidor e clientes juntos ao ativar P2P: o servidor 0.4 em modo P2P recusa a rota LiveKit usada pelos clientes antigos. A configuração e o corte estão em [OPERATIONS.md](OPERATIONS.md), e as evidências completas em [VALIDATION.md](VALIDATION.md).
