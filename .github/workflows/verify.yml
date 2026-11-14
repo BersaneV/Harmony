@@ -209,7 +209,7 @@ jobs:
         shell: pwsh
         run: |
           '{"bundle":{"createUpdaterArtifacts":false}}' | Set-Content -Encoding utf8NoBOM apps/desktop/src-tauri/ci-unsigned.json
-          npm run desktop:build -- --bundles nsis --config ci-unsigned.json
+          npm run desktop:build -- --bundles nsis --config src-tauri/ci-unsigned.json
       - name: Build signed distribution on trusted main
         if: github.event_name == 'workflow_dispatch' && inputs.package && github.ref == 'refs/heads/main'
         env:
