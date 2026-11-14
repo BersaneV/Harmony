@@ -1,0 +1,8 @@
+{
+  "tag": "20261110",
+  "name": "cpython-3.13.18+20261110-x86_64-unknown-linux-gnu-install_only.tar.gz",
+  "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.13.18%2B20261110-x86_64-unknown-linux-gnu-install_only.tar.gz",
+  "sha256": "50c774f6674740739f791c05a9177ed03e2fe02abebda9bca3512eb7309b37cc",
+  "bytes": 77155083,
+  "source": "https://github.com/astral-sh/python-build-standalone"
+}

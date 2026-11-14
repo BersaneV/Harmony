@@ -1,0 +1,68 @@
+name: Verify disposable external Harmony host
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: host-acceptance
+  cancel-in-progress: false
+jobs:
+  acceptance:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: '26.13.0'}
+      - name: Validate the hosting adapter and origin boundaries
+        run: |
+          python3 -m unittest discover -s scripts -p test_altare_launch.py
+          node --test scripts/test_capacity_origins.mjs
+          bash -n infra/altare/native-bootstrap.sh
+      - run: npm ci
+      - name: Download and verify the identical Linux binary used by the external host
+        run: |
+          mkdir -p .local/server-bundle
+          curl --fail --location --proto '=https' --proto-redir '=https' --max-time 120 https://github.com/BersaneV/Harmony/releases/download/v0.4.1/harmony-server-0.4.1-linux-x86_64.tar.gz -o .local/server.tar.gz
+          echo 'd6e8ab6233fd3540b586247bd19d86ef8e48eaa9789f611105662ea86531dc3d  .local/server.tar.gz' | sha256sum -c -
+          tar --no-same-owner -xzf .local/server.tar.gz -C .local/server-bundle
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path('.local/server-bundle')
+          manifest=json.loads((root/'manifest.json').read_text())
+          assert manifest['verified_product_commit']=='2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d'
+          for name,digest in manifest['source_sha256'].items():
+              if name not in ('scripts/test_call_capacity.mjs','scripts/report_call_capacity.py'):
+                  assert hashlib.sha256(Path(name).read_bytes()).hexdigest()==digest
+          for name,digest in manifest['files'].items():
+              assert hashlib.sha256((root/name).read_bytes()).hexdigest()==digest
+          PY
+      - name: Eight generated clients against the external acceptance API
+        env:
+          HARMONY_CHROME: /usr/bin/google-chrome
+          HARMONY_TEST_URL: https://harmony.go.altare.global
+          HARMONY_WEB_URL: http://127.0.0.1:1420
+          HARMONY_CAPACITY_REMOTE_ACCEPTANCE: harmony.go.altare.global
+          HARMONY_BOOTSTRAP_USERNAME: admin
+          HARMONY_BOOTSTRAP_PASSWORD: ${{ secrets.HARMONY_HOST_ACCEPTANCE_PASSWORD }}
+          HARMONY_SERVER_BINARY: .local/server-bundle/bin/harmony-server
+          HARMONY_CAPACITY_FPS: '30'
+          HARMONY_CAPACITY_MEDIA_SOURCE: native-fake
+          HARMONY_CAPACITY_BROWSER_MODE: processes
+          HARMONY_CAPACITY_SECONDS: '180'
+          HARMONY_CAPACITY_SETTLE_SECONDS: '30'
+          HARMONY_CALL_REPORT: .local/host-capacity.json
+        run: |
+          node node_modules/vite/bin/vite.js apps/desktop --host 127.0.0.1 --port 1420 --strictPort > .local/host-vite.log 2>&1 &
+          web_pid=$!
+          trap 'kill "$web_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:1420/ > /dev/null; then break; fi
+            sleep 1
+          done
+          status=0
+          node scripts/test_call_capacity.mjs > .local/host-capacity-run.log 2>&1 || status=$?
+          python3 scripts/report_call_capacity.py .local/host-capacity.json
+          exit "$status"

@@ -1,3 +1,4 @@
+import {capacityOrigins, acceptanceInstance} from './capacity_origins.mjs';
 // Eight real P2PCall clients, HTTP/WS signaling and generated RTC media.
 // This is a loopback integration/capacity test, not physical-device or UI QA.
 // Run only against a disposable instance; never uses physical capture devices.
@@ -36,12 +37,7 @@ import { dirname, join, resolve } from 'node:path';
 
 const api = (process.env.HARMONY_TEST_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
 const web = (process.env.HARMONY_WEB_URL || 'http://127.0.0.1:1420').replace(/\/$/, '');
-for (const value of [api, web]) {
-  const url = new URL(value);
-  assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
-    && ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
-    && !url.search && !url.hash && url.pathname === '/', 'Use loopback origins without credentials or paths');
-}
+const originScope = capacityOrigins(api, web, process.env.HARMONY_CAPACITY_REMOTE_ACCEPTANCE);
 const seconds = Number(process.env.HARMONY_CAPACITY_SECONDS || 180);
 assert.ok(Number.isInteger(seconds) && seconds >= 120 && seconds <= 1800, 'HARMONY_CAPACITY_SECONDS must be 120..1800');
 const settlingSeconds = Number(process.env.HARMONY_CAPACITY_SETTLE_SECONDS || 0);
@@ -853,6 +849,12 @@ try {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await mkdir(dirname(reportPath), { recursive: true, mode: 0o700 });
   await writeFile(fixture, '<!doctype html><title>Harmony generated capacity fixture</title><p>Eight-client generated media test.</p>', { mode: 0o600 });
+  if (originScope.remote) {
+    const instance = await request('GET', '/instance');
+    acceptanceInstance(instance);
+    report.remote_acceptance = {api_origin: api, instance_name: instance.name,
+      scope: 'Owned disposable external API; generated media/browser fixture remains loopback. No production data admitted.'};
+  }
   report.sources = { engine_sha256: hash(await readFile(join(engineDirectory, 'call.ts'))), api_sha256: hash(await readFile(join(engineDirectory, 'api.ts'))),
     server_source_sha256: hash(await readFile(serverSource)), server_binary_sha256: hash(await readFile(serverBinary)),
     server_binary_file: serverBinary, server_source_file: serverSource, server_identity_scope: 'Caller-declared binary/source paths; process identity must be verified by the run coordinator',
