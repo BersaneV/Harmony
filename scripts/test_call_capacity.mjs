@@ -6,6 +6,8 @@
 // HARMONY_CAPACITY_FPS=15|24|30|60. Minimum average rendered FPS is 0.8*FPS.
 // HARMONY_CAPACITY_SETTLE_SECONDS=0|30 adds a fixed recorded startup phase
 // before the full stable interval. Default 0 preserves the original measurement.
+// HARMONY_CAPACITY_VIDEO_CODEC=default|h264 optionally prefers H264 only in the
+// screen transceiver of this fixture. Native capabilities and fallbacks remain.
 // HARMONY_SERVER_BINARY/SOURCE identify the externally started server for A/B.
 // HARMONY_CAPACITY_BROWSER_MODE=contexts optionally uses one Chrome with eight
 // isolated BrowserContexts. It shares GPU/audio services, not application sessions;
@@ -75,6 +77,8 @@ const nativeAudioParent = resolve(process.env.HARMONY_CAPACITY_NATIVE_AUDIO_DIR
 const screenFrequency = nativeFake ? frequencies[0] : 1980;
 const audioMode = process.env.HARMONY_CAPACITY_AUDIO_MODE || 'shared';
 assert.ok(['shared', 'split'].includes(audioMode), 'HARMONY_CAPACITY_AUDIO_MODE must be shared or split');
+const videoCodec = process.env.HARMONY_CAPACITY_VIDEO_CODEC || 'default';
+assert.ok(['default', 'h264'].includes(videoCodec), 'HARMONY_CAPACITY_VIDEO_CODEC must be default or h264');
 const browsers = new Array(8); // Indexed BEFORE any await: never completion order.
 const browserHosts = [];
 let sharedHost, mediaDirectory, audioMediaDirectory;
@@ -87,6 +91,9 @@ const report = {
     ? 'Eight isolated BrowserContexts in one Chrome on one machine; shared GPU/audio services; production P2PCall and real loopback API/WS; generated media only'
     : 'Eight separate Chrome processes on one machine; production P2PCall and real loopback API/WS; generated media only',
   browser_mode: browserMode, browser_processes: browserMode === 'contexts' ? 1 : 8, browser_contexts: 8,
+  video_codec_preference: videoCodec,
+  video_codec_scope: videoCodec === 'default' ? 'Native codec selection unchanged'
+    : 'Fixture-only H264 preference for screen slot 2, with all native profiles and fallback codecs preserved. No production change, SDP editing or claim of hardware acceleration; actual negotiated codec is recorded in RTP statistics.',
   media_source: mediaSource, requested_audio_graph_mode: audioMode,
   audio_graph_mode: nativeFake ? 'native-capture-with-analysis-context' : audioMode,
   audio_contexts_per_client: !nativeFake && audioMode === 'split' ? 2 : 1,
@@ -230,17 +237,56 @@ class CDP {
   close() { this.socket.close(); }
 }
 
-async function installBrowserHarness(root, sourceProfile, audioGraphMode, capture) {
+async function installBrowserHarness(root, sourceProfile, audioGraphMode, capture, codecPreference) {
   const qa = window.qa = { pcs: [], sockets: [], resources: [], playback: new Map(), errors: [], history: [], closures: [], peerTransitions: [], setup: [], audioContexts: [], nativeCaptures: [], captureErrors: [] };
   const native = capture.mode === 'native-fake';
   if (native && capture.verified !== true) throw new Error('Native capture requires verified private fake-device command line');
   const stage = name => qa.setup.push({ stage: name, at: performance.now() });
   stage('bootstrap');
   const NativePC = window.RTCPeerConnection, NativeWS = window.WebSocket;
+  qa.codecProbe = { requested: codecPreference, source: 'screen', slot: 2, applied: 0, unsupported: 0, rejected: 0, reset_failed: 0 };
+  const configuredTransceivers = new WeakSet();
+  const preferScreenCodec = pc => {
+    // Default does not inspect capabilities or invoke any codec preference API.
+    if (codecPreference !== 'h264') return;
+    const transceiver = pc.getTransceivers()[2];
+    if (!transceiver || transceiver.receiver.track.kind !== 'video' || configuredTransceivers.has(transceiver)) return;
+    configuredTransceivers.add(transceiver);
+    if (typeof transceiver.setCodecPreferences !== 'function' || typeof window.RTCRtpReceiver?.getCapabilities !== 'function') {
+      qa.codecProbe.unsupported++; return;
+    }
+    try {
+      const codecs = window.RTCRtpReceiver.getCapabilities('video')?.codecs || [];
+      const h264 = codec => codec.mimeType.toLowerCase() === 'video/h264';
+      if (!codecs.some(h264)) { qa.codecProbe.unsupported++; return; }
+      // Reorder original capability objects; never change profile-level-id,
+      // packetization-mode, levels or RTX associations. Keep every alternative.
+      transceiver.setCodecPreferences([...codecs.filter(h264), ...codecs.filter(codec => !h264(codec))]);
+      qa.codecProbe.applied++;
+    } catch {
+      qa.codecProbe.rejected++;
+      try { transceiver.setCodecPreferences([]); }
+      catch { qa.codecProbe.reset_failed++; }
+    }
+  };
   window.RTCPeerConnection = class extends NativePC {
     constructor(...args) {
       super(...args); qa.pcs.push(this);
       this.addEventListener('connectionstatechange', () => qa.peerTransitions.push({ at: performance.now(), pc: qa.pcs.indexOf(this), state: this.connectionState }));
+    }
+    addTransceiver(...args) {
+      const transceiver = super.addTransceiver(...args);
+      preferScreenCodec(this);
+      return transceiver;
+    }
+    setRemoteDescription(...args) {
+      const pending = super.setRemoteDescription(...args);
+      if (codecPreference === 'default') return pending;
+      return pending.then(() => {
+        // A remote offer creates native transceivers without addTransceiver().
+        // Set screen preferences before the engine proceeds to create its answer.
+        preferScreenCodec(this);
+      });
     }
   };
   window.WebSocket = class extends NativeWS {
@@ -356,7 +402,7 @@ async function installBrowserHarness(root, sourceProfile, audioGraphMode, captur
   qa.sample = async (stats = true) => {
     const started = performance.now(), snapshot = qa.serial();
     const settings = qa.call?.snapshot.localTracks.screen?.getSettings();
-    return { at: started, setup: [...qa.setup], snapshot, audioState: qa.analysisAudio.state,
+    return { at: started, setup: [...qa.setup], snapshot, codec_probe: { ...qa.codecProbe }, audioState: qa.analysisAudio.state,
       audioClocks: { sender: { currentTime: qa.sendAudio?.currentTime ?? null, state: qa.sendAudio?.state || 'native-capture', sampleRate: qa.sendAudio?.sampleRate ?? null },
         analyser: { currentTime: qa.analysisAudio.currentTime, state: qa.analysisAudio.state, sampleRate: qa.analysisAudio.sampleRate }, separate: qa.sendAudio !== qa.analysisAudio,
         sender_clock_scope: native ? 'No WebAudio sender clock; native capture duration is exposed by RTP media_source totalSamplesDuration when available' : 'WebAudio generated-source context' },
@@ -510,7 +556,7 @@ async function makeBrowser(index) {
   }
   await until(async () => browser.client.evaluate(`location.origin === ${JSON.stringify(new URL(web).origin)} && document.readyState === 'complete'`), `Chrome ${index} loaded loopback fixture`);
   await browser.client.evaluate(`localStorage.setItem('harmony.capacity.isolation',${JSON.stringify(runId + ':' + index)});true`);
-  await browser.client.evaluate(`(${installBrowserHarness.toString()})(${JSON.stringify(engineRoot)},${JSON.stringify({ width, height, fps })},${JSON.stringify(audioMode)},${JSON.stringify({ mode: mediaSource, verified: browser.nativeVerified === true, frequency: frequencies[index], video: nativeFake && index === 0 })})`, true, 90_000);
+  await browser.client.evaluate(`(${installBrowserHarness.toString()})(${JSON.stringify(engineRoot)},${JSON.stringify({ width, height, fps })},${JSON.stringify(audioMode)},${JSON.stringify({ mode: mediaSource, verified: browser.nativeVerified === true, frequency: frequencies[index], video: nativeFake && index === 0 })},${JSON.stringify(videoCodec)})`, true, 90_000);
   report.checks.push(`Chrome ${index} loaded modules and has a running AudioContext`);
   return browser;
 }

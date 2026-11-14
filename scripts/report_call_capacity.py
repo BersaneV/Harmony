@@ -23,7 +23,7 @@ def main():
         return
     result = json.loads(path.read_text())
     emit("capacity_report", {**select(result, (
-        "status", "functional_status", "quality_status", "moderation_status", "error",
+        "status", "functional_status", "quality_status", "moderation_status", "error", "video_codec_preference", "video_codec_scope",
     )), "requested": select(result.get("requested") or {}, (
         "seconds", "settling_seconds", "height", "width", "fps", "minimum_average_fps", "bitrate_per_viewer",
         "minimum_nonconcealed_audio_wall_ratio", "maximum_audio_concealment_ratio", "minimum_audio_rms",
@@ -94,6 +94,7 @@ def main():
             continue
         clocks = client.get("audioClocks") or {}
         emit("client", {"client": index, "state": (client.get("snapshot") or {}).get("state"),
+                        "codec_probe": select(client.get("codec_probe") or {}, ("requested", "source", "slot", "applied", "unsupported", "rejected", "reset_failed")),
                         "audio_clocks": {side: select(clocks.get(side) or {}, ("currentTime", "state", "sampleRate")) for side in ("sender", "analyser")},
                         "source_settings": select(client.get("sourceSettings") or {}, ("width", "height", "frameRate", "aspectRatio")),
                         "source_preview": select(client.get("sourcePreview") or {}, ("frames", "time", "width", "height")),

@@ -21,6 +21,12 @@ on:
         options: ["0", "30"]
         default: "30"
         required: true
+      codec:
+        description: Test-only screen codec preference (default uses the unmodified production choice)
+        type: choice
+        options: [default, h264]
+        default: default
+        required: true
 
 permissions:
   contents: read
@@ -40,6 +46,7 @@ jobs:
       HARMONY_CAPACITY_HEIGHT: "720"
       HARMONY_CAPACITY_SECONDS: "180"
       HARMONY_CAPACITY_SETTLE_SECONDS: ${{ inputs.settling_seconds }}
+      HARMONY_CAPACITY_VIDEO_CODEC: ${{ inputs.codec }}
       HARMONY_CAPACITY_BROWSER_MODE: processes
       HARMONY_CHROME: /usr/bin/google-chrome
       HARMONY_ENV_FILE: .local/capacity-manual-instance/.env
@@ -77,6 +84,7 @@ jobs:
           case "$HARMONY_CAPACITY_FPS" in 15|30) ;; *) exit 1 ;; esac
           case "$HARMONY_CAPACITY_MEDIA_SOURCE" in native-fake|webaudio-canvas) ;; *) exit 1 ;; esac
           case "$HARMONY_CAPACITY_SETTLE_SECONDS" in 0|30) ;; *) exit 1 ;; esac
+          case "$HARMONY_CAPACITY_VIDEO_CODEC" in default|h264) ;; *) exit 1 ;; esac
           test -x "$HARMONY_CHROME"
           python3 scripts/configure.py --media-transport p2p --directory .local/capacity-manual-instance
       - name: Build only the server and install the locked frontend dependencies

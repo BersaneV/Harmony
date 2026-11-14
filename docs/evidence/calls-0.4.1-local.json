@@ -37,11 +37,11 @@
     "crates/server/src/calls.rs": "0fde3f16e35f5c2dc69640ae8741472559eea7c9338317919ecf407b413e8391",
     "apps/desktop/src/lib/call.ts": "4255301e5234926166be8e4d52f4b2c445957520853a76ef27f431dc7b75c7c3",
     "apps/desktop/src/lib/call.test.ts": "3ad4450eb7b985836b986d9fc2e9a88d6e4b7a6634489707e8b398ee8f4858d6",
-    "scripts/test_call_capacity.mjs": "141a873d1f506d3515311e38cb8ac674153f1411611d81845e41fde38d447a4e",
-    "scripts/report_call_capacity.py": "192846a8a0f2b685053f6d77544771d9dfcfda7cb4aff10bcfacd31c88c12035"
+    "scripts/test_call_capacity.mjs": "2fb71e5c4bb001cbae8548363aa553d8a02d9a879628e8660dacbe990a75d38e",
+    "scripts/report_call_capacity.py": "596455705636d6ffb35fc201c562649f7b2addf9af644838a18ebc0feef35d48"
   },
   "capacity": {
-    "status": "CI_FAILED_PROFILE",
+    "status": "QUALITY_INVESTIGATION",
     "attempts_preserved": "Local oscillator/canvas attempts failed; source/analyser clocks slowed versus wall time. Isolated fake-file probe could read generated WAV only from sandbox-permitted location on macOS. These findings do not establish stable eight-party media.",
     "ci_profile": "Eight separate Chrome processes; native fake inputs; fixed observed30s startup followed by180s steady720p15; minimum12averageFPS; same56+7audio thresholds and2s moderation. Startup transients reported separately, no reconnect/extension. Not720p30.",
     "local_target": "720p30 with at least24averageFPS; physical Windows and WAN remain separate",
@@ -54,7 +54,8 @@
       "max_audio_concealment_ratio": 0.03861465,
       "audio_failed_stream_samples": 9,
       "moderation": "NOT_RUN"
-    }
+    },
+    "experimental_codec_scope": "Optional H264 preference only in the capacity fixture; production codec selection remains unchanged. A probe PASS would not validate unmodified production codec selection."
   },
   "paid_resources_created": false,
   "limits": [
