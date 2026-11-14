@@ -26,8 +26,15 @@ A release [0.2.0](https://github.com/BersaneV/Harmony/releases/tag/v0.2.0) e o c
 
 A [prévia 0.3.0 para Windows x64](https://github.com/BersaneV/Harmony/releases/tag/v0.3.0) foi publicada após a execução [43307922953](https://github.com/BersaneV/Harmony/actions/runs/43307922953), no código `c22bb12fdfe75aaa1b20e6f5382fc4049660e34c`. Assinatura/versão e instalação/remoção passaram no Windows; a assinatura foi repetida localmente no arquivo baixado. A consulta HTTPS pública confirmou atualização de 0.2.0 para 0.3.0 e ausência de atualização para quem já está na 0.3.0. O teste usa o plugin real sem executar a instalação no Mac; a atualização sobre uma instalação física em uso ainda precisa de homologação. Os hashes, relatórios e limites estão em [VALIDATION.md](VALIDATION.md).
 
-## Canal atual: 0.4.0
+## Canal anterior: 0.4.0
 
 A [prévia 0.4.0 para Windows x64](https://github.com/BersaneV/Harmony/releases/tag/v0.4.0) foi publicada após a execução [43486904230](https://github.com/BersaneV/Harmony/actions/runs/43486904230), no código `b106af26f9ed06e579bbaedc16aa75b30d9f9a0d`. O artefato passou por 17 verificações de assinatura/versão e nove de instalação/remoção no Windows CI; a verificação criptográfica foi repetida no download local. O feed público ofereceu 0.4.0 para 0.3.0 e retornou `no_update` para 0.4.0. O alvo Windows no probe é explícito, mas sua execução usa MockRuntime e não instala no Mac. Captura e atualização sobre instalação física em uso continuam sem homologação.
 
 Atualize servidor e clientes juntos ao ativar P2P: o servidor 0.4 em modo P2P recusa a rota LiveKit usada pelos clientes antigos. A configuração e o corte estão em [OPERATIONS.md](OPERATIONS.md), e as evidências completas em [VALIDATION.md](VALIDATION.md).
+
+
+## Canal atual: 0.4.1
+
+A [prévia 0.4.1 para Windows x64](https://github.com/BersaneV/Harmony/releases/tag/v0.4.1) foi publicada após o CI [43579178430](https://github.com/BersaneV/Harmony/actions/runs/43579178430), fonte `2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d`. O instalador tem 4.059.851 bytes e SHA-256 `509e30e8781876caa64ec8b36fc37ddb76bf868924717fd44ca6c109b7ab42bf`. Passou em 17 verificações de assinatura/versão no Windows, nove de instalação/remoção silenciosa e 17 verificações locais após o download. O aplicativo não foi aberto pelo ensaio de instalação.
+
+O canal HTTPS ofereceu a 0.4.1 para um cliente 0.4.0 e retornou `no_update` para 0.4.1. O download público foi aprovado pelo plugin, com alvo Windows x64 explícito, assinatura vinculada à versão e digest igual ao instalador do CI. Os probes usam MockRuntime e não instalam no Mac. Substituição de uma versão em uso e captura em Windows físico continuam sem homologação. Os relatórios públicos e o escopo da prova de oito participantes estão em [VALIDATION.md](VALIDATION.md) e [calls-0.4.1-ci.json](evidence/calls-0.4.1-ci.json).

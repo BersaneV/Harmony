@@ -1,8 +1,8 @@
 {
   "date": "2026-11-14",
   "version": "0.4.1",
-  "status": "RUNTIME_PASS_SIGNED_CI_PENDING",
-  "scope": "Pre-CI checks; eight-party acceptance and publication pending",
+  "status": "PASS_LOCAL_CHECKS_RELEASE_PUBLISHED",
+  "scope": "Local authorization, frontend and independent review checks. CI/runtime/artifact/public-feed evidence is linked separately.",
   "base_commit": "13d08ddd301e582b977db9d8f014fe13e9458db7",
   "authorization": {
     "before": {
@@ -33,7 +33,7 @@
     "changes": "Idempotent native media operations; per-sender negotiated Constrained Baseline42e01f codec inside bounded720p30 envelope; VP8 before raising capture; coordinated late-entry/profile transition and revocation.",
     "build": "PASS"
   },
-  "review": "Independent production and late-entry/profile transition reviewPASS;45engine tests repeated independently. RuntimePASS; signedCI/package/feed pending.",
+  "review": "Independent production and late-entry/profile transition review PASS; 45 engine tests repeated independently. Final production capacity, signed CI, installer and public feed PASS in calls-0.4.1-ci.json.",
   "source_sha256": {
     "crates/server/src/calls.rs": "0fde3f16e35f5c2dc69640ae8741472559eea7c9338317919ecf407b413e8391",
     "apps/desktop/src/lib/call.ts": "8d3c4e47b05cc4158ce32369fa8b463ec79a42033a03dc6c4ab45e13dade0e7a",
@@ -43,7 +43,7 @@
   },
   "capacity": {
     "status": "PASS_720P30_SINGLE_RUNNER",
-    "attempts_preserved": "Local oscillator/canvas attempts failed; source/analyser clocks slowed versus wall time. Isolated fake-file probe could read generated WAV only from sandbox-permitted location on macOS. These findings do not establish stable eight-party media.",
+    "attempts_preserved": "Local oscillator/canvas attempts failed, with slowed source/analyser clocks versus wall time. A later native-file/generated-source Mac attempt also failed quality at the fixed startup boundary. No Mac eight-party quality PASS is claimed; successful capacity evidence is the separate Ubuntu run.",
     "ci_profile": "Eight separate Chrome processes; native fake inputs; fixed observed30s startup followed by180s steady720p15; minimum12averageFPS; same56+7audio thresholds and2s moderation. Startup transients reported separately, no reconnect/extension. Not720p30.",
     "local_target": "720p30 with at least24averageFPS; physical Windows and WAN remain separate",
     "first_ci_run": "https://github.com/BersaneV/Harmony/actions/runs/43568286497",
@@ -56,7 +56,7 @@
       "audio_failed_stream_samples": 9,
       "moderation": "NOT_RUN"
     },
-    "experimental_codec_scope": "Optional H264 preference only in the capacity fixture; production codec selection remains unchanged. A probe PASS would not validate unmodified production codec selection.",
+    "experimental_codec_scope": "Historical test-only H264 override used during investigation. Current production has its own per-sender codec selection; the final production run used no harness override. A historical probe PASS is not acceptance of production.",
     "native_control_pass": {
       "run": "https://github.com/BersaneV/Harmony/actions/runs/43572690856",
       "source_commit": "e93f40ce9b47f27cfa7600e1a8b4bb93b40240f0",
@@ -67,12 +67,13 @@
       "scope": "Earlier production engine with native codec choice; not acceptance of the new codec implementation."
     },
     "production_run": "https://github.com/BersaneV/Harmony/actions/runs/43577516271",
-    "scope": "Actual revised production engine with no fixture codec override;30s observed startup plus180.783s steady720p30; all seven spectators26.7565\u201329.6949displayedFPS;56voice+7screen-audio budgets passed."
+    "scope": "Actual revised production engine with no fixture codec override;30s observed startup plus180.783s steady720p30; all seven spectators26.7565–29.6949displayedFPS;56voice+7screen-audio budgets passed."
   },
   "paid_resources_created": false,
   "limits": [
     "No physical Windows capture/voice acceptance",
     "No new WAN/5G test; user deferred it",
     "No permanent free external host provisioned"
-  ]
+  ],
+  "ci_evidence": "calls-0.4.1-ci.json"
 }

@@ -1,10 +1,9 @@
 {
   "date": "2026-11-14",
   "version": "0.4.1",
-  "status": "RUNTIME_PASS_RELEASE_PENDING",
-  "source_commit": "c2375c3c597c57715424aded01c07f0f79a542f0",
+  "status": "PUBLISHED_WITH_VERIFIED_CI_AND_CAPACITY",
   "capacity_run": "https://github.com/BersaneV/Harmony/actions/runs/43577516271",
-  "signed_ci_run": "https://github.com/BersaneV/Harmony/actions/runs/43577513413",
+  "signed_ci_run": "https://github.com/BersaneV/Harmony/actions/runs/43579178430",
   "source_sha256": {
     "crates/server/src/calls.rs": "0fde3f16e35f5c2dc69640ae8741472559eea7c9338317919ecf407b413e8391",
     "apps/desktop/src/lib/call.ts": "8d3c4e47b05cc4158ce32369fa8b463ec79a42033a03dc6c4ab45e13dade0e7a",
@@ -18,7 +17,7 @@
     "quality_status": "PASS",
     "moderation_status": "PASS",
     "video_codec_preference": "default",
-    "video_codec_scope": "Native codec selection unchanged",
+    "video_codec_scope": "No harness override; production P2PCall selects the negotiated sender codec",
     "requested": {
       "seconds": 180,
       "settling_seconds": 30,
@@ -155,8 +154,8 @@
     "packetization_mode": 1,
     "fixture_codec_override": false
   },
-  "source_scope": "Eight separate Chrome processes and generated WAV/Y4M capture devices on one Ubuntu runner. Production P2PCall/API/WS/SQLite,28 peer pairs,56 directional microphones,one screen-slot video and screen-audio for seven spectators. No external STUN/TURN/LiveKit.",
-  "acceptance_scope": "30 seconds fixed startup recorded separately, then180.783 seconds steady. Rendered FPS subtracts dropped frames; no three-second sample interval had zero displayed video progress. Inbound audio progress/energy and concealment budgets passed in every steady interval. Startup transients were retained and are not a quality PASS.",
+  "source_scope": "Eight separate Chrome processes and generated WAV/Y4M capture devices on one Ubuntu runner. Y4M video came from a fake camera published in the screen slot; this eight-party run did not invoke getDisplayMedia. Production P2PCall/API/WS/SQLite, 28 peer pairs, 56 directional microphones, one screen-slot video and screen-audio for seven spectators. No external STUN/TURN/LiveKit.",
+  "acceptance_scope": "30 seconds fixed startup recorded separately, then 180.783 seconds steady. Rendered FPS subtracts dropped frames; no observed interval at nominal three-second sampling cadence had zero displayed video progress. This does not exclude shorter interruptions within an interval. Inbound audio progress/energy and concealment budgets passed in every steady interval. Startup audio and video transients were retained and are not a quality PASS.",
   "frontend": {
     "tests": 114,
     "engine_tests": 45,
@@ -165,10 +164,41 @@
     "independent_review": "PASS"
   },
   "artifact": {
-    "status": "PENDING"
+    "status": "PASS",
+    "source_commit": "2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d",
+    "name": "Harmony_0.4.1_x64-setup.exe",
+    "bytes": 4059851,
+    "sha256": "509e30e8781876caa64ec8b36fc37ddb76bf868924717fd44ca6c109b7ab42bf",
+    "release": "https://github.com/BersaneV/Harmony/releases/tag/v0.4.1",
+    "download": "https://github.com/BersaneV/Harmony/releases/download/v0.4.1/Harmony_0.4.1_x64-setup.exe",
+    "windows_signature_checks": 17,
+    "windows_installation_checks": 9,
+    "local_signature_checks": 17,
+    "installation_scope": "Silent NSIS install/uninstall on disposable Windows runner; app not launched; no physical UI/media/updater replacement acceptance",
+    "signing_scope": "Ed25519 updater signature bound to version; not Authenticode"
   },
   "update_channel": {
-    "status": "PENDING"
+    "status": "PASS",
+    "upgrade": {
+      "artifact_sha256": "509e30e8781876caa64ec8b36fc37ddb76bf868924717fd44ca6c109b7ab42bf",
+      "artifact_url": "https://github.com/BersaneV/Harmony/releases/download/v0.4.1/Harmony_0.4.1_x64-setup.exe",
+      "bytes": 4059851,
+      "current_version": "0.4.0",
+      "feed": "https://github.com/BersaneV/Harmony/releases/download/update-channel/latest.json",
+      "passed": true,
+      "public_key_text_sha256": "812f8eb416393329f0bbc25002ff193d741ce50f68f12a5673297665914871da",
+      "scope": "real HTTPS check/download and official signature/version verification; MockRuntime selecting Windows x64; no installation",
+      "status": "verified",
+      "version": "0.4.1"
+    },
+    "current": {
+      "current_version": "0.4.1",
+      "expected_release": "0.4.1",
+      "feed": "https://github.com/BersaneV/Harmony/releases/download/update-channel/latest.json",
+      "passed": true,
+      "scope": "real HTTPS check; MockRuntime selecting Windows x64; no installation",
+      "status": "no_update"
+    }
   },
   "paid_resources_created": false,
   "not_verified": [
@@ -188,5 +218,212 @@
     "local_real_caddy": "PASS",
     "independent_real_caddy": "PASS",
     "test_source_sha256": "11f45d0694a6c15ffa53fb1efbca23994b77f3a10bcaac757724f223c63a74b8"
+  },
+  "capacity_source_commit": "c2375c3c597c57715424aded01c07f0f79a542f0",
+  "release_source_commit": "2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d",
+  "signed_ci_status": "PASS",
+  "startup_viewers": [
+    {
+      "receiver": 1,
+      "observed_intervals": 10,
+      "exact_size_intervals": 10,
+      "first_exact_elapsed_seconds": 3.156463441,
+      "first_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "final_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "minimum_fps": 5.100204008160309
+    },
+    {
+      "receiver": 2,
+      "observed_intervals": 10,
+      "exact_size_intervals": 10,
+      "first_exact_elapsed_seconds": 3.156463441,
+      "first_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "final_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "minimum_fps": 16.876619854137726
+    },
+    {
+      "receiver": 3,
+      "observed_intervals": 10,
+      "exact_size_intervals": 8,
+      "first_exact_elapsed_seconds": 10.492596856999999,
+      "first_size": {
+        "width": 640,
+        "height": 360
+      },
+      "final_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "minimum_fps": 23.787624092105727
+    },
+    {
+      "receiver": 4,
+      "observed_intervals": 10,
+      "exact_size_intervals": 8,
+      "first_exact_elapsed_seconds": 10.492596856999999,
+      "first_size": {
+        "width": 640,
+        "height": 360
+      },
+      "final_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "minimum_fps": 23.891857906318766
+    },
+    {
+      "receiver": 5,
+      "observed_intervals": 10,
+      "exact_size_intervals": 10,
+      "first_exact_elapsed_seconds": 3.156463441,
+      "first_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "final_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "minimum_fps": 22.73576678709364
+    },
+    {
+      "receiver": 6,
+      "observed_intervals": 10,
+      "exact_size_intervals": 6,
+      "first_exact_elapsed_seconds": 17.023636550000003,
+      "first_size": {
+        "width": 640,
+        "height": 360
+      },
+      "final_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "minimum_fps": 0.5999340072591994
+    },
+    {
+      "receiver": 7,
+      "observed_intervals": 10,
+      "exact_size_intervals": 10,
+      "first_exact_elapsed_seconds": 3.156463441,
+      "first_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "final_size": {
+        "width": 1280,
+        "height": 720
+      },
+      "minimum_fps": 9.883494564078008
+    }
+  ],
+  "integrated_capacity_15fps": {
+    "source_commit": "2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d",
+    "status": "PASS",
+    "requested": {
+      "seconds": 180,
+      "settling_seconds": 30,
+      "height": 720,
+      "width": 1280,
+      "fps": 15,
+      "minimum_average_fps": 12,
+      "bitrate_per_viewer": 4000000,
+      "minimum_nonconcealed_audio_wall_ratio": 0.8,
+      "maximum_audio_concealment_ratio": 0.02,
+      "minimum_audio_rms": 0.03
+    },
+    "startup": {
+      "state": "RECORDED",
+      "requested_seconds": 30,
+      "duration_seconds": 30.000940424,
+      "boundary_ready": true,
+      "audio_stream_samples": 630,
+      "outside_steady_budget_samples": 0,
+      "minimum_nonconcealed_wall_ratio": 0.989504912794084,
+      "maximum_concealment_ratio": 0.009532232704402515,
+      "minimum_rms": 0.2002827983881032
+    },
+    "stability": {
+      "duration_seconds": 180.037329605,
+      "directed_voice_streams": 56,
+      "pairwise_connections": 28,
+      "spectators": 7,
+      "source_average_draw_fps": null,
+      "native_source_average_preview_fps": 15.002105071389124,
+      "min_audio_playback_advance_ratio": 0.993871527209614,
+      "min_nonconcealed_audio_wall_ratio": 0.9926417185072902,
+      "max_audio_concealment_ratio": 0.005924267100977198,
+      "min_audio_rms": 0.2009520382094232,
+      "audio_interval_failures": 0,
+      "zero_size_intervals": 0,
+      "frozen_intervals": 0
+    },
+    "minimum_average_displayed_fps": 14.996092684739363,
+    "maximum_average_displayed_fps": 15.002421716352586,
+    "moderation": [
+      {
+        "name": "Mute stops the target media on all eight clients",
+        "elapsed_ms": 32.99409699998796
+      },
+      {
+        "name": "Unmute restores publication permission",
+        "elapsed_ms": 188.365163999988
+      },
+      {
+        "name": "PUBLISH deny stops publication without removing listener",
+        "elapsed_ms": 314.21773000000394
+      },
+      {
+        "name": "PUBLISH restore reaches the existing call",
+        "elapsed_ms": 476.16134500000044
+      },
+      {
+        "name": "CONNECT deny closes target and removes it from seven peers",
+        "elapsed_ms": 327.1700060000003
+      },
+      {
+        "name": "password reset",
+        "elapsed_ms": 451.40022599999793
+      }
+    ]
+  },
+  "server_checks": {
+    "status": "PASS",
+    "rust_tests": 40,
+    "clippy": "PASS",
+    "protocol_checks": 59,
+    "three_browser_rtc_checks": 54,
+    "eight_party_checks": 387,
+    "acl_checks": 103,
+    "local_storage_checks": 29,
+    "media_worker_checks": 51,
+    "worker_sandbox_checks": 6,
+    "discovery_checks": 30,
+    "diagnostic_browser_checks": 34,
+    "supervised_deployment": "PASS (API and worker, private tmpfs, directory backup/restore and restart; not independent-host recovery)"
+  },
+  "pilot": {
+    "status": "PASS",
+    "public_url": "https://functional-policies-independently-fit.trycloudflare.com",
+    "observed_at": "2026-11-14T09:15:15Z",
+    "version": "0.4.1",
+    "media_transport": "p2p",
+    "public_asset_files_matched": 13,
+    "public_asset_bytes_matched": 1204869,
+    "configuration_unchanged": true,
+    "configuration_sha256": "c9b29522176c34b4d6a8bb7525c282a551ae150c79f6983a8f492b366660ef5c",
+    "scope": "Temporary existing Mac and tunnel; not a permanent external host"
   }
 }

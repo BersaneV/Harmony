@@ -1,6 +1,6 @@
 # Harmony
 
-[Baixar a prévia 0.4.0 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.4.0/Harmony_0.4.0_x64-setup.exe) · [Notas e relatórios da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.4.0). O cliente precisa do endereço de uma instância Harmony. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
+[Baixar a prévia 0.4.1 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.4.1/Harmony_0.4.1_x64-setup.exe) · [Notas e relatórios da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.4.1). O cliente precisa do endereço de uma instância Harmony. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
 
 Comunidades, conversas e compartilhamento de tela em uma plataforma open source, hospedada por você. Cliente Windows com Tauri 2, React e TypeScript; servidor Rust com SQLite, arquivos locais privados e chamadas WebRTC P2P; LiveKit opcional.
 
@@ -71,7 +71,7 @@ flowchart LR
   Client <-.->|Modo LiveKit explícito| SFU
 ```
 
-A arquitetura anterior está preservada no histórico e nos arquivos `arquitetura-v1.*`. O desenho acima representa o perfil simplificado atual. Na versão 0.4.0, as chamadas reais usam P2P por padrão, sem prazo de dois minutos. O LiveKit fica no perfil opcional `sfu`. Conexões diretas podem falhar em redes restritivas e o upload cresce por espectador. [Banco/migração](docs/EMBEDDED-DATABASE.md), [arquivos locais](docs/LOCAL-STORAGE.md) e [chamadas P2P](docs/P2P-CALLS.md) detalham os limites.
+A arquitetura anterior está preservada no histórico e nos arquivos `arquitetura-v1.*`. O desenho acima representa o perfil simplificado atual. Desde a versão 0.4.0, as chamadas reais usam P2P por padrão, sem prazo de dois minutos. A 0.4.1 corrige a contenção na autorização e passou no ensaio de oito participantes com voz e uma transmissão em 720p/30 FPS, nas condições registradas em [VALIDATION.md](docs/VALIDATION.md). O LiveKit fica no perfil opcional `sfu`. Conexões diretas podem falhar em redes restritivas e o upload cresce por espectador. [Banco/migração](docs/EMBEDDED-DATABASE.md), [arquivos locais](docs/LOCAL-STORAGE.md) e [chamadas P2P](docs/P2P-CALLS.md) detalham os limites.
 
 ## Licença e custos
 
