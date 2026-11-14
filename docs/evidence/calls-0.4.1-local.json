@@ -1,7 +1,7 @@
 {
   "date": "2026-11-14",
   "version": "0.4.1",
-  "status": "CORE_PASS_CAPACITY_PENDING",
+  "status": "RUNTIME_PASS_SIGNED_CI_PENDING",
   "scope": "Pre-CI checks; eight-party acceptance and publication pending",
   "base_commit": "13d08ddd301e582b977db9d8f014fe13e9458db7",
   "authorization": {
@@ -33,7 +33,7 @@
     "changes": "Idempotent native media operations; per-sender negotiated Constrained Baseline42e01f codec inside bounded720p30 envelope; VP8 before raising capture; coordinated late-entry/profile transition and revocation.",
     "build": "PASS"
   },
-  "review": "Independent production review PASS after late-entry/profile transition race fix;45engine regression tests repeated independently. Exact revised source still requires real media/CI acceptance.",
+  "review": "Independent production and late-entry/profile transition reviewPASS;45engine tests repeated independently. RuntimePASS; signedCI/package/feed pending.",
   "source_sha256": {
     "crates/server/src/calls.rs": "0fde3f16e35f5c2dc69640ae8741472559eea7c9338317919ecf407b413e8391",
     "apps/desktop/src/lib/call.ts": "8d3c4e47b05cc4158ce32369fa8b463ec79a42033a03dc6c4ab45e13dade0e7a",
@@ -42,7 +42,7 @@
     "scripts/report_call_capacity.py": "392780a968756efb6b9962f388e8bd01848519efd9f6bfefd56447386f262a5c"
   },
   "capacity": {
-    "status": "PRODUCTION_CODEC_RUNTIME_PENDING",
+    "status": "PASS_720P30_SINGLE_RUNNER",
     "attempts_preserved": "Local oscillator/canvas attempts failed; source/analyser clocks slowed versus wall time. Isolated fake-file probe could read generated WAV only from sandbox-permitted location on macOS. These findings do not establish stable eight-party media.",
     "ci_profile": "Eight separate Chrome processes; native fake inputs; fixed observed30s startup followed by180s steady720p15; minimum12averageFPS; same56+7audio thresholds and2s moderation. Startup transients reported separately, no reconnect/extension. Not720p30.",
     "local_target": "720p30 with at least24averageFPS; physical Windows and WAN remain separate",
@@ -65,7 +65,9 @@
       "audio_failed_stream_samples": 0,
       "max_audio_concealment_ratio": 0.00895376,
       "scope": "Earlier production engine with native codec choice; not acceptance of the new codec implementation."
-    }
+    },
+    "production_run": "https://github.com/BersaneV/Harmony/actions/runs/43577516271",
+    "scope": "Actual revised production engine with no fixture codec override;30s observed startup plus180.783s steady720p30; all seven spectators26.7565\u201329.6949displayedFPS;56voice+7screen-audio budgets passed."
   },
   "paid_resources_created": false,
   "limits": [

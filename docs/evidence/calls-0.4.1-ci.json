@@ -1,0 +1,192 @@
+{
+  "date": "2026-11-14",
+  "version": "0.4.1",
+  "status": "RUNTIME_PASS_RELEASE_PENDING",
+  "source_commit": "c2375c3c597c57715424aded01c07f0f79a542f0",
+  "capacity_run": "https://github.com/BersaneV/Harmony/actions/runs/43577516271",
+  "signed_ci_run": "https://github.com/BersaneV/Harmony/actions/runs/43577513413",
+  "source_sha256": {
+    "crates/server/src/calls.rs": "0fde3f16e35f5c2dc69640ae8741472559eea7c9338317919ecf407b413e8391",
+    "apps/desktop/src/lib/call.ts": "8d3c4e47b05cc4158ce32369fa8b463ec79a42033a03dc6c4ab45e13dade0e7a",
+    "apps/desktop/src/lib/call.test.ts": "320020c7beb84173bb1cbd5807653b746c12fdfdf12798b2db9ebd637db20a2d",
+    "scripts/test_call_capacity.mjs": "e8aa7bb65892c8564d81f6be77a12214d6ccea69879e927894560deaa6a0ec2f",
+    "scripts/report_call_capacity.py": "392780a968756efb6b9962f388e8bd01848519efd9f6bfefd56447386f262a5c"
+  },
+  "capacity": {
+    "status": "PASS",
+    "functional_status": "PASS",
+    "quality_status": "PASS",
+    "moderation_status": "PASS",
+    "video_codec_preference": "default",
+    "video_codec_scope": "Native codec selection unchanged",
+    "requested": {
+      "seconds": 180,
+      "settling_seconds": 30,
+      "height": 720,
+      "width": 1280,
+      "fps": 30,
+      "minimum_average_fps": 24,
+      "bitrate_per_viewer": 4000000,
+      "minimum_nonconcealed_audio_wall_ratio": 0.8,
+      "maximum_audio_concealment_ratio": 0.02,
+      "minimum_audio_rms": 0.03
+    }
+  },
+  "startup": {
+    "state": "RECORDED",
+    "requested_seconds": 30,
+    "duration_seconds": 30.004489439000004,
+    "boundary_ready": true,
+    "audio_stream_samples": 630,
+    "outside_steady_budget_samples": 36,
+    "minimum_nonconcealed_wall_ratio": 0.9456162073682459,
+    "maximum_concealment_ratio": 0.059876543209876544,
+    "minimum_rms": 0.19988401656131594
+  },
+  "stability": {
+    "duration_seconds": 180.782547923,
+    "directed_voice_streams": 56,
+    "pairwise_connections": 28,
+    "spectators": 7,
+    "source_average_draw_fps": null,
+    "native_source_average_preview_fps": 29.98679054495087,
+    "min_audio_playback_advance_ratio": 0.989800240217463,
+    "min_nonconcealed_audio_wall_ratio": 0.9864018892558664,
+    "max_audio_concealment_ratio": 0.007186181434599156,
+    "min_audio_rms": 0.20078128842364662,
+    "audio_interval_failures": 0,
+    "zero_size_intervals": 0,
+    "frozen_intervals": 0
+  },
+  "viewers": [
+    {
+      "receiver": 1,
+      "average_fps": 28.559575174244937,
+      "average_received_fps": 29.439097245270496,
+      "dropped_frames": 159,
+      "measurement_seconds": 180.78,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "receiver": 2,
+      "average_fps": 29.6949135290535,
+      "average_received_fps": 29.833209512329642,
+      "dropped_frames": 25,
+      "measurement_seconds": 180.77169999999998,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "receiver": 3,
+      "average_fps": 27.016277805220604,
+      "average_received_fps": 29.96461442892711,
+      "dropped_frames": 533,
+      "measurement_seconds": 180.7799,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "receiver": 4,
+      "average_fps": 29.521434154258202,
+      "average_received_fps": 29.980545834004023,
+      "dropped_frames": 83,
+      "measurement_seconds": 180.78390000000002,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "receiver": 5,
+      "average_fps": 26.756500358173117,
+      "average_received_fps": 29.948251589652525,
+      "dropped_frames": 577,
+      "measurement_seconds": 180.77850000000004,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "receiver": 6,
+      "average_fps": 28.469951672436803,
+      "average_received_fps": 29.067339428532232,
+      "dropped_frames": 108,
+      "measurement_seconds": 180.7871,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "receiver": 7,
+      "average_fps": 27.099611400755073,
+      "average_received_fps": 29.688429146326285,
+      "dropped_frames": 468,
+      "measurement_seconds": 180.7775,
+      "final_width": 1280,
+      "final_height": 720
+    }
+  ],
+  "moderation": [
+    {
+      "name": "Mute stops the target media on all eight clients",
+      "elapsed_ms": 51.938775999995414
+    },
+    {
+      "name": "Unmute restores publication permission",
+      "elapsed_ms": 225.88938999999664
+    },
+    {
+      "name": "PUBLISH deny stops publication without removing listener",
+      "elapsed_ms": 239.77160800001002
+    },
+    {
+      "name": "PUBLISH restore reaches the existing call",
+      "elapsed_ms": 463.4607739999774
+    },
+    {
+      "name": "CONNECT deny closes target and removes it from seven peers",
+      "elapsed_ms": 306.2688770000241
+    },
+    {
+      "name": "password reset",
+      "elapsed_ms": 1158.813915000006
+    }
+  ],
+  "actual_codec": {
+    "mime_type": "video/H264",
+    "profile_level_id": "42e01f",
+    "packetization_mode": 1,
+    "fixture_codec_override": false
+  },
+  "source_scope": "Eight separate Chrome processes and generated WAV/Y4M capture devices on one Ubuntu runner. Production P2PCall/API/WS/SQLite,28 peer pairs,56 directional microphones,one screen-slot video and screen-audio for seven spectators. No external STUN/TURN/LiveKit.",
+  "acceptance_scope": "30 seconds fixed startup recorded separately, then180.783 seconds steady. Rendered FPS subtracts dropped frames; no three-second sample interval had zero displayed video progress. Inbound audio progress/energy and concealment budgets passed in every steady interval. Startup transients were retained and are not a quality PASS.",
+  "frontend": {
+    "tests": 114,
+    "engine_tests": 45,
+    "typecheck": "PASS",
+    "build": "PASS",
+    "independent_review": "PASS"
+  },
+  "artifact": {
+    "status": "PENDING"
+  },
+  "update_channel": {
+    "status": "PENDING"
+  },
+  "paid_resources_created": false,
+  "not_verified": [
+    "physical Windows capture/playback and acoustic quality",
+    "WAN/5G and restrictive NAT; user deferred the cellular test",
+    "physical display/game or system-audio capture with eight people",
+    "multiple simultaneous screens/cameras at eight people",
+    "1440p or60FPS sustained capacity",
+    "permanent free external host",
+    "independent-host restore"
+  ],
+  "native_audio_scope": "Distinct generated microphone tones; owner microphone and screen_audio use the same330Hz fake device file. Separate-source routing is exercised by the existing three-browser suite.",
+  "ci_fixture_retry": {
+    "failed_run": "https://github.com/BersaneV/Harmony/actions/runs/43577513413",
+    "reason": "Caddy fixture readiness; original cause unavailable after temporary log cleanup",
+    "fix_scope": "Test-only CA/autosave isolation, bounded readiness and retained sanitized diagnostics",
+    "local_real_caddy": "PASS",
+    "independent_real_caddy": "PASS",
+    "test_source_sha256": "11f45d0694a6c15ffa53fb1efbca23994b77f3a10bcaac757724f223c63a74b8"
+  }
+}

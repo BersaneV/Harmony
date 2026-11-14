@@ -75,8 +75,16 @@ def proxy_header(port, source="203.0.113.77"):
             + struct.pack("!HH", 43210, port))
 
 
-def request(port, host, path, headers=None, *, tls=False, proxy=False, method="GET", body=b""):
-    raw = socket.create_connection(("127.0.0.1", port), timeout=4)
+def request(port, host, path, headers=None, *, tls=False, proxy=False, method="GET", body=b"", deadline=None):
+    def remaining():
+        if deadline is None:
+            return 4
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise TimeoutError("Isolated route readiness deadline elapsed")
+        return min(4, left)
+
+    raw = socket.create_connection(("127.0.0.1", port), timeout=remaining())
     try:
         if proxy:
             raw.sendall(proxy_header(port))
@@ -85,11 +93,15 @@ def request(port, host, path, headers=None, *, tls=False, proxy=False, method="G
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
+            raw.settimeout(remaining())
             raw = ctx.wrap_socket(raw, server_hostname=host)
         fields = {"Host": host, "Connection": "close", "Content-Length": str(len(body)), **(headers or {})}
+        raw.settimeout(remaining())
         raw.sendall((f"{method} {path} HTTP/1.1\r\n" + "".join(f"{key}: {value}\r\n" for key, value in fields.items()) + "\r\n").encode() + body)
         response = http.client.HTTPResponse(raw)
+        raw.settimeout(remaining())
         response.begin()
+        raw.settimeout(remaining())
         return response.status, response.read().decode()
     finally:
         raw.close()
@@ -121,7 +133,10 @@ class MediaProxyIntegration(unittest.TestCase):
         edge = free_port(used)
         config = copy.deepcopy(configure.configuration("example.test", media_transport="livekit")[3])
         config["apps"]["http"]["servers"]["web"]["routes"][1]["handle"][0]["max_size"] = 128
-        config["admin"] = {"disabled": True}
+        config["admin"] = {"disabled": True, "config": {"persist": False}}
+        # This fixture never needs a trusted root on the host. TLS uses its
+        # temporary CA; chain verification is disabled only for this loopback test.
+        config["apps"]["pki"] = {"certificate_authorities": {"local": {"install_trust": False}}}
         config["apps"]["tls"]["automation"] = {"policies": [{"issuers": [{"module": "internal"}]}]}
         for server in config["apps"]["http"]["servers"].values():
             server["automatic_https"] = {"disable": True}
@@ -140,16 +155,42 @@ class MediaProxyIntegration(unittest.TestCase):
                 path.write_text(json.dumps(config))
                 with (directory / "caddy.log").open("w") as log:
                     process = subprocess.Popen([self.caddy, "run", "--config", str(path)], stdout=log, stderr=log)
-                    for _ in range(60):
+                    started = time.monotonic()
+                    deadline = started + 30
+                    last_status, last_exception = None, None
+                    ready = False
+                    while time.monotonic() < deadline:
+                        if process.poll() is not None:
+                            break
                         try:
-                            if request(edge, "media.example.test", "/rtc?access_token=allowed", tls=True)[0] == 200:
+                            last_status = request(edge, "media.example.test", "/rtc?access_token=allowed", tls=True, deadline=deadline)[0]
+                            if last_status == 200:
+                                ready = True
                                 break
-                        except (OSError, http.client.HTTPException, ssl.SSLError):
-                            if process.poll() is not None:
-                                self.fail("Isolated Caddy process exited before readiness")
-                            time.sleep(0.1)
-                    else:
-                        self.fail("Caddy did not start the isolated route")
+                        except (OSError, http.client.HTTPException, ssl.SSLError) as error:
+                            last_exception = type(error).__name__
+                        # Also pause on a successful connection with non-200
+                        # status; startup must not become a tight request loop.
+                        time.sleep(min(0.1, max(0, deadline - time.monotonic())))
+                    if not ready:
+                        log.flush()
+                        print(json.dumps({"kind": "caddy_fixture_readiness", "status": "FAIL",
+                                          "elapsed_seconds": time.monotonic() - started, "process_exit": process.poll(),
+                                          "last_http_status": last_status, "last_exception": last_exception}), flush=True)
+                        # Keep bounded, whitelisted diagnostics before TemporaryDirectory
+                        # removes the file. Never emit raw configuration, headers or keys.
+                        with (directory / "caddy.log").open("rb") as diagnostic:
+                            diagnostic.seek(max(0, diagnostic.seek(0, 2) - 32_768))
+                            lines = diagnostic.read().decode(errors="replace").splitlines()[-12:]
+                        for line in lines:
+                            try:
+                                record = json.loads(line)
+                            except ValueError:
+                                continue
+                            safe = {key: str(record[key]).replace(str(directory), "<fixture>")[:400]
+                                    for key in ("level", "logger", "msg", "error") if key in record}
+                            print(json.dumps({"kind": "caddy_fixture_log", **safe}), flush=True)
+                        self.fail("Caddy did not start the isolated route; bounded diagnostics printed above")
                     for label, token, headers, expected in [
                         ("query allows", "allowed", {}, 200),
                         ("query denies", "blocked", {}, 401),
