@@ -126,23 +126,11 @@ jobs:
           done
           capacity_status=0
           HARMONY_TEST_URL=http://127.0.0.1:8081 HARMONY_CALL_REPORT=.local/capacity-ci-result.json python3 scripts/with-env.py node scripts/test_call_capacity.mjs || capacity_status=$?
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          result = json.loads(Path('.local/capacity-ci-result.json').read_text())
-          print(json.dumps({
-              'status': result['status'], 'functional': result['functional_status'],
-              'quality': result['quality_status'], 'moderation': result['moderation_status'],
-              'requested': result['requested'], 'stability': result.get('stability'),
-              'moderation_timings': result['moderation'], 'error': result.get('error'),
-              'last_interval': result.get('intervals', [])[-1:],
-              'last_clients': [{
-                  'audio_clocks': c['audioClocks'], 'rtp': c['rtp'],
-                  'source_settings': c['sourceSettings'], 'capture_errors': c['captureErrors'],
-              } for c in (result.get('samples') or [{}])[-1].get('clients', [])],
-          }))
-          PY
+          python3 scripts/report_call_capacity.py .local/capacity-ci-result.json
           exit "$capacity_status"
+      - name: Eight-party capacity diagnostics
+        if: always()
+        run: python3 scripts/report_call_capacity.py .local/capacity-ci-result.json
       - name: Build and exercise the supervised deployment
         run: |
           docker rm -f harmony-livekit

@@ -643,7 +643,8 @@ async function stableMeasurement() {
   report.functional_status = functional.every(Boolean) ? 'PASS' : 'FAIL';
   report.quality_status = quality.every(Boolean) && viewers.every(v => v.average_fps >= minimumFps) ? 'PASS' : 'FAIL';
   // Quality is recorded independently; never skip the security gates because of it.
-  check(report.functional_status === 'PASS', '56 audio streams and seven videos progress throughout the stable interval');
+  if (report.functional_status === 'PASS') report.checks.push('56 audio streams and seven videos progress throughout the stable interval');
+  else report.measurement_failures = ['56 audio streams and seven videos must progress throughout the stable interval'];
   safeProgress('stable media measured; moderation follows');
 }
 

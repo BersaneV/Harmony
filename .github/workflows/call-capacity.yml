@@ -1,0 +1,146 @@
+name: Manual eight-party call capacity
+
+on:
+  workflow_dispatch:
+    inputs:
+      fps:
+        description: Requested 720p FPS (minimum displayed average is 80 percent)
+        type: choice
+        options: ["15", "30"]
+        default: "15"
+        required: true
+      source:
+        description: Generated media source (never physical devices)
+        type: choice
+        options: [native-fake, webaudio-canvas]
+        default: native-fake
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-call-capacity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capacity:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      HARMONY_CAPACITY_FPS: ${{ inputs.fps }}
+      HARMONY_CAPACITY_MEDIA_SOURCE: ${{ inputs.source }}
+      HARMONY_CAPACITY_HEIGHT: "720"
+      HARMONY_CAPACITY_SECONDS: "180"
+      HARMONY_CAPACITY_BROWSER_MODE: processes
+      HARMONY_CHROME: /usr/bin/google-chrome
+      HARMONY_ENV_FILE: .local/capacity-manual-instance/.env
+      HARMONY_TEST_URL: http://127.0.0.1:8081
+      HARMONY_WEB_URL: http://127.0.0.1:1420
+      HARMONY_CALL_REPORT: .local/capacity-ci-result.json
+      DATABASE_URL: sqlite:.local/capacity-manual-instance/harmony.db
+      HARMONY_STORAGE_BACKEND: local
+      HARMONY_STORAGE_DIR: .local/capacity-manual-instance/files
+      HARMONY_BIND: 127.0.0.1:8081
+      HARMONY_PUBLIC_API_URL: http://127.0.0.1:8081
+      HARMONY_PUBLIC_ORIGIN: http://127.0.0.1:8081,http://127.0.0.1:1420
+      HARMONY_MEDIA_TRANSPORT: p2p
+      HARMONY_P2P_DIAGNOSTICS: "false"
+      HARMONY_CALL_STUN_URLS: ""
+      HARMONY_P2P_STUN_URLS: ""
+      HARMONY_MAX_ROOM_PARTICIPANTS: "8"
+      LIVEKIT_URL: ""
+      LIVEKIT_API_URL: ""
+      LIVEKIT_API_KEY: ""
+      LIVEKIT_API_SECRET: ""
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: {node-version: "26.13.0"}
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with: {toolchain: "1.99.1"}
+      - name: Validate inputs and create private disposable configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          case "$HARMONY_CAPACITY_FPS" in 15|30) ;; *) exit 1 ;; esac
+          case "$HARMONY_CAPACITY_MEDIA_SOURCE" in native-fake|webaudio-canvas) ;; *) exit 1 ;; esac
+          test -x "$HARMONY_CHROME"
+          python3 scripts/configure.py --media-transport p2p --directory .local/capacity-manual-instance
+      - name: Build only the server and install the locked frontend dependencies
+        run: |
+          cargo build --locked --package harmony-server --bin harmony-server
+          npm ci
+      - name: Measure eight isolated clients for 180 seconds
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          capacity_pid=
+          web_pid=
+          cleanup() {
+            status=$?
+            trap - EXIT INT TERM
+            for pid in "$capacity_pid" "$web_pid"; do
+              if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; fi
+            done
+            for pid in "$capacity_pid" "$web_pid"; do
+              if [ -n "$pid" ]; then
+                for attempt in $(seq 1 20); do
+                  if ! kill -0 "$pid" 2>/dev/null; then break; fi
+                  sleep 0.1
+                done
+                kill -KILL "$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+              fi
+            done
+            exit "$status"
+          }
+          trap cleanup EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          python3 - <<'PY'
+          import socket
+          for port in (8081, 1420):
+              with socket.socket() as probe:
+                  probe.bind(('127.0.0.1', port))
+          PY
+          python3 scripts/with-env.py target/debug/harmony-server > .local/capacity-manual-server.private.log 2>&1 &
+          capacity_pid=$!
+          node node_modules/vite/bin/vite.js apps/desktop --host 127.0.0.1 --port 1420 --strictPort > .local/capacity-manual-vite.private.log 2>&1 &
+          web_pid=$!
+          ready=false
+          for attempt in $(seq 1 60); do
+            if ! kill -0 "$capacity_pid" 2>/dev/null || ! kill -0 "$web_pid" 2>/dev/null; then break; fi
+            if curl --max-time 2 -fsS http://127.0.0.1:8081/health > /dev/null 2>&1 && curl --max-time 2 -fsS http://127.0.0.1:1420/ > /dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            printf '%s\n' '{"stage":"capacity_readiness","status":"FAIL","reason":"Owned loopback API or Vite did not become ready"}'
+            exit 1
+          fi
+          python3 scripts/with-env.py node scripts/test_call_capacity.mjs
+      - name: Print bounded public capacity diagnostics on success or failure
+        if: always()
+        shell: bash
+        run: |
+          if [ -f scripts/report_call_capacity.py ]; then
+            python3 scripts/report_call_capacity.py .local/capacity-ci-result.json
+          else
+            printf '%s\n' '{"stage":"capacity_summary","status":"NOT_RUN","reason":"Report helper unavailable after checkout failure"}'
+            exit 1
+          fi
+      - name: Remove disposable credentials and server data
+        if: always()
+        shell: bash
+        run: |
+          rm -rf -- .local/capacity-manual-instance
+          rm -f -- .local/capacity-manual-server.private.log .local/capacity-manual-vite.private.log
