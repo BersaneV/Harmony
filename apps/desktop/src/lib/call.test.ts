@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { P2PCall, type CallEnvironment, type CallParticipant } from "./call";
 import type { Session } from "./types";
+import type { StreamProfile } from "./stream";
 
 vi.mock("./api", () => ({
   getServer: vi.fn(),
@@ -37,6 +38,43 @@ const session = (revision = 1): Session => ({
   },
 });
 let sequence = 0;
+type Codec = Pick<
+  RTCRtpCodecParameters,
+  "mimeType" | "clockRate" | "channels" | "sdpFmtpLine"
+>;
+type SendParameters = Omit<RTCRtpSendParameters, "encodings"> & {
+  encodings: (RTCRtpEncodingParameters & { codec?: Codec })[];
+};
+const videoCodecs: RTCRtpCodecParameters[] = [
+  { mimeType: "video/VP8", clockRate: 90_000, payloadType: 96 },
+  {
+    mimeType: "video/rtx",
+    clockRate: 90_000,
+    payloadType: 97,
+    sdpFmtpLine: "apt=96",
+  },
+  {
+    mimeType: "video/H264",
+    clockRate: 90_000,
+    payloadType: 98,
+    sdpFmtpLine:
+      "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f",
+  },
+  {
+    mimeType: "video/H264",
+    clockRate: 90_000,
+    payloadType: 99,
+    sdpFmtpLine:
+      "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+  },
+];
+const screenProfile: StreamProfile = {
+  height: 720,
+  fps: 30,
+  bitrate: 4,
+  content: "motion",
+  audio: true,
+};
 class Track extends EventTarget {
   id = `track_${++sequence}`;
   readyState = "live";
@@ -46,6 +84,7 @@ class Track extends EventTarget {
   onunmute = null;
   onended = null;
   settings: MediaTrackSettings;
+  onConstraints?: (constraints: MediaTrackConstraints) => void | Promise<void>;
   constructor(public kind: string) {
     super();
     this.settings = kind === "video" ? { width: 1920, height: 1080 } : {};
@@ -61,6 +100,7 @@ class Track extends EventTarget {
     return this.settings;
   }
   async applyConstraints(constraints: MediaTrackConstraints) {
+    await this.onConstraints?.(constraints);
     for (const key of ["width", "height", "frameRate"] as const) {
       const value = constraints[key];
       if (value && typeof value === "object" && value.max)
@@ -73,7 +113,7 @@ class Track extends EventTarget {
 }
 class Sender {
   track: MediaStreamTrack | null = null;
-  parameters: RTCRtpSendParameters = {
+  parameters: SendParameters = {
     encodings: [{}],
     codecs: [],
     headerExtensions: [],
@@ -81,11 +121,19 @@ class Sender {
     transactionId: "test",
   };
   hold?: Promise<void>;
+  parameterHold?: Promise<void>;
+  codecBehavior: "supported" | "ignored" | "rejected" = "supported";
   rejectParameters = false;
   replacementCalls: (MediaStreamTrack | null)[] = [];
+  replacements: {
+    track: MediaStreamTrack | null;
+    parameters: SendParameters;
+  }[] = [];
+  parameterHistory: SendParameters[] = [];
   parameterCalls = 0;
   async replaceTrack(track: MediaStreamTrack | null) {
     this.replacementCalls.push(track);
+    this.replacements.push({ track, parameters: this.getParameters() });
     const hold = track ? this.hold : undefined;
     this.hold = undefined;
     if (hold) await hold;
@@ -94,13 +142,32 @@ class Sender {
   getParameters() {
     return structuredClone(this.parameters);
   }
-  async setParameters(value: RTCRtpSendParameters) {
+  async setParameters(value: SendParameters) {
     this.parameterCalls++;
+    this.parameterHistory.push(structuredClone(value));
     if (this.rejectParameters) throw new Error("Parameters unsupported");
-    this.parameters = value;
+    // A browser must reject edits to its negotiated codec list.
+    expect(value.codecs).toEqual(this.parameters.codecs);
+    const hold = this.parameterHold;
+    this.parameterHold = undefined;
+    if (hold) await hold;
+    if (
+      this.codecBehavior === "rejected" &&
+      value.encodings.some(
+        (encoding, i) =>
+          JSON.stringify(encoding.codec) !==
+          JSON.stringify(this.parameters.encodings[i]?.codec),
+      )
+    )
+      throw new Error("Codec selection unsupported");
+    const applied = structuredClone(value);
+    if (this.codecBehavior === "ignored")
+      for (const encoding of applied.encodings) delete encoding.codec;
+    this.parameters = applied;
   }
 }
 class Peer {
+  constructor(private codecs: RTCRtpCodecParameters[] = []) {}
   connectionState = "connected";
   signalingState = "stable";
   localDescription: {
@@ -129,6 +196,8 @@ class Peer {
     const sender = new Sender();
     sender.track = typeof value === "string" ? null : value;
     sender.parameters.encodings = options?.sendEncodings ?? [{}];
+    if (this.slots.length === 2)
+      sender.parameters.codecs = structuredClone(this.codecs);
     const transceiver = {
       sender,
       receiver: {
@@ -205,8 +274,16 @@ class Socket extends EventTarget {
 }
 const flush = () => vi.advanceTimersByTimeAsync(0);
 const active: P2PCall[] = [];
-function setup() {
+function setup(
+  options: {
+    self?: string;
+    codecs?: RTCRtpCodecParameters[];
+    maxBitrate?: number;
+  } = {},
+) {
   let auth: Session | null = session();
+  const self = options.self ?? "a";
+  auth.user.id = `user_${self}`;
   const listeners = new Set<(value: Session | null) => void>();
   const peers: Peer[] = [],
     sockets: Socket[] = [];
@@ -226,7 +303,7 @@ function setup() {
       return socket.ws();
     },
     peer: () => {
-      const peer = new Peer();
+      const peer = new Peer(options.codecs);
       peers.push(peer);
       return peer.rtc();
     },
@@ -248,10 +325,10 @@ function setup() {
       socket.open();
       socket.receive({
         type: "ready",
-        peer_id: "a",
+        peer_id: self,
         channel_id: "channel",
         max_participants: 12,
-        max_video_bitrate: 8_000_000,
+        max_video_bitrate: options.maxBitrate ?? 8_000_000,
         ice_servers: [],
         participants,
       });
@@ -673,5 +750,571 @@ describe("real call negotiation and measured controls", () => {
     peer.statsFailure = true;
     await vi.advanceTimersByTimeAsync(1500);
     expect(test.call.snapshot.participants[0].stats.received).toEqual({});
+  });
+});
+
+const description = async (
+  socket: Socket,
+  from = "b",
+  type: "answer" | "offer" = "answer",
+) => {
+  socket.receive({
+    type: "signal",
+    from,
+    data: { description: { type, sdp } },
+  });
+  await flush();
+};
+const codecOf = (sender: Sender) => sender.parameters.encodings[0]?.codec;
+
+describe("screen codec selection per negotiated sender", () => {
+  it("selects only Constrained Baseline before the first screen frame and preserves negotiated codecs", async () => {
+    const test = setup({ codecs: videoCodecs });
+    const socket = await test.connect();
+    await test.call.setScreenProfile(screenProfile);
+    const track = new Track("video");
+    track.enabled = false;
+    await test.call.setTrack("screen", track.media());
+    const peer = test.peers[0],
+      sender = peer.slots[2].sender;
+    expect(sender.track).toBeNull(); // The initial answer has not arrived.
+    await description(socket);
+    expect(sender.track).toBe(track);
+    expect(track.enabled).toBe(false);
+    const first = sender.replacements.find((entry) => entry.track);
+    expect(first?.parameters.encodings[0]).toMatchObject({
+      codec: {
+        mimeType: "video/H264",
+        sdpFmtpLine: videoCodecs[3].sdpFmtpLine,
+      },
+      maxBitrate: 4_000_000,
+      maxFramerate: 30,
+      scaleResolutionDownBy: 1,
+    });
+    expect(codecOf(sender)).not.toHaveProperty("payloadType");
+    expect(sender.parameters.codecs).toEqual(videoCodecs);
+    expect(
+      peer.slots
+        .filter((_, i) => i !== 2)
+        .every(({ sender: other }) => !codecOf(other)),
+    ).toBe(true);
+    const calls = sender.parameterCalls;
+    await test.call.setTrack("screen", track.media());
+    await test.call.setScreenProfile(screenProfile);
+    expect(sender.parameterCalls).toBe(calls);
+    expect(sender.replacementCalls).toEqual([track]);
+  });
+
+  it("chooses independently for opposite directions and a participant joining after publication", async () => {
+    const left = setup({ codecs: videoCodecs }),
+      right = setup({ self: "b", codecs: videoCodecs });
+    const leftSocket = await left.connect(),
+      rightSocket = await right.connect();
+    await left.call.setScreenProfile(screenProfile);
+    await right.call.setScreenProfile({ ...screenProfile, height: 1440 });
+    const low = new Track("video"),
+      high = new Track("video");
+    await left.call.setTrack("screen", low.media());
+    await right.call.setTrack("screen", high.media());
+    await description(rightSocket, "a", "offer");
+    await description(leftSocket);
+    expect(codecOf(left.peers[0].slots[2].sender)?.mimeType).toBe("video/H264");
+    expect(codecOf(right.peers[0].slots[2].sender)?.mimeType).toBe("video/VP8");
+    expect(high.getSettings()).toMatchObject({ width: 2560, height: 1440 });
+    leftSocket.receive({
+      type: "roster",
+      participants: [roster("a"), roster("b"), roster("c")],
+    });
+    await flush();
+    const late = left.peers[1].slots[2].sender;
+    expect(late.track).toBeNull();
+    await description(leftSocket, "c");
+    expect(late.replacements[0].parameters.encodings[0].codec?.mimeType).toBe(
+      "video/H264",
+    );
+    expect(late.track).toBe(low);
+    expect(left.peers.every((peer) => peer.slots.length === 4)).toBe(true);
+  });
+
+  it.each([
+    {
+      name: "automatic height",
+      profile: { height: 0 },
+      geometry: { width: 1280, height: 720 },
+      expected: "video/VP8",
+    },
+    {
+      name: "1440p",
+      profile: { height: 1440 },
+      geometry: { width: 1920, height: 1080 },
+      expected: "video/VP8",
+    },
+    {
+      name: "60 FPS",
+      profile: { fps: 60 },
+      geometry: { width: 1280, height: 720 },
+      expected: "video/VP8",
+    },
+    {
+      name: "16 Mb/s",
+      profile: { bitrate: 16 },
+      geometry: { width: 1280, height: 720 },
+      expected: "video/VP8",
+    },
+    {
+      name: "unknown width",
+      profile: {},
+      geometry: { height: 720 },
+      expected: "video/VP8",
+    },
+    {
+      name: "ultrawide 720p",
+      profile: {},
+      geometry: { width: 3440, height: 1440 },
+      expected: "video/VP8",
+    },
+    {
+      name: "ultrawide 360p within the imposed envelope",
+      profile: { height: 360 },
+      geometry: { width: 3440, height: 1440 },
+      expected: "video/H264",
+    },
+    {
+      name: "automatic bitrate and FPS with effective caps",
+      profile: { bitrate: 0, fps: 0 },
+      geometry: { width: 1920, height: 1080 },
+      expected: "video/H264",
+    },
+  ])(
+    "honors the bounded envelope: $name",
+    async ({ profile, geometry, expected }) => {
+      const test = setup({ codecs: videoCodecs, maxBitrate: 32_000_000 });
+      const socket = await test.connect();
+      await description(socket);
+      await test.call.setScreenProfile({ ...screenProfile, ...profile });
+      const track = new Track("video");
+      track.settings = geometry;
+      await test.call.setTrack("screen", track.media());
+      const sender = test.peers[0].slots[2].sender;
+      expect(codecOf(sender)?.mimeType).toBe(expected);
+      expect(sender.parameters.encodings[0]).toMatchObject({
+        maxBitrate:
+          profile.bitrate === 0
+            ? 8_000_000
+            : (profile.bitrate ?? 4) * 1_000_000,
+        maxFramerate: profile.fps || 30,
+      });
+    },
+  );
+
+  it.each([
+    "packetization-mode=1;profile-level-id=42001f",
+    "packetization-mode=0;profile-level-id=42e01f",
+    "packetization-mode=1;profile-level-id=42e01f;max-fs=3599",
+    "packetization-mode=1;profile-level-id=42e01f;max-mbps=107999",
+    "packetization-mode=1;profile-level-id=42e01f;max-br=3999",
+    "packetization-mode=1;profile-level-id=42e01f;profile-level-id=42e01f",
+  ])(
+    "does not opt into an incompatible negotiated H264 format: %s",
+    async (fmtp) => {
+      const test = setup({
+        codecs: [videoCodecs[0], { ...videoCodecs[3], sdpFmtpLine: fmtp }],
+      });
+      const socket = await test.connect();
+      await description(socket);
+      await test.call.setScreenProfile(screenProfile);
+      await test.call.setTrack("screen", new Track("video").media());
+      expect(codecOf(test.peers[0].slots[2].sender)?.mimeType).toBe(
+        "video/VP8",
+      );
+    },
+  );
+
+  it("switches to VP8 before raising capture and leaves all previous caps unchanged until then", async () => {
+    const test = setup({ codecs: videoCodecs });
+    const socket = await test.connect();
+    await description(socket);
+    await test.call.setScreenProfile(screenProfile);
+    const track = new Track("video");
+    await test.call.setTrack("screen", track.media());
+    const sender = test.peers[0].slots[2].sender;
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 360 } },
+    });
+    await flush();
+    const previous = structuredClone(sender.parameters.encodings[0]);
+    const signalCount = socket.sent.filter(
+      (message) => message.type === "signal",
+    ).length;
+    track.onConstraints = () => {
+      expect(codecOf(sender)?.mimeType).toBe("video/VP8");
+      expect(sender.parameters.encodings[0]).toEqual({
+        ...previous,
+        codec: codecOf(sender),
+      });
+      expect(track.getSettings().height).toBe(720);
+    };
+    await test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+      fps: 60,
+      bitrate: 8,
+    });
+    expect(track.getSettings()).toMatchObject({ width: 2560, height: 1440 });
+    expect(sender.parameters.encodings[0]).toMatchObject({
+      maxBitrate: 8_000_000,
+      maxFramerate: 60,
+      scaleResolutionDownBy: 4,
+    });
+    expect(
+      socket.sent.filter((message) => message.type === "signal"),
+    ).toHaveLength(signalCount);
+    track.onConstraints = undefined;
+    await test.call.setScreenProfile(screenProfile);
+    expect(codecOf(sender)?.mimeType).toBe("video/VP8");
+    await test.call.setTrack("screen", null);
+    await test.call.setTrack("screen", new Track("video").media());
+    expect(codecOf(sender)?.mimeType).toBe("video/VP8");
+  });
+
+  it("never hot-switches a sender that began with VP8 to H264", async () => {
+    const test = setup({ codecs: videoCodecs });
+    const socket = await test.connect();
+    await description(socket);
+    const track = new Track("video");
+    await test.call.setTrack("screen", track.media()); // Default 1080p.
+    const sender = test.peers[0].slots[2].sender;
+    expect(codecOf(sender)?.mimeType).toBe("video/VP8");
+    await test.call.setScreenProfile(screenProfile);
+    expect(codecOf(sender)?.mimeType).toBe("video/VP8");
+    expect(
+      sender.parameterHistory.some((parameters) =>
+        parameters.encodings.some(
+          (encoding) => encoding.codec?.mimeType === "video/H264",
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it.each(["ignored", "rejected"] as const)(
+    "falls back when codec selection is %s without masking subsequent cap errors",
+    async (behavior) => {
+      const test = setup({ codecs: videoCodecs });
+      const socket = await test.connect();
+      await description(socket);
+      await test.call.setScreenProfile(screenProfile);
+      const sender = test.peers[0].slots[2].sender;
+      sender.codecBehavior = behavior;
+      const track = new Track("video");
+      await test.call.setTrack("screen", track.media());
+      expect(sender.track).toBe(track);
+      expect(codecOf(sender)).toBeUndefined();
+      const calls = sender.parameterCalls;
+      await test.call.setScreenProfile(screenProfile);
+      expect(sender.parameterCalls).toBe(calls);
+      sender.rejectParameters = true;
+      await expect(
+        test.call.setScreenProfile({ ...screenProfile, bitrate: 2 }),
+      ).rejects.toThrow("Parameters unsupported");
+      expect(track.readyState).toBe("ended");
+      expect(sender.track).toBeNull();
+    },
+  );
+
+  it.each(["ignored", "rejected"] as const)(
+    "preserves the old capture when an H264 to VP8 transition is %s",
+    async (behavior) => {
+      const test = setup({ codecs: videoCodecs });
+      const socket = await test.connect();
+      await description(socket);
+      await test.call.setScreenProfile(screenProfile);
+      const track = new Track("video");
+      await test.call.setTrack("screen", track.media());
+      const sender = test.peers[0].slots[2].sender;
+      sender.codecBehavior = behavior;
+      track.onConstraints = () => {
+        throw new Error(
+          "Must not raise capture before a confirmed VP8 transition",
+        );
+      };
+      await expect(
+        test.call.setScreenProfile({ ...screenProfile, height: 1440 }),
+      ).rejects.toThrow();
+      expect(test.call.snapshot.profile).toEqual(screenProfile);
+      expect(track.getSettings()).toMatchObject({ width: 1280, height: 720 });
+      expect(sender.track).toBe(track);
+      expect(track.readyState).toBe("live");
+    },
+  );
+
+  it("compares codec dictionaries structurally, preserves case-sensitive fmtp, and latches VP8 after an SDP reset", async () => {
+    const fmtp = `${videoCodecs[3].sdpFmtpLine};sprop-parameter-sets=Z0IAH5WoFAFuQA==`;
+    const test = setup({
+      codecs: [videoCodecs[0], { ...videoCodecs[3], sdpFmtpLine: fmtp }],
+    });
+    const socket = await test.connect();
+    await description(socket);
+    await test.call.setScreenProfile(screenProfile);
+    const track = new Track("video");
+    await test.call.setTrack("screen", track.media());
+    const sender = test.peers[0].slots[2].sender;
+    sender.parameters.encodings[0].codec!.sdpFmtpLine =
+      " SPROP-PARAMETER-SETS=Z0IAH5WoFAFuQA==;PROFILE-LEVEL-ID=42E01F;packetization-mode=1;level-asymmetry-allowed=1 ";
+    const calls = sender.parameterCalls;
+    await test.call.setScreenProfile(screenProfile);
+    expect(sender.parameterCalls).toBe(calls);
+    // Base64 values are case-sensitive; this is not the negotiated codec.
+    sender.parameters.encodings[0].codec!.sdpFmtpLine = fmtp.toLowerCase();
+    delete sender.parameters.encodings[0].maxBitrate;
+    await description(socket, "b", "offer");
+    expect(codecOf(sender)?.mimeType).toBe("video/VP8");
+    expect(sender.parameters.encodings[0].maxBitrate).toBe(4_000_000);
+    expect(sender.track).toBe(track);
+    expect(sender.replacementCalls).toEqual([track]);
+  });
+
+  it("does not grow H264 capture while renegotiation is pending", async () => {
+    const test = setup({ codecs: videoCodecs });
+    const socket = await test.connect();
+    await description(socket);
+    await test.call.setScreenProfile(screenProfile);
+    const track = new Track("video");
+    await test.call.setTrack("screen", track.media());
+    test.peers[0].onnegotiationneeded?.();
+    await flush();
+    expect(test.peers[0].signalingState).toBe("have-local-offer");
+    await expect(
+      test.call.setScreenProfile({ ...screenProfile, height: 1440 }),
+    ).rejects.toThrow("negociação");
+    expect(track.getSettings().height).toBe(720);
+    expect(test.call.snapshot.profile).toEqual(screenProfile);
+    await description(socket);
+    await test.call.setScreenProfile({ ...screenProfile, height: 1440 });
+    expect(track.getSettings().height).toBe(1440);
+  });
+
+  it("retains mute and publication ownership while codec selection is pending", async () => {
+    const test = setup({ codecs: videoCodecs });
+    const socket = await test.connect();
+    await description(socket);
+    await test.call.setScreenProfile(screenProfile);
+    const sender = test.peers[0].slots[2].sender;
+    let release!: () => void;
+    sender.parameterHold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const track = new Track("video");
+    const pending = test.call.setTrack("screen", track.media());
+    const rejected = expect(pending).rejects.toThrow("permissão");
+    await flush();
+    test.call.setTrackEnabled("screen", false);
+    expect(track.enabled).toBe(false);
+    expect(sender.track).toBeNull();
+    socket.receive({
+      type: "roster",
+      participants: [roster("a", false), roster("b")],
+    });
+    expect(track.readyState).toBe("ended");
+    expect(test.call.snapshot.localTracks).toEqual({});
+    release();
+    await rejected;
+    expect(sender.track).toBeNull();
+    expect(sender.replacementCalls).not.toContain(track);
+  });
+
+  it("defers a late participant until the pending 720p to 1440p capture change is committed", async () => {
+    const test = setup({ codecs: videoCodecs });
+    const socket = await test.connect();
+    await description(socket);
+    await test.call.setScreenProfile(screenProfile);
+    const track = new Track("video");
+    await test.call.setTrack("screen", track.media());
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    track.onConstraints = () => hold;
+    const changing = test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+    });
+    await flush();
+    const first = test.peers[0].slots[2].sender;
+    expect(codecOf(first)?.mimeType).toBe("video/VP8");
+    socket.receive({
+      type: "roster",
+      participants: [roster("a"), roster("b"), roster("c")],
+    });
+    await flush();
+    await description(socket, "c");
+    const late = test.peers[1].slots[2].sender;
+    expect(late.track).toBeNull();
+    expect(codecOf(late)).toBeUndefined();
+    expect(test.call.snapshot.profile.height).toBe(720);
+    expect(track.getSettings().height).toBe(720);
+    release();
+    await changing;
+    expect(track.getSettings()).toMatchObject({ width: 2560, height: 1440 });
+    for (const sender of [first, late]) {
+      expect(codecOf(sender)?.mimeType).toBe("video/VP8");
+      expect(sender.track).toBe(track);
+    }
+    expect(late.replacements[0].parameters.encodings[0].codec?.mimeType).toBe(
+      "video/VP8",
+    );
+    expect(
+      late.parameterHistory.some((parameters) =>
+        parameters.encodings.some(
+          (encoding) => encoding.codec?.mimeType === "video/H264",
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it("resumes deferred participants at the previous profile if the capture change fails", async () => {
+    const test = setup({ codecs: videoCodecs });
+    const socket = await test.connect();
+    await description(socket);
+    await test.call.setScreenProfile(screenProfile);
+    const track = new Track("video");
+    await test.call.setTrack("screen", track.media());
+    let reject!: (error: Error) => void;
+    const hold = new Promise<void>((_, fail) => {
+      reject = fail;
+    });
+    track.onConstraints = () => hold;
+    const changing = test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+    });
+    const rejected = expect(changing).rejects.toThrow("Capture failed");
+    await flush();
+    socket.receive({
+      type: "roster",
+      participants: [roster("a"), roster("b"), roster("c")],
+    });
+    await flush();
+    await description(socket, "c");
+    const late = test.peers[1].slots[2].sender;
+    expect(late.track).toBeNull();
+    reject(new Error("Capture failed"));
+    await rejected;
+    expect(test.call.snapshot.profile).toEqual(screenProfile);
+    expect(track.getSettings()).toMatchObject({ width: 1280, height: 720 });
+    expect(track.readyState).toBe("live");
+    expect(late.track).toBe(track);
+    expect(codecOf(late)?.mimeType).toBe("video/H264");
+    expect(late.parameters.encodings[0]).toMatchObject({
+      maxBitrate: 4_000_000,
+      maxFramerate: 30,
+    });
+    expect(test.peers[0].slots[2].sender.track).toBe(track);
+    expect(codecOf(test.peers[0].slots[2].sender)?.mimeType).toBe("video/VP8");
+  });
+
+  it.each(["revocation", "close"] as const)(
+    "cannot attach deferred media after %s during a capture change",
+    async (action) => {
+      const test = setup({ codecs: videoCodecs });
+      const socket = await test.connect();
+      await description(socket);
+      await test.call.setScreenProfile(screenProfile);
+      const track = new Track("video");
+      await test.call.setTrack("screen", track.media());
+      let release!: () => void;
+      const hold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      track.onConstraints = () => hold;
+      const changing = test.call.setScreenProfile({
+        ...screenProfile,
+        height: 1440,
+      });
+      const rejected = expect(changing).rejects.toThrow("permissão");
+      await flush();
+      socket.receive({
+        type: "roster",
+        participants: [roster("a"), roster("b"), roster("c")],
+      });
+      await flush();
+      await description(socket, "c");
+      const late = test.peers[1].slots[2].sender;
+      expect(late.track).toBeNull();
+      if (action === "close") test.call.close();
+      else
+        socket.receive({
+          type: "roster",
+          participants: [roster("a", false), roster("b"), roster("c")],
+        });
+      expect(track.readyState).toBe("ended");
+      expect(test.call.snapshot.localTracks).toEqual({});
+      release();
+      await rejected;
+      expect(late.track).toBeNull();
+      expect(late.replacementCalls).not.toContain(track);
+    },
+  );
+
+  it("does not release a new call's capture barrier when an older call finally settles", async () => {
+    const test = setup({ codecs: videoCodecs });
+    const oldSocket = await test.connect();
+    await description(oldSocket);
+    await test.call.setScreenProfile(screenProfile);
+    const oldTrack = new Track("video");
+    await test.call.setTrack("screen", oldTrack.media());
+    let releaseOld!: () => void;
+    const oldHold = new Promise<void>((resolve) => {
+      releaseOld = resolve;
+    });
+    oldTrack.onConstraints = () => oldHold;
+    const oldChange = test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+    });
+    const oldRejection = expect(oldChange).rejects.toThrow("permissão");
+    await flush();
+    test.call.close();
+    const socket = await test.connect();
+    await description(socket);
+    const track = new Track("video");
+    await test.call.setTrack("screen", track.media());
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    track.onConstraints = () => hold;
+    const changing = test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+    });
+    await flush();
+    socket.receive({
+      type: "roster",
+      participants: [roster("a"), roster("b"), roster("c")],
+    });
+    await flush();
+    await description(socket, "c");
+    expect(test.peers[2].slots[2].sender.track).toBeNull();
+    releaseOld();
+    await oldRejection;
+    // This negotiation starts after the obsolete finally ran. Its screen must
+    // still be deferred by the newer operation's barrier.
+    socket.receive({
+      type: "roster",
+      participants: [roster("a"), roster("b"), roster("c"), roster("d")],
+    });
+    await flush();
+    await description(socket, "d");
+    expect(test.peers[3].slots[2].sender.track).toBeNull();
+    expect(codecOf(test.peers[3].slots[2].sender)).toBeUndefined();
+    release();
+    await changing;
+    for (const peer of test.peers.slice(1)) {
+      expect(peer.slots[2].sender.track).toBe(track);
+      expect(codecOf(peer.slots[2].sender)?.mimeType).toBe("video/VP8");
+    }
+    expect(oldTrack.readyState).toBe("ended");
   });
 });

@@ -372,6 +372,16 @@ async function installBrowserHarness(root, sourceProfile, audioGraphMode, captur
     return { ...base, rms: Math.sqrt(e.waveform.reduce((sum, n) => sum + n * n, 0) / e.waveform.length), frequency: peak * qa.analysisAudio.sampleRate / e.analyser.fftSize };
   });
   const sources = ['microphone', 'camera', 'screen', 'screen_audio'];
+  const safeCodecParameters = codec => {
+    const fields = {};
+    for (const part of (codec?.sdpFmtpLine || '').split(';')) {
+      const [name, value] = part.trim().split('=');
+      if (name === 'profile-level-id' && /^[0-9a-f]{6}$/i.test(value || '')) fields.profile_level_id = value.toLowerCase();
+      if (name === 'packetization-mode' && /^[012]$/.test(value || '')) fields.packetization_mode = Number(value);
+      if (name === 'level-asymmetry-allowed' && /^[01]$/.test(value || '')) fields.level_asymmetry_allowed = Number(value);
+    }
+    return fields;
+  };
   qa.rtp = async () => Promise.all(qa.pcs.filter(pc => pc.connectionState !== 'closed').map(async pc => {
     const transceivers = pc.getTransceivers();
     const member = qa.call.snapshot.participants.find(p => Object.values(p.tracks).some(t => transceivers.some(x => x.receiver.track === t)));
@@ -383,7 +393,8 @@ async function installBrowserHarness(root, sourceProfile, audioGraphMode, captur
     // Explicit whitelist: no candidate addresses, ports, SDP, credentials or codec identifiers.
     const rtp = rows.filter(r => ['inbound-rtp', 'outbound-rtp'].includes(r.type) && !r.isRemote
       && !/\/(rtx|red|ulpfec)$/i.test(byId.get(r.codecId)?.mimeType || '')).map(r => {
-      const row = { direction: r.type === 'outbound-rtp' ? 'outbound' : 'inbound', source: sources[Number(r.mid)] || 'unknown', codec_mime_type: byId.get(r.codecId)?.mimeType || null };
+      const row = { direction: r.type === 'outbound-rtp' ? 'outbound' : 'inbound', source: sources[Number(r.mid)] || 'unknown', codec_mime_type: byId.get(r.codecId)?.mimeType || null,
+        codec_parameters: safeCodecParameters(byId.get(r.codecId)) };
       for (const k of ['timestamp', 'bytesSent', 'bytesReceived', 'packetsSent', 'packetsReceived', 'packetsLost', 'jitter', 'framesEncoded', 'framesDecoded', 'framesPerSecond', 'frameWidth', 'frameHeight', 'totalEncodeTime', 'totalDecodeTime', 'totalAudioEnergy', 'totalSamplesDuration', 'totalSamplesReceived', 'concealedSamples', 'silentConcealedSamples', 'concealmentEvents', 'insertedSamplesForDeceleration', 'removedSamplesForAcceleration', 'packetsDiscarded', 'jitterBufferDelay', 'jitterBufferEmittedCount', 'freezeCount', 'totalFreezesDuration', 'qualityLimitationReason', 'qualityLimitationDurations', 'scalabilityMode', 'encoderImplementation', 'powerEfficientEncoder'])
         if (r[k] !== undefined) row[k] = r[k];
       const media = byId.get(r.mediaSourceId);

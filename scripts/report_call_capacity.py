@@ -107,7 +107,8 @@ def main():
                     emit("screen_encoder", {"client": index, **select(stream, (
                         "codec_mime_type", "framesEncoded", "frameWidth", "frameHeight", "framesPerSecond",
                         "totalEncodeTime", "qualityLimitationReason",
-                    )), "quality_limitation_seconds": select(stream.get("qualityLimitationDurations") or {}, ("bandwidth", "cpu", "none", "other")),
+                    )), "codec_parameters": select(stream.get("codec_parameters") or {}, ("profile_level_id", "packetization_mode", "level_asymmetry_allowed")),
+                        "quality_limitation_seconds": select(stream.get("qualityLimitationDurations") or {}, ("bandwidth", "cpu", "none", "other")),
                         "media_source": select(stream.get("media_source") or {}, ("kind", "timestamp", "width", "height", "frames", "framesPerSecond"))})
     emit("cleanup", {"clients": [select(c, ("browser", "capture_stopped", "context_disposed")) for c in result.get("cleanup", [])],
                      "profiles_removed": all(h.get("profile_removed") for h in result.get("host_cleanup", [])),

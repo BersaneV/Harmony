@@ -27,21 +27,22 @@
     }
   },
   "frontend": {
-    "tests": 84,
-    "engine_tests": 15,
+    "tests": 114,
+    "engine_tests": 45,
     "typecheck": "PASS",
-    "changes": "Avoid redundant native replaceTrack/setParameters/track.enabled mutations; no parameter cache or quality-default changes"
+    "changes": "Idempotent native media operations; per-sender negotiated Constrained Baseline42e01f codec inside bounded720p30 envelope; VP8 before raising capture; coordinated late-entry/profile transition and revocation.",
+    "build": "PASS"
   },
-  "review": "Independent production and harness review: no blocking findings after empty-sample diagnostic fix; runtime acceptance pending",
+  "review": "Independent production review PASS after late-entry/profile transition race fix;45engine regression tests repeated independently. Exact revised source still requires real media/CI acceptance.",
   "source_sha256": {
     "crates/server/src/calls.rs": "0fde3f16e35f5c2dc69640ae8741472559eea7c9338317919ecf407b413e8391",
-    "apps/desktop/src/lib/call.ts": "4255301e5234926166be8e4d52f4b2c445957520853a76ef27f431dc7b75c7c3",
-    "apps/desktop/src/lib/call.test.ts": "3ad4450eb7b985836b986d9fc2e9a88d6e4b7a6634489707e8b398ee8f4858d6",
-    "scripts/test_call_capacity.mjs": "2fb71e5c4bb001cbae8548363aa553d8a02d9a879628e8660dacbe990a75d38e",
-    "scripts/report_call_capacity.py": "596455705636d6ffb35fc201c562649f7b2addf9af644838a18ebc0feef35d48"
+    "apps/desktop/src/lib/call.ts": "8d3c4e47b05cc4158ce32369fa8b463ec79a42033a03dc6c4ab45e13dade0e7a",
+    "apps/desktop/src/lib/call.test.ts": "320020c7beb84173bb1cbd5807653b746c12fdfdf12798b2db9ebd637db20a2d",
+    "scripts/test_call_capacity.mjs": "e8aa7bb65892c8564d81f6be77a12214d6ccea69879e927894560deaa6a0ec2f",
+    "scripts/report_call_capacity.py": "392780a968756efb6b9962f388e8bd01848519efd9f6bfefd56447386f262a5c"
   },
   "capacity": {
-    "status": "QUALITY_INVESTIGATION",
+    "status": "PRODUCTION_CODEC_RUNTIME_PENDING",
     "attempts_preserved": "Local oscillator/canvas attempts failed; source/analyser clocks slowed versus wall time. Isolated fake-file probe could read generated WAV only from sandbox-permitted location on macOS. These findings do not establish stable eight-party media.",
     "ci_profile": "Eight separate Chrome processes; native fake inputs; fixed observed30s startup followed by180s steady720p15; minimum12averageFPS; same56+7audio thresholds and2s moderation. Startup transients reported separately, no reconnect/extension. Not720p30.",
     "local_target": "720p30 with at least24averageFPS; physical Windows and WAN remain separate",
@@ -55,7 +56,16 @@
       "audio_failed_stream_samples": 9,
       "moderation": "NOT_RUN"
     },
-    "experimental_codec_scope": "Optional H264 preference only in the capacity fixture; production codec selection remains unchanged. A probe PASS would not validate unmodified production codec selection."
+    "experimental_codec_scope": "Optional H264 preference only in the capacity fixture; production codec selection remains unchanged. A probe PASS would not validate unmodified production codec selection.",
+    "native_control_pass": {
+      "run": "https://github.com/BersaneV/Harmony/actions/runs/43572690856",
+      "source_commit": "e93f40ce9b47f27cfa7600e1a8b4bb93b40240f0",
+      "seconds": 182.7434,
+      "minimum_average_video_fps": 12.7772,
+      "audio_failed_stream_samples": 0,
+      "max_audio_concealment_ratio": 0.00895376,
+      "scope": "Earlier production engine with native codec choice; not acceptance of the new codec implementation."
+    }
   },
   "paid_resources_created": false,
   "limits": [

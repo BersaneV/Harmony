@@ -73,6 +73,15 @@ const browserEnvironment: CallEnvironment = {
 };
 type StatsRow = RTCStats & Record<string, unknown>;
 type Observation = { bytes: number; timestamp: number; frames: number | null };
+// encoding.codec is standardized, but is not present in this pinned DOM typing.
+type EncodingCodec = Pick<
+  RTCRtpCodecParameters,
+  "mimeType" | "clockRate" | "channels" | "sdpFmtpLine"
+>;
+type CodecEncoding = RTCRtpEncodingParameters & { codec?: EncodingCodec };
+type CodecParameters = Omit<RTCRtpSendParameters, "encodings"> & {
+  encodings: CodecEncoding[];
+};
 interface Peer {
   member: CallParticipant;
   pc: RTCPeerConnection;
@@ -94,6 +103,50 @@ interface Peer {
   failed: boolean;
   receiveHeight: number;
   remoteReceiveHeight: number;
+  screenCodec: {
+    mode: "fresh" | "h264" | "vp8";
+    api: "unknown" | "supported" | "unsupported";
+  };
+}
+function codecFormat(codec: EncodingCodec): Map<string, string> {
+  const entries = (codec.sdpFmtpLine || "")
+    .split(";")
+    .filter((part) => part.trim())
+    .map((part) => {
+      const [key, ...value] = part.trim().split("=");
+      const name = key.trim().toLowerCase();
+      const content = value.join("=").trim();
+      return [
+        name,
+        name === "profile-level-id" ? content.toLowerCase() : content,
+      ] as const;
+    });
+  return new Map(entries);
+}
+function sameCodec(a: EncodingCodec | undefined, b: EncodingCodec): boolean {
+  if (
+    !a ||
+    a.mimeType.toLowerCase() !== b.mimeType.toLowerCase() ||
+    a.clockRate !== b.clockRate ||
+    a.channels !== b.channels
+  )
+    return false;
+  const left = codecFormat(a),
+    right = codecFormat(b);
+  return (
+    left.size === right.size &&
+    [...left].every(([key, value]) => right.get(key) === value)
+  );
+}
+function codecValue(codec: RTCRtpCodecParameters): EncodingCodec {
+  return {
+    mimeType: codec.mimeType,
+    clockRate: codec.clockRate,
+    ...(codec.channels === undefined ? {} : { channels: codec.channels }),
+    ...(codec.sdpFmtpLine === undefined
+      ? {}
+      : { sdpFmtpLine: codec.sdpFmtpLine }),
+  };
 }
 const emptyMedia = (): CallMedia => ({
   microphone: false,
@@ -243,6 +296,12 @@ export class P2PCall {
   private local: CallTracks = {};
   private pendingTracks = new Set<MediaStreamTrack>();
   private ended = new Map<MediaStreamTrack, () => void>();
+  private screenGeometry = new WeakMap<MediaStreamTrack, boolean>();
+  private screenTransition?: {
+    run: number;
+    track: MediaStreamTrack;
+    deferred: Set<Peer>;
+  };
   private data: CallSnapshot = {
     state: "idle",
     reason: "",
@@ -677,10 +736,15 @@ export class P2PCall {
             for (const source of callSources) {
               const index = callSources.indexOf(source);
               const track = this.local[source];
-              next.pc.addTransceiver(track || kinds[index], {
-                direction: "sendrecv",
-                sendEncodings: [this.encoding(source, next)],
-              });
+              // Screen codec selection requires negotiated codecs, before its
+              // first frame, including when a participant joins an active share.
+              next.pc.addTransceiver(
+                source === "screen" ? kinds[index] : track || kinds[index],
+                {
+                  direction: "sendrecv",
+                  sendEncodings: [this.encoding(source, next)],
+                },
+              );
             }
             next.initialized = true;
             await this.negotiate(next);
@@ -719,6 +783,7 @@ export class P2PCall {
       failed: false,
       receiveHeight: 0,
       remoteReceiveHeight: 0,
+      screenCodec: { mode: "fresh", api: "unknown" },
     };
     pc.onicecandidate = ({ candidate }) =>
       this.signal(peer, { candidate: candidate?.toJSON() ?? null });
@@ -846,6 +911,7 @@ export class P2PCall {
     for (let i = 0; i < transceivers.length; i++) {
       const source = callSources[i];
       transceivers[i].direction = "sendrecv";
+      if (source === "screen") continue;
       await this.replaceSenderTrack(
         transceivers[i].sender,
         this.mayPublish() ? (this.local[source] ?? null) : null,
@@ -864,10 +930,49 @@ export class P2PCall {
       if (!this.current(peer)) return;
       this.signal(peer, { description: pc.localDescription?.toJSON() });
     }
+    await this.synchronizeScreen(peer);
     for (const source of callSources) await this.parameters(peer, source);
   }
-  private encoding(source: CallSource, peer: Peer): RTCRtpEncodingParameters {
-    const profile = this.data.profile;
+  private deferScreen(peer: Peer, track: MediaStreamTrack): boolean {
+    const transition = this.screenTransition;
+    if (transition?.track !== track || transition.run !== this.generation)
+      return false;
+    transition.deferred.add(peer);
+    return true;
+  }
+  /** Runs on the peer queue; it must never wait for the media queue. */
+  private async synchronizeScreen(peer: Peer) {
+    const sender = peer.pc.getTransceivers()[2]?.sender;
+    if (!sender || !this.current(peer)) return;
+    const screen = this.mayPublish() ? this.local.screen : undefined;
+    if (screen && this.deferScreen(peer, screen)) return;
+    const prepared =
+      !screen ||
+      (await this.prepareScreenCodec(peer, screen, this.data.profile));
+    await this.parameters(peer, "screen");
+    if (!prepared || (screen && this.deferScreen(peer, screen))) return;
+    await this.replaceSenderTrack(
+      sender,
+      screen &&
+        this.mayPublish() &&
+        this.current(peer) &&
+        this.local.screen === screen
+        ? screen
+        : null,
+    );
+    if (
+      screen &&
+      (!this.mayPublish() ||
+        !this.current(peer) ||
+        this.local.screen !== screen)
+    )
+      await this.replaceSenderTrack(sender, null);
+  }
+  private encoding(
+    source: CallSource,
+    peer: Peer,
+    profile = this.data.profile,
+  ): RTCRtpEncodingParameters {
     if (source === "screen") {
       const actualHeight =
         this.local.screen?.getSettings().height || profile.height || 1080;
@@ -888,6 +993,166 @@ export class P2PCall {
         maxFramerate: 30,
       };
     return { maxBitrate: source === "microphone" ? 64_000 : 128_000 };
+  }
+  private screenH264(
+    track: MediaStreamTrack,
+    profile: StreamProfile,
+    desired: RTCRtpEncodingParameters,
+    codecs: RTCRtpCodecParameters[],
+    projected: boolean,
+  ): RTCRtpCodecParameters | undefined {
+    const settings = track.getSettings();
+    const width = finite(settings.width),
+      height = finite(settings.height);
+    if (
+      this.screenGeometry.get(track) !== true ||
+      !width ||
+      !height ||
+      width <= 0 ||
+      height <= 0 ||
+      profile.height <= 0 ||
+      profile.height > 720 ||
+      !desired.maxFramerate ||
+      desired.maxFramerate > 30 ||
+      !desired.maxBitrate ||
+      desired.maxBitrate > 14_000_000
+    )
+      return;
+    // Use the imposed width envelope, not just the current (possibly smaller)
+    // window. A later resize must still fit Constrained Baseline level 3.1.
+    const boundWidth = Math.round((profile.height * width) / height);
+    if (
+      boundWidth < 1 ||
+      boundWidth > 1280 ||
+      (!projected && (width > boundWidth || height > profile.height))
+    )
+      return;
+    const blocks = Math.ceil(boundWidth / 16) * Math.ceil(profile.height / 16);
+    if (blocks > 3600 || blocks * desired.maxFramerate > 108_000) return;
+    return codecs.find((codec) => {
+      if (
+        codec.mimeType.toLowerCase() !== "video/h264" ||
+        codec.clockRate !== 90_000
+      )
+        return false;
+      const fmtp = codecFormat(codec);
+      if (
+        fmtp.get("profile-level-id") !== "42e01f" ||
+        fmtp.get("packetization-mode") !== "1" ||
+        fmtp.size !==
+          (codec.sdpFmtpLine || "").split(";").filter((part) => part.trim())
+            .length
+      )
+        return false;
+      const admits = (key: string, value: number) => {
+        const limit = fmtp.get(key);
+        return (
+          limit === undefined ||
+          (/^[1-9]\d*$/.test(limit) &&
+            Number.isSafeInteger(Number(limit)) &&
+            Number(limit) >= value)
+        );
+      };
+      return (
+        admits("max-fs", blocks) &&
+        admits("max-mbps", blocks * desired.maxFramerate!) &&
+        admits("max-br", desired.maxBitrate! / 1000)
+      );
+    });
+  }
+  private async prepareScreenCodec(
+    peer: Peer,
+    track: MediaStreamTrack,
+    profile: StreamProfile,
+    projected = false,
+  ): Promise<boolean> {
+    const run = this.generation,
+      epoch = this.publicationEpoch;
+    const allowed = () =>
+      this.current(peer) &&
+      this.mayPublish(run, epoch) &&
+      this.local.screen === track &&
+      track.readyState === "live";
+    if (!allowed()) return false;
+    // Do not start a screen in the native codec while its initial answer is pending.
+    if (peer.pc.signalingState !== "stable" || !peer.pc.remoteDescription)
+      return false;
+    const sender = peer.pc.getTransceivers()[2]?.sender;
+    if (!sender) return false;
+    const state = peer.screenCodec;
+    if (state.api === "unsupported") {
+      state.mode = "vp8";
+      return true;
+    }
+    const parameters = sender.getParameters() as CodecParameters;
+    const vp8 = parameters.codecs.find(
+      (codec) =>
+        codec.mimeType.toLowerCase() === "video/vp8" &&
+        codec.clockRate === 90_000,
+    );
+    const h264 =
+      state.mode !== "vp8" && vp8
+        ? this.screenH264(
+            track,
+            profile,
+            this.encoding("screen", peer, profile),
+            parameters.codecs,
+            projected,
+          )
+        : undefined;
+    // If SDP reset an active H264 sender, do not attempt a hot switch back from
+    // an unknown native codec. VP8 remains latched for this sender's lifetime.
+    const resetWhileSending =
+      state.mode === "h264" &&
+      !!sender.track &&
+      h264 &&
+      parameters.encodings.some((encoding) => !sameCodec(encoding.codec, h264));
+    const selected = h264 && !resetWhileSending ? h264 : vp8;
+    if (!selected || !parameters.encodings.length) {
+      if (state.mode === "h264")
+        throw new Error(
+          "Não foi possível preservar a qualidade da tela com VP8.",
+        );
+      state.mode = "vp8";
+      return true;
+    }
+    const codec = codecValue(selected);
+    const mode = selected === h264 && !resetWhileSending ? "h264" : "vp8";
+    if (
+      parameters.encodings.every((encoding) => sameCodec(encoding.codec, codec))
+    ) {
+      state.mode = mode;
+      state.api = "supported";
+      return true;
+    }
+    const leavingH264 = state.mode === "h264" && mode === "vp8";
+    for (const encoding of parameters.encodings) encoding.codec = codec;
+    try {
+      // Codec-only preflight: all current bitrate/FPS/scale caps stay unchanged.
+      // Never modify the negotiated, read-only parameters.codecs array.
+      await sender.setParameters(parameters);
+    } catch (error) {
+      if (!allowed()) return false;
+      if (leavingH264) throw error;
+      state.api = "unsupported";
+      state.mode = "vp8";
+      return true; // Optional codec selection failed; normal cap errors still propagate.
+    }
+    if (!allowed()) return false;
+    const applied = sender.getParameters() as CodecParameters;
+    if (
+      applied.encodings.length &&
+      applied.encodings.every((encoding) => sameCodec(encoding.codec, codec))
+    ) {
+      state.api = "supported";
+      state.mode = mode;
+    } else {
+      if (leavingH264)
+        throw new Error("O navegador não confirmou a troca da tela para VP8.");
+      state.api = "unsupported";
+      state.mode = "vp8";
+    }
+    return true;
   }
   private async parameters(peer: Peer, source: CallSource) {
     if (!this.current(peer)) return;
@@ -932,6 +1197,14 @@ export class P2PCall {
   }
   private async constrain(track: MediaStreamTrack, profile: StreamProfile) {
     const settings = track.getSettings();
+    const geometryKnown =
+      this.screenGeometry.get(track) !== false &&
+      typeof settings.width === "number" &&
+      Number.isFinite(settings.width) &&
+      settings.width > 0 &&
+      typeof settings.height === "number" &&
+      Number.isFinite(settings.height) &&
+      settings.height > 0;
     const ratio =
       settings.width && settings.height
         ? settings.width / settings.height
@@ -943,6 +1216,7 @@ export class P2PCall {
         : undefined,
       frameRate: { max: profile.fps || 30 },
     });
+    this.screenGeometry.set(track, geometryKnown);
     track.contentHint = profile.content === "text" ? "detail" : "motion";
   }
   private publishMedia() {
@@ -1040,6 +1314,20 @@ export class P2PCall {
             const sender =
               peer.pc.getTransceivers()[callSources.indexOf(source)]?.sender;
             if (!sender) return;
+            if (source === "screen" && track) {
+              const prepared = await this.prepareScreenCodec(
+                peer,
+                track,
+                this.data.profile,
+              );
+              await this.parameters(peer, source);
+              if (
+                !prepared ||
+                !this.current(peer) ||
+                !this.mayPublish(run, epoch)
+              )
+                return;
+            }
             await this.replaceSenderTrack(
               sender,
               track && this.mayPublish(run, epoch) ? track : null,
@@ -1092,14 +1380,73 @@ export class P2PCall {
         if (!this.mayPublish(run, epoch))
           throw new Error("A transmissão não está autorizada.");
         const track = this.local.screen;
-        if (track) await this.constrain(track, candidate);
-        if (!this.mayPublish(run, epoch))
-          throw new Error("Sua permissão de transmissão foi removida.");
-        this.data = { ...this.data, profile: candidate };
+        const transition = track
+          ? { run, track, deferred: new Set<Peer>() }
+          : undefined;
+        if (transition) this.screenTransition = transition;
+        try {
+          if (track) {
+            // A codec transition must finish before the capture can exceed H264's
+            // envelope. This preflight changes no bitrate, FPS or scaling caps;
+            // failure therefore leaves the previous capture/profile usable.
+            await Promise.all(
+              [...this.peers.values()].map((peer) =>
+                this.enqueue(peer, async () => {
+                  const prepared = await this.prepareScreenCodec(
+                    peer,
+                    track,
+                    candidate,
+                    true,
+                  );
+                  if (
+                    !prepared &&
+                    this.current(peer) &&
+                    peer.screenCodec.mode === "h264" &&
+                    peer.pc.getTransceivers()[2]?.sender.track === track
+                  )
+                    throw new Error(
+                      "Aguarde a negociação da chamada antes de mudar a qualidade da tela.",
+                    );
+                }),
+              ),
+            );
+            if (!this.mayPublish(run, epoch))
+              throw new Error("Sua permissão de transmissão foi removida.");
+            await this.constrain(track, candidate);
+          }
+          if (!this.mayPublish(run, epoch))
+            throw new Error("Sua permissão de transmissão foi removida.");
+          this.data = { ...this.data, profile: candidate };
+        } catch (error) {
+          if (transition && this.screenTransition === transition) {
+            this.screenTransition = undefined;
+            if (this.mayPublish(run, epoch) && this.local.screen === track) {
+              // A failed capture change keeps its previous profile. Only peers
+              // deferred by this operation need to be attached during recovery.
+              await Promise.all(
+                [...transition.deferred].map((peer) =>
+                  this.enqueue(peer, () => this.synchronizeScreen(peer)).catch(
+                    () => {
+                      this.failPeer(
+                        peer,
+                        "Não foi possível retomar a tela deste participante.",
+                      );
+                    },
+                  ),
+                ),
+              );
+            }
+          }
+          throw error;
+        } finally {
+          // A previous call can finish after reconnect created a new transition.
+          if (transition && this.screenTransition === transition)
+            this.screenTransition = undefined;
+        }
         try {
           await Promise.all(
             [...this.peers.values()].map((peer) =>
-              this.enqueue(peer, () => this.parameters(peer, "screen")),
+              this.enqueue(peer, () => this.synchronizeScreen(peer)),
             ),
           );
         } catch (error) {
@@ -1256,6 +1603,7 @@ export class P2PCall {
     }
   }
   private stopLocal() {
+    this.screenTransition = undefined;
     for (const track of this.pendingTracks) {
       track.enabled = false;
       track.stop();
