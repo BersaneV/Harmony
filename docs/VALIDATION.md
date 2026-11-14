@@ -2,7 +2,7 @@
 
 Data: 12/11/2026. A implementação está na `main`. Esta página distingue código entregue, provas executadas e aceite operacional. Os testes locais usam dados descartáveis; senhas, tokens, bancos e pacotes proprietários analisados não estão no Git.
 
-Os primeiros quadros preservam a evidência histórica da implementação inicial. A publicação atual está registrada em **Release 0.4.0 publicada e conferida**, ao final desta página.
+Os primeiros quadros preservam a evidência histórica da implementação inicial. A versão atual é 0.4.1; a implantação externa de 14/11/2026 está registrada ao final desta página e em [HOSTING.md](HOSTING.md).
 
 ## Caminhos executados
 
@@ -255,3 +255,21 @@ No Windows passaram 114 testes frontend, quatro de temas, quatro nativos de pol�
 O arquivo baixado foi novamente aprovado nas 17 verificações locais. O canal público ofereceu a 0.4.1 para a 0.4.0, com download HTTPS real e assinatura/versão/digest conferidos; a consulta como 0.4.1 retornou `no_update`. Os probes usam o plugin real com MockRuntime selecionando Windows x64 e não instalam no Mac. Relatórios estão anexados à release.
 
 O piloto temporário foi atualizado para 0.4.1/P2P. Health e metadados públicos responderam 200; os 13 arquivos públicos do frontend, somando 1.204.869 bytes, coincidiram com os hashes do build local. A configuração existente permaneceu com o mesmo hash, e banco/arquivos e backup privado foram preservados. O piloto depende do Mac e do túnel existentes; não é hospedagem externa permanente. Nenhum recurso pago ou entrada de config.toml foi criado nesta correção.
+
+## Hospedagem externa única — 14/11/2026
+
+Instância real **https://harmony.go.altare.global**, Altare Always Free, sem cartão, créditos ou plano pago. Gateway Caddy e serviço nativo API/frontend/SQLite/arquivos/worker usam o mesmo host sueco e a rede privada do provedor. O piloto do Mac, seu túnel e os serviços de mídia locais foram parados antes da migração. Não foi necessário substituir o EXE 0.4.1 nem alterar o protocolo/produto. [Operação, hashes, recursos e limites](HOSTING.md).
+
+O pacote Linux do [run 43617870732](https://github.com/BersaneV/Harmony/actions/runs/43617870732) contém o produto `2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d`, com manifesto por arquivo. O adaptador nativo em `5b31d545363183ccc9a6d86316f5c2166d9cd026` foi validado por 12 testes de configuração/arquivo/identidade, seis testes de fronteiras de origem e preflight real no host: UID real não root, capabilities zero, NNP, Landlock ABI 6, escrita fora das áreas privadas e execução de arquivo gravável negadas. O supervisor original exige o sandbox dos parsers. O perfil usa temporários privados em disco e não recebe o PASS dos tmpfs Compose.
+
+[Ensaio externo de oito clientes 43625293821](https://github.com/BersaneV/Harmony/actions/runs/43625293821), fonte `5b31d54`: API/sinalização HTTPS/WSS reais na Altare, oito processos Chrome no mesmo runner Ubuntu, mídia sintética e WebRTC direto entre os processos. PASS funcional/qualidade/moderação. Após acomodação fixa observada de 30,075 s, medição de 181,283 s: 28 pares, 56 fluxos direcionais de microfone, sete de áudio da tela e sete espectadores em 1280×720. Médias exibidas 26,114–30,002 FPS, preview da fonte 30,003 FPS, piso exigido 24 FPS. Pior ocultação de áudio 0,4625%, menor avanço não oculto/parede 0,99197 e nenhum intervalo de áudio fora dos limites. Houve frames descartados em alguns clientes; a prova não exige 30 FPS exatos nem implica ausência absoluta de interrupções. Acomodação tem estado RECORDED, separado da qualidade estável.
+
+A admissão remota do harness só aceita essa origem HTTPS com opt-in explícito e nome exato de instância descartável. A origem do navegador/captura continua loopback. Os prazos e critérios não foram reduzidos. Depois da migração, o nome de produção faz o harness recusar a execução antes de autenticar/criar dados; a senha descartável foi removida dos secrets do GitHub antes da importação real.
+
+Worker/API externos: 21 critérios com PNG/MP4 gerados, metadados, miniaturas JPEG privadas, MP4 faststart, hashes dos originais, permissões de comunidade, downloads assinados, bloqueio do endpoint interno e CORS Tauri. Reinício dos dois serviços preservou conta/senha, sessão JWT, mensagem, objetos e resultados de processamento de teste. Migração real offline para destino novo conferiu integridade/FKs, todas as tabelas e os seis objetos antes do boot; login administrativo anterior e contagens foram conferidos depois e novamente após o reinício permanente. Os 13 arquivos web publicados têm SHA igual ao pacote.
+
+Snapshot externo manual gratuito: completed, 245609337 bytes, capturado com serviço parado, 1/3 slots; reinício posterior passou. Restauração destrutiva desse snapshot ainda NOT_RUN. [Checagem externa 43627871254](https://github.com/BersaneV/Harmony/actions/runs/43627871254) confirmou health/frontend/versão a partir de um runner do GitHub depois de parar o piloto local; a interface HTTPS foi inspecionada no navegador. Isso prova independência dos processos locais, sem alegar que o Mac foi fisicamente desligado durante a sessão.
+
+O primeiro runner Docker não executou o supervisor Python sob a política aplicada e foi rejeitado, sem receber dados reais. A primeira checagem pública com User-Agent padrão Python-urllib recebeu bloqueio 1010/403 da borda; a identificação explícita Harmony-Availability passou. O CI completo de `5b31d54` passou Linux e testes Windows, mas falhou antes do build NSIS comum: arquivo `ci-unsigned.json` criado em `src-tauri/`, procurado a partir do diretório pai. O caminho foi corrigido no workflow em `8322db9`; o CI repetido recebe resultado próprio, sem apagar a falha anterior. A distribuição assinada 0.4.1 anterior permanece intacta.
+
+Permanecem separados: oito dispositivos em redes diferentes, NAT que exige relay, captura/áudio/atualização em Windows físico, resolução 1440p/2160p e permanência futura das regras/SLA do provedor. Nenhum teste local ou runner lhes atribui PASS. A hospedagem não inclui TURN pago ou fallback faturável. Nenhum `config.toml` do Codex foi alterado.

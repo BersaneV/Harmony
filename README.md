@@ -2,9 +2,11 @@
 
 [Baixar a prévia 0.4.1 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.4.1/Harmony_0.4.1_x64-setup.exe) · [Notas e relatórios da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.4.1). O cliente precisa do endereço de uma instância Harmony. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
 
+**Servidor do piloto: https://harmony.go.altare.global**. Informe essa origem no campo de servidor do `.exe`, sem `/api`. A instância está na Altare Always Free, sem cartão e sem depender do Mac. Contas e comunidades anteriores foram preservadas. [Hospedagem, recursos, operação e limites](docs/HOSTING.md).
+
 Comunidades, conversas e compartilhamento de tela em uma plataforma open source, hospedada por você. Cliente Windows com Tauri 2, React e TypeScript; servidor Rust com SQLite, arquivos locais privados e chamadas WebRTC P2P; LiveKit opcional.
 
-**Versão de desenvolvimento.** O núcleo funciona com serviços reais e possui testes de integração. Captura em Windows físico, conectividade entre redes diferentes e hospedagem definitiva ainda precisam das provas descritas na documentação. Não há servidor comercial nem conta obrigatória em serviço pago.
+**Versão de desenvolvimento.** O núcleo funciona com serviços reais e possui testes de integração e implantação externa gratuita. Captura em Windows físico e qualidade das chamadas entre redes diferentes ainda precisam das provas descritas na documentação. Não há conta obrigatória em serviço pago.
 
 ## O que já funciona
 

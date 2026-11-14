@@ -1,0 +1,283 @@
+{
+  "schema": 1,
+  "date": "2026-11-14",
+  "origin": "https://harmony.go.altare.global",
+  "provider": "Altare Always Free",
+  "runtime_dependency_on_mac": false,
+  "topology": {
+    "same_host": "se-kna01",
+    "location": "Karlskrona, Sweden",
+    "native": {
+      "memory_mib": 1024,
+      "cpu_percent": 75,
+      "disk_mib": 5120
+    },
+    "https_gateway": {
+      "memory_mib": 256,
+      "cpu_percent": 25,
+      "disk_mib": 1024
+    }
+  },
+  "product_commit": "2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d",
+  "adapter_commit": "5b31d545363183ccc9a6d86316f5c2166d9cd026",
+  "linux_bundle_sha256": "d6e8ab6233fd3540b586247bd19d86ef8e48eaa9789f611105662ea86531dc3d",
+  "runtime_guard": {
+    "profile": "altare-single-provider",
+    "version": "0.4.1",
+    "landlock_abi": 6,
+    "uid": 987,
+    "write_outside_private_directories": "DENIED",
+    "execute_from_writable_directory": "DENIED",
+    "parser_sandbox": "REQUIRED_BY_SUPERVISOR",
+    "slot": "state"
+  },
+  "external_capacity_run": "https://github.com/BersaneV/Harmony/actions/runs/43625293821",
+  "capacity_summary": [
+    {
+      "kind": "capacity_report",
+      "status": "PASS",
+      "functional_status": "PASS",
+      "quality_status": "PASS",
+      "moderation_status": "PASS",
+      "video_codec_preference": "default",
+      "video_codec_scope": "Native codec selection unchanged",
+      "requested": {
+        "seconds": 180,
+        "settling_seconds": 30,
+        "height": 720,
+        "width": 1280,
+        "fps": 30,
+        "minimum_average_fps": 24,
+        "bitrate_per_viewer": 4000000,
+        "minimum_nonconcealed_audio_wall_ratio": 0.8,
+        "maximum_audio_concealment_ratio": 0.02,
+        "minimum_audio_rms": 0.03
+      }
+    },
+    {
+      "kind": "stability",
+      "duration_seconds": 181.28337827,
+      "directed_voice_streams": 56,
+      "pairwise_connections": 28,
+      "spectators": 7,
+      "source_average_draw_fps": null,
+      "native_source_average_preview_fps": 30.003491857022528,
+      "min_audio_playback_advance_ratio": 0.9936873270258109,
+      "min_nonconcealed_audio_wall_ratio": 0.991973712720857,
+      "max_audio_concealment_ratio": 0.0046251348435814455,
+      "min_audio_rms": 0.20054465118280168,
+      "audio_interval_failures": 0,
+      "zero_size_intervals": 0,
+      "frozen_intervals": 0
+    },
+    {
+      "kind": "viewer",
+      "receiver": 1,
+      "average_fps": 29.997627991902075,
+      "average_received_fps": 29.997627991902075,
+      "dropped_frames": 0,
+      "measurement_seconds": 181.281,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "kind": "viewer",
+      "receiver": 2,
+      "average_fps": 30.00223403287063,
+      "average_received_fps": 30.00223403287063,
+      "dropped_frames": 0,
+      "measurement_seconds": 181.28649999999996,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "kind": "viewer",
+      "receiver": 3,
+      "average_fps": 26.114082242258586,
+      "average_received_fps": 30.003061536891522,
+      "dropped_frames": 705,
+      "measurement_seconds": 181.2815,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "kind": "viewer",
+      "receiver": 4,
+      "average_fps": 26.676772507699358,
+      "average_received_fps": 30.00309463800182,
+      "dropped_frames": 603,
+      "measurement_seconds": 181.28130000000002,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "kind": "viewer",
+      "receiver": 5,
+      "average_fps": 30.002234032870625,
+      "average_received_fps": 30.002234032870625,
+      "dropped_frames": 0,
+      "measurement_seconds": 181.2865,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "kind": "viewer",
+      "receiver": 6,
+      "average_fps": 29.997164666671818,
+      "average_received_fps": 30.002680879372566,
+      "dropped_frames": 1,
+      "measurement_seconds": 181.28379999999999,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "kind": "viewer",
+      "receiver": 7,
+      "average_fps": 27.151038546531318,
+      "average_received_fps": 29.99191316080674,
+      "dropped_frames": 515,
+      "measurement_seconds": 181.28220000000002,
+      "final_width": 1280,
+      "final_height": 720
+    },
+    {
+      "kind": "startup",
+      "state": "RECORDED",
+      "requested_seconds": 30,
+      "duration_seconds": 30.075251476000002,
+      "boundary_ready": true,
+      "audio_stream_samples": 693,
+      "outside_steady_budget_samples": 0,
+      "minimum_nonconcealed_wall_ratio": 0.8532749246332686,
+      "maximum_concealment_ratio": 0.012123015873015872,
+      "minimum_rms": 0.19605210480062352
+    },
+    {
+      "kind": "moderation",
+      "name": "Mute stops the target media on all eight clients",
+      "elapsed_ms": 479.60961699998006
+    },
+    {
+      "kind": "moderation",
+      "name": "Unmute restores publication permission",
+      "elapsed_ms": 697.6667129999842
+    },
+    {
+      "kind": "moderation",
+      "name": "PUBLISH deny stops publication without removing listener",
+      "elapsed_ms": 215.4012020000082
+    },
+    {
+      "kind": "moderation",
+      "name": "PUBLISH restore reaches the existing call",
+      "elapsed_ms": 515.2176900000195
+    },
+    {
+      "kind": "moderation",
+      "name": "CONNECT deny closes target and removes it from seven peers",
+      "elapsed_ms": 332.77406500000507
+    },
+    {
+      "kind": "moderation",
+      "name": "password reset",
+      "elapsed_ms": 240.43700200002058
+    }
+  ],
+  "media_smoke": {
+    "status": "PASS",
+    "checks": 21,
+    "criteria": [
+      "Owned disposable instance identified",
+      "Open registration creates ordinary accounts",
+      "Anonymous channel access denied",
+      "Community membership protects messages",
+      "image: authorized upload",
+      "image: isolated worker completed",
+      "Image dimensions preserved",
+      "image: private JPEG thumbnail",
+      "image: unsigned derivative denied",
+      "image: original hash preserved",
+      "image: outsider metadata denied",
+      "video: authorized upload",
+      "video: isolated worker completed",
+      "video: private JPEG thumbnail",
+      "video: unsigned derivative denied",
+      "video: original hash preserved",
+      "video: outsider metadata denied",
+      "MP4 faststart generated",
+      "Internal media admission blocked at gateway",
+      "Windows Tauri origin allowed",
+      "Admin storage statistics available"
+    ],
+    "scope": "External HTTPS API, community ACL, actual deployed worker/FFmpeg, private thumbnails/MP4 and originals; disposable generated media only"
+  },
+  "disposable_restart": {
+    "status": "PASS",
+    "restart": "native backend and HTTPS gateway",
+    "checks": [
+      "Account and password survived",
+      "Existing session JWT survived",
+      "Community message survived",
+      "Image and video original hashes survived",
+      "Worker results survived"
+    ],
+    "scope": "Real persisted disposable data after provider restart; no Mac service used"
+  },
+  "migration": {
+    "status": "PASS",
+    "writers_stopped": true,
+    "destination_preexisting": false,
+    "all_table_counts_equal_before_boot": true,
+    "all_six_objects_sha256_equal": true,
+    "sqlite_integrity": "ok",
+    "foreign_key_violations": 0,
+    "existing_password_and_jwt_key_preserved": true
+  },
+  "production_after_restart": {
+    "status": "PASS",
+    "checks": [
+      "Production instance 0.4.1 with P2P and open registration",
+      "Existing administrator password still works",
+      "Migrated account count preserved",
+      "Migrated community count preserved",
+      "Public frontend served without the Mac",
+      "Anonymous administrator access denied",
+      "Tauri origin tauri://localhost",
+      "Tauri origin http://tauri.localhost",
+      "Tauri origin https://tauri.localhost"
+    ],
+    "instance": {
+      "max_upload_bytes": 26214400,
+      "max_video_bitrate": 32000000,
+      "media_transport": "p2p",
+      "name": "Harmony",
+      "registration": "open",
+      "version": "0.4.1"
+    },
+    "scope": "Migrated production instance, existing account password, counts, HTTPS frontend and desktop CORS while former local pilot services are stopped"
+  },
+  "frontend": {
+    "status": "PASS",
+    "files": 13,
+    "scope": "Every published frontend asset equals the verified Linux bundle, fetched through external HTTPS"
+  },
+  "offsite_manual_snapshot": {
+    "status": "completed",
+    "size_bytes": 245609337,
+    "free_slots_used": 1,
+    "free_slots_limit": 3,
+    "application_stopped_during_capture": true,
+    "restore_test": "NOT_RUN"
+  },
+  "public_health_run": "https://github.com/BersaneV/Harmony/actions/runs/43627871254",
+  "public_health": "PASS",
+  "not_verified": [
+    "Physical Windows capture/audio/update in daily use",
+    "Eight separate devices across different networks",
+    "1440p/2160p performance",
+    "Restricted NAT requiring relay",
+    "Destructive Altare snapshot restore",
+    "Future provider policy and availability"
+  ],
+  "scope": "External API and worker verified. Eight Chrome processes share a GitHub runner; generated media and no physical devices. Mac pilot stopped, Mac not physically powered off."
+}

@@ -1,4 +1,4 @@
-# Operar o Harmony 0.4.0
+# Operar o Harmony 0.4.1
 
 O perfil P2P usa `harmony` (API, frontend e worker em processos separados) e, para entrada pública, `caddy`. O `livekit` é opcional, iniciado somente com `--profile sfu`. SQLite e os arquivos privados ficam no volume `data`. O aplicativo Windows é cliente e não instala esses serviços.
 
@@ -33,7 +33,7 @@ Bloqueie acesso externo a 8080, 7880, 5349, 18081, 18082 e 2019. API e sinaliza�
 
 Arquivos permanecem privados: a API revalida assinatura, sessão e ACL no início de cada transferência. O limite de corpo `/api/files/*` do Caddy acompanha `HARMONY_MAX_UPLOAD_BYTES`; se mudar esse valor, atualize também o `max_size` gerado. Transferências já abertas não são interrompidas retroativamente por revogação.
 
-Nenhuma hospedagem permanente está validada. O túnel gratuito temporário do ensaio móvel depende do computador de desenvolvimento e não hospeda o Harmony. Não equivale à implantação externa solicitada.
+Em 14/11/2026, o piloto foi migrado para **https://harmony.go.altare.global**, na Altare Always Free. API, frontend, worker, SQLite, arquivos e gateway estão no mesmo host externo, sem serviços locais necessários. O túnel temporário do Mac foi desligado. O perfil nativo e suas diferenças de isolamento/temporários em relação ao Compose estão em [HOSTING.md](HOSTING.md); a gratuidade atual não constitui SLA nem garantia de permanência das políticas do provedor.
 
 ## Recursos e limites
 
