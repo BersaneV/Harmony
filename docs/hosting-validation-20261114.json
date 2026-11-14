@@ -279,5 +279,26 @@
     "Destructive Altare snapshot restore",
     "Future provider policy and availability"
   ],
-  "scope": "External API and worker verified. Eight Chrome processes share a GitHub runner; generated media and no physical devices. Mac pilot stopped, Mac not physically powered off."
+  "scope": "External API and worker verified. Eight Chrome processes share a GitHub runner; generated media and no physical devices. Mac pilot stopped, Mac not physically powered off.",
+  "migrated_originals_after_restart": {
+    "status": "PASS",
+    "objects": 6,
+    "scope": "Every real migrated original retrieved from external storage after the permanent restart matches the frozen source SHA-256"
+  },
+  "full_regression": {
+    "run": "https://github.com/BersaneV/Harmony/actions/runs/43628005539",
+    "head_sha": "8322db90bc48a6f12900e9b12a3aec49d3dd3941",
+    "status": "PASS",
+    "jobs": [
+      {
+        "name": "server",
+        "conclusion": "success"
+      },
+      {
+        "name": "desktop",
+        "conclusion": "success"
+      }
+    ],
+    "desktop_scope": "Unsigned CI build and installation/removal on Windows runner; published signed version 0.4.1 unchanged"
+  }
 }
