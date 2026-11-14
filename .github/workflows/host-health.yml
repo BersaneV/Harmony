@@ -1,0 +1,30 @@
+name: Check the public Harmony instance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-health:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Check the external HTTPS service without credentials or local processes
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request
+          origin = 'https://harmony.go.altare.global'
+          for path in ('/health', '/', '/api/instance'):
+              with urllib.request.urlopen(origin + path, timeout=20) as response:
+                  assert response.status == 200
+                  body = response.read()
+              if path == '/':
+                  assert b'id="root"' in body
+              if path == '/api/instance':
+                  instance = json.loads(body)
+                  assert instance['name'] == 'Harmony'
+                  assert instance['version'] == '0.4.1'
+                  assert instance['media_transport'] == 'p2p'
+                  assert instance['registration'] == 'open'
+              print(json.dumps({'origin': origin, 'path': path, 'status': 'PASS'}))
+          PY
