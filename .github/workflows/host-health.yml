@@ -15,7 +15,10 @@ jobs:
           import json, urllib.request
           origin = 'https://harmony.go.altare.global'
           for path in ('/health', '/', '/api/instance'):
-              with urllib.request.urlopen(origin + path, timeout=20) as response:
+              request = urllib.request.Request(origin + path, headers={
+                  'User-Agent': 'Harmony-Availability/0.4.1',
+              })
+              with urllib.request.urlopen(request, timeout=20) as response:
                   assert response.status == 200
                   body = response.read()
               if path == '/':
