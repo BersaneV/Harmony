@@ -4,6 +4,8 @@
 // Defaults: 180 s stable media, native 720p30 canvas, 4 Mb/s per spectator.
 // Optional profiles are explicit: HARMONY_CAPACITY_HEIGHT=360|720|1080|1440,
 // HARMONY_CAPACITY_FPS=15|24|30|60. Minimum average rendered FPS is 0.8*FPS.
+// HARMONY_CAPACITY_SETTLE_SECONDS=0|30 adds a fixed recorded startup phase
+// before the full stable interval. Default 0 preserves the original measurement.
 // HARMONY_SERVER_BINARY/SOURCE identify the externally started server for A/B.
 // HARMONY_CAPACITY_BROWSER_MODE=contexts optionally uses one Chrome with eight
 // isolated BrowserContexts. It shares GPU/audio services, not application sessions;
@@ -40,6 +42,8 @@ for (const value of [api, web]) {
 }
 const seconds = Number(process.env.HARMONY_CAPACITY_SECONDS || 180);
 assert.ok(Number.isInteger(seconds) && seconds >= 120 && seconds <= 1800, 'HARMONY_CAPACITY_SECONDS must be 120..1800');
+const settlingSeconds = Number(process.env.HARMONY_CAPACITY_SETTLE_SECONDS || 0);
+assert.ok([0, 30].includes(settlingSeconds), 'HARMONY_CAPACITY_SETTLE_SECONDS must be 0 or 30');
 const height = Number(process.env.HARMONY_CAPACITY_HEIGHT || 720);
 const fps = Number(process.env.HARMONY_CAPACITY_FPS || 30);
 assert.ok([360, 720, 1080, 1440].includes(height), 'HARMONY_CAPACITY_HEIGHT must be 360, 720, 1080 or 1440');
@@ -99,7 +103,7 @@ const report = {
   microphone_frequencies_hz: frequencies, screen_audio_frequency_hz: screenFrequency,
   process_count_scope: 'Top-level launched Chrome browser processes; excludes their renderer/GPU/audio helper processes',
   start_concurrency: startConcurrency, setup_timeout_ms: 90_000, runtime_cdp_timeout_ms: 30_000,
-  requested: { seconds, height, width, fps, minimum_average_fps: minimumFps, bitrate_per_viewer: 4_000_000,
+  requested: { seconds, settling_seconds: settlingSeconds, height, width, fps, minimum_average_fps: minimumFps, bitrate_per_viewer: 4_000_000,
     minimum_nonconcealed_audio_wall_ratio: 0.8, maximum_audio_concealment_ratio: 0.02, minimum_audio_rms: 0.03 },
   engine_root: engineRoot, checks: [], samples: [], intervals: [], moderation: [],
   not_verified: ['WAN / independent networks / NAT', 'physical Windows / WebView2', 'physical microphone, camera or system audio',
@@ -564,9 +568,83 @@ function audioProgress(before, after, uid, source, elapsed) {
       && concealmentRatio <= report.requested.maximum_audio_concealment_ratio && rms > report.requested.minimum_audio_rms && bytes > 0 && packets > 0 };
 }
 function safeProgress(label) { console.log(JSON.stringify({ stage: label, checks: report.checks.length, status: report.status })); }
-async function stableMeasurement() {
-  await until(async () => { const f = await sample(false); return voicesValid(f) && screensValid(f); }, 'All 56 voices and seven screens/screen-audio tracks decode before measurement', 60_000);
-  const first = await sample(); report.samples.push(first);
+async function settlingMeasurement() {
+  const startup = report.startup = {
+    state: 'MEASURING', requested_seconds: settlingSeconds, duration_seconds: 0, boundary_ready: false,
+    scope: 'Fixed startup observation, not a quality PASS. Audio and video transients remain recorded. All eight clients, signaling and peer connections must stay connected; published sources stay alive. No reset, recapture or extension until quality improves.',
+    samples: [], intervals: [],
+  };
+  const guard = frame => {
+    check(meshValid(frame.clients.map(c => c.snapshot)), 'Eight clients retain the complete connected mesh during startup');
+    check(frame.clients.every(c => c.errors.length === 0 && c.closures.length === 0), 'No browser error or signaling close during startup');
+    check(frame.clients.every(c => !c.peerTransitions.some(t => ['failed', 'closed', 'disconnected'].includes(t.state))), 'No peer failure, closure or disconnect during startup');
+    check(frame.clients.every((c, i) => {
+      const sources = i === 0 ? ['microphone', 'screen', 'screen_audio'] : ['microphone'];
+      return sources.every(source => c.snapshot.localTracks[source]?.readyState === 'live' && c.snapshot.localTracks[source]?.enabled);
+    }), 'All published sources remain live and enabled during startup');
+  };
+  const first = await sample(); startup.samples.push(first); guard(first);
+  const deadline = first.at + settlingSeconds * 1000;
+  let previous = first;
+  // The deadline depends only on elapsed time. Missing media or poor quality
+  // never resets it; the final sample is retained and checked exactly once.
+  while (previous.at < deadline) {
+    if (stopping) throw new Error('Capacity run interrupted during startup');
+    await delay(Math.min(3000, Math.max(0, deadline - performance.now())));
+    const current = await sample(); startup.samples.push(current);
+    startup.duration_seconds = (current.at - first.at) / 1000;
+    const ownerDt = (current.clients[0].at - previous.clients[0].at) / 1000;
+    const interval = { completed: false, seconds: (current.at - previous.at) / 1000, elapsed_seconds: startup.duration_seconds,
+      audio: [], screens: [], voices_decoded: voicesValid(current), screens_decoded: screensValid(current),
+      owner_upload_rtp_bps: (rtpBytes(current.clients[0]) - rtpBytes(previous.clients[0])) * 8 / ownerDt,
+      owner_screen_rtp_bps: (rtpBytes(current.clients[0], 'screen') - rtpBytes(previous.clients[0], 'screen')) * 8 / ownerDt,
+      source_draw_fps: nativeFake ? null : (current.clients[0].captureTicks - previous.clients[0].captureTicks) / ownerDt,
+      native_source_preview_fps: nativeFake ? (current.clients[0].sourcePreview.frames - previous.clients[0].sourcePreview.frames) / ownerDt : null,
+      audio_clock_progress: current.clients.map((c, i) => {
+        const before = previous.clients[i], elapsed = (c.at - before.at) / 1000;
+        const sender = nativeFake ? null : c.audioClocks.sender.currentTime - before.audioClocks.sender.currentTime;
+        const analyser = c.audioClocks.analyser.currentTime - before.audioClocks.analyser.currentTime;
+        return { client: i, wall_seconds: elapsed, sender_seconds: sender, analyser_seconds: analyser,
+          sender_ratio: sender === null ? null : sender / elapsed, analyser_ratio: analyser / elapsed,
+          sender_state: c.audioClocks.sender.state, analyser_state: c.audioClocks.analyser.state };
+      }),
+    };
+    startup.intervals.push(interval); guard(current);
+    const recordAudio = (receiver, sender, source) => {
+      const before = previous.clients[receiver], after = current.clients[receiver], uid = people[sender].user.id;
+      const elapsed = (after.at - before.at) / 1000;
+      const { pass, ...audio } = audioProgress(before, after, uid, source, elapsed);
+      const playbackBefore = voice(before, uid, source), playbackAfter = voice(after, uid, source);
+      const advance = playbackBefore && playbackAfter ? playbackAfter.time - playbackBefore.time : null;
+      interval.audio.push({ receiver, sender, ...audio, within_steady_budget: pass,
+        playback_advance_seconds: advance, playback_advance_ratio: advance === null ? null : advance / elapsed });
+    };
+    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) if (i !== j) recordAudio(i, j, 'microphone');
+    for (let i = 1; i < 8; i++) {
+      recordAudio(i, 0, 'screen_audio');
+      const before = voice(previous.clients[i], people[0].user.id, 'screen'), after = voice(current.clients[i], people[0].user.id, 'screen');
+      const elapsed = (current.clients[i].at - previous.clients[i].at) / 1000;
+      const renderedFps = before && after ? (after.rendered - before.rendered) / elapsed : 0;
+      interval.screens.push({ receiver: i, fps: renderedFps, received_fps: before && after ? (after.frames - before.frames) / elapsed : 0,
+        dropped_frames: before && after ? after.dropped - before.dropped : null, width: after?.width || 0, height: after?.height || 0,
+        size_zero: !after?.width || !after?.height, frozen: renderedFps <= 0 });
+    }
+    interval.completed = true; previous = current;
+  }
+  startup.state = 'RECORDED';
+  startup.boundary_ready = voicesValid(previous) && screensValid(previous) && previous.clients.slice(1).every(c => {
+    const screen = voice(c, people[0].user.id, 'screen');
+    return screen?.width === width && screen?.height === height;
+  });
+  check(startup.boundary_ready, 'After the fixed startup interval all 56 voices, seven screen-audio streams and exact-size screens must decode');
+  safeProgress('fixed startup recorded; full stable measurement begins');
+  // Reuse this boundary as the stable baseline without reconnecting, recapturing
+  // or waiting for another readiness condition after the fixed deadline.
+  return previous;
+}
+async function stableMeasurement(boundary = null) {
+  if (!boundary) await until(async () => { const f = await sample(false); return voicesValid(f) && screensValid(f); }, 'All 56 voices and seven screens/screen-audio tracks decode before measurement', 60_000);
+  const first = boundary || await sample(); report.samples.push(first);
   const started = performance.now(); let previous = first;
   const voiceAdvances = [], audioIntervals = [], quality = [], functional = [];
   while (performance.now() - started < seconds * 1000) {
@@ -691,7 +769,9 @@ async function moderation(admin, guild, channel, role) {
   // Read the current token from the same module after any automatic refresh.
   const oldToken = await browsers[target].client.evaluate('qa.api.getSession().access_token');
   const started = performance.now();
-  await request('POST', `/admin/users/${uid}/reset`, { password: randomBytes(24).toString('hex') }, admin.access_token);
+  // This endpoint confirms the current administrator password before issuing
+  // a reset token. It does not accept a replacement password for the target.
+  await request('POST', `/admin/users/${uid}/reset`, { password: process.env.HARMONY_BOOTSTRAP_PASSWORD }, admin.access_token);
   await until(async () => { const s = await snapshots(); return ['closed', 'failed'].includes(s[target].state) && !Object.keys(s[target].localTracks).length && meshValid(s, excluded); },
     'Administrative reset closes target and preserves seven connected peers', Math.max(1, 2000 - (performance.now() - started)), 50);
   const elapsed = performance.now() - started; report.moderation.push({ name: 'password reset', elapsed_ms: elapsed });
@@ -758,7 +838,8 @@ try {
   await all(browsers.map((_, i) => publishVoice(i)));
   await browsers[0].client.run(`await qa.call.setScreenProfile({height:${height},fps:${fps},bitrate:4,content:'motion',audio:true});
     await qa.call.setTrack('screen',await qa.screen());await qa.call.setTrack('screen_audio',await qa.tone(${screenFrequency}));return true;`, true);
-  await stableMeasurement();
+  const settled = settlingSeconds ? await settlingMeasurement() : null;
+  await stableMeasurement(settled);
   await moderation(admin, guild, channel, role);
   report.sources_unchanged = report.sources.engine_sha256 === hash(await readFile(join(engineDirectory, 'call.ts')))
     && report.sources.api_sha256 === hash(await readFile(join(engineDirectory, 'api.ts')))

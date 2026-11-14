@@ -37,12 +37,13 @@
     "crates/server/src/calls.rs": "0fde3f16e35f5c2dc69640ae8741472559eea7c9338317919ecf407b413e8391",
     "apps/desktop/src/lib/call.ts": "4255301e5234926166be8e4d52f4b2c445957520853a76ef27f431dc7b75c7c3",
     "apps/desktop/src/lib/call.test.ts": "3ad4450eb7b985836b986d9fc2e9a88d6e4b7a6634489707e8b398ee8f4858d6",
-    "scripts/test_call_capacity.mjs": "ea811a389d48d0b28b6404816674b35e41345f140b55f3ec6b40707eb7108d47"
+    "scripts/test_call_capacity.mjs": "141a873d1f506d3515311e38cb8ac674153f1411611d81845e41fde38d447a4e",
+    "scripts/report_call_capacity.py": "192846a8a0f2b685053f6d77544771d9dfcfda7cb4aff10bcfacd31c88c12035"
   },
   "capacity": {
     "status": "CI_FAILED_PROFILE",
     "attempts_preserved": "Local oscillator/canvas attempts failed; source/analyser clocks slowed versus wall time. Isolated fake-file probe could read generated WAV only from sandbox-permitted location on macOS. These findings do not establish stable eight-party media.",
-    "ci_profile": "Eight separate Chrome processes; native fake inputs;720p15,180s; minimum12averageFPS; 56 directional voice plus seven screen-audio RTP progress/energy/concealment gates and security gates; not equivalent to720p30",
+    "ci_profile": "Eight separate Chrome processes; native fake inputs; fixed observed30s startup followed by180s steady720p15; minimum12averageFPS; same56+7audio thresholds and2s moderation. Startup transients reported separately, no reconnect/extension. Not720p30.",
     "local_target": "720p30 with at least24averageFPS; physical Windows and WAN remain separate",
     "first_ci_run": "https://github.com/BersaneV/Harmony/actions/runs/43568286497",
     "first_ci_observed": {

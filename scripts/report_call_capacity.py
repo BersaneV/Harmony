@@ -25,7 +25,7 @@ def main():
     emit("capacity_report", {**select(result, (
         "status", "functional_status", "quality_status", "moderation_status", "error",
     )), "requested": select(result.get("requested") or {}, (
-        "seconds", "height", "width", "fps", "minimum_average_fps", "bitrate_per_viewer",
+        "seconds", "settling_seconds", "height", "width", "fps", "minimum_average_fps", "bitrate_per_viewer",
         "minimum_nonconcealed_audio_wall_ratio", "maximum_audio_concealment_ratio", "minimum_audio_rms",
     ))})
     stability = result.get("stability") or {}
@@ -41,25 +41,50 @@ def main():
             "receiver", "average_fps", "average_received_fps", "dropped_frames",
             "measurement_seconds", "final_width", "final_height",
         )))
-    intervals = result.get("intervals") or []
-    for receiver in range(8):
-        failures = [
-            {"elapsed_seconds": interval.get("elapsed_seconds"), **select(audio, (
-                "receiver", "sender", "source", "wall_seconds", "stats_seconds", "duration_seconds", "samples",
-                "concealed_samples", "duration_wall_ratio", "concealment_ratio", "nonconcealed_wall_ratio",
-                "rms", "bytes_received", "packets_received", "pass",
-            ))}
-            for interval in intervals for audio in interval.get("audio", [])
-            if audio.get("receiver") == receiver and not audio.get("pass")
-        ]
-        # First failures expose startup; the worst exposes later starvation.
-        selected = failures[:3]
-        if failures:
-            worst = min(failures, key=lambda a: a.get("nonconcealed_wall_ratio") or 0)
-            if worst not in selected:
-                selected.append(worst)
-        emit("audio_intervals", {"receiver": receiver, "failed_stream_samples": len(failures),
-                                 "examples": selected})
+    startup = result.get("startup") or {}
+    if startup:
+        startup_audio = [a for i in startup.get("intervals", []) for a in i.get("audio", [])]
+        emit("startup", {**select(startup, ("state", "requested_seconds", "duration_seconds", "boundary_ready")),
+                         "audio_stream_samples": len(startup_audio),
+                         "outside_steady_budget_samples": sum(not a.get("within_steady_budget") for a in startup_audio),
+                         "minimum_nonconcealed_wall_ratio": min((a["nonconcealed_wall_ratio"] for a in startup_audio if a.get("nonconcealed_wall_ratio") is not None), default=None),
+                         "maximum_concealment_ratio": max((a["concealment_ratio"] for a in startup_audio if a.get("concealment_ratio") is not None), default=None),
+                         "minimum_rms": min((a["rms"] for a in startup_audio if a.get("rms") is not None), default=None)})
+        for receiver in range(1, 8):
+            screens = [{"elapsed_seconds": i["elapsed_seconds"], **s}
+                       for i in startup.get("intervals", []) for s in i.get("screens", []) if s.get("receiver") == receiver]
+            exact = [s for s in screens if s.get("width") == result["requested"]["width"] and s.get("height") == result["requested"]["height"]]
+            emit("startup_viewer", {"receiver": receiver, "observed_intervals": len(screens), "exact_size_intervals": len(exact),
+                                    "first_exact_elapsed_seconds": exact[0]["elapsed_seconds"] if exact else None,
+                                    "first_size": select(screens[0], ("width", "height")) if screens else None,
+                                    "final_size": select(screens[-1], ("width", "height")) if screens else None,
+                                    "minimum_fps": min((s["fps"] for s in screens), default=None)})
+    phases = [("steady", result.get("intervals", []), "pass")]
+    if startup:
+        phases.insert(0, ("startup", startup.get("intervals", []), "within_steady_budget"))
+    for phase, intervals, budget_key in phases:
+        for receiver in range(8):
+            failures = [
+                {"elapsed_seconds": interval.get("elapsed_seconds"), **select(audio, (
+                    "receiver", "sender", "source", "wall_seconds", "stats_seconds", "duration_seconds", "samples",
+                    "concealed_samples", "duration_wall_ratio", "concealment_ratio", "nonconcealed_wall_ratio",
+                    "rms", "bytes_received", "packets_received", "pass", "within_steady_budget",
+                ))}
+                for interval in intervals for audio in interval.get("audio", [])
+                if audio.get("receiver") == receiver and not audio.get(budget_key)
+            ]
+            # First failures expose startup; the worst exposes later starvation.
+            selected = failures[:3]
+            if failures:
+                worst = min(failures, key=lambda a: a.get("nonconcealed_wall_ratio") or 0)
+                if worst not in selected:
+                    selected.append(worst)
+            failed_times = sorted({a["elapsed_seconds"] for a in failures})
+            observed = sum(a.get("receiver") == receiver for i in intervals for a in i.get("audio", []))
+            emit("audio_intervals", {"phase": phase, "receiver": receiver, "observed_stream_samples": observed, "failed_stream_samples": len(failures),
+                                     "failed_measurement_intervals": len(failed_times),
+                                     "failed_elapsed_seconds": failed_times[:12], "elapsed_list_truncated": len(failed_times) > 12,
+                                     "examples": selected})
     for action in result.get("moderation", []):
         emit("moderation", select(action, ("name", "elapsed_ms")))
     clients = (result.get("samples") or [{}])[-1].get("clients", []) or result.get("failure") or []

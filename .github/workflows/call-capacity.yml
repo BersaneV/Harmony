@@ -15,6 +15,12 @@ on:
         options: [native-fake, webaudio-canvas]
         default: native-fake
         required: true
+      settling_seconds:
+        description: Fixed observed startup before the additional 180-second steady measurement
+        type: choice
+        options: ["0", "30"]
+        default: "30"
+        required: true
 
 permissions:
   contents: read
@@ -33,6 +39,7 @@ jobs:
       HARMONY_CAPACITY_MEDIA_SOURCE: ${{ inputs.source }}
       HARMONY_CAPACITY_HEIGHT: "720"
       HARMONY_CAPACITY_SECONDS: "180"
+      HARMONY_CAPACITY_SETTLE_SECONDS: ${{ inputs.settling_seconds }}
       HARMONY_CAPACITY_BROWSER_MODE: processes
       HARMONY_CHROME: /usr/bin/google-chrome
       HARMONY_ENV_FILE: .local/capacity-manual-instance/.env
@@ -69,6 +76,7 @@ jobs:
           umask 077
           case "$HARMONY_CAPACITY_FPS" in 15|30) ;; *) exit 1 ;; esac
           case "$HARMONY_CAPACITY_MEDIA_SOURCE" in native-fake|webaudio-canvas) ;; *) exit 1 ;; esac
+          case "$HARMONY_CAPACITY_SETTLE_SECONDS" in 0|30) ;; *) exit 1 ;; esac
           test -x "$HARMONY_CHROME"
           python3 scripts/configure.py --media-transport p2p --directory .local/capacity-manual-instance
       - name: Build only the server and install the locked frontend dependencies

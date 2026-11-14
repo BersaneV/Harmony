@@ -107,13 +107,14 @@ jobs:
             sleep 1
           done
           HARMONY_TEST_URL=http://127.0.0.1:8081 python3 scripts/with-env.py node scripts/call-browser-test.mjs
-      - name: Eight-party P2P stability and authorization (native fake 720p15 runner profile)
+      - name: Eight-party P2P stability and authorization (30s settling, then 180s native fake 720p15)
         env:
           HARMONY_CHROME: /usr/bin/google-chrome
           HARMONY_CAPACITY_FPS: "15"
           HARMONY_CAPACITY_MEDIA_SOURCE: "native-fake"
           HARMONY_CAPACITY_BROWSER_MODE: "processes"
           HARMONY_CAPACITY_SECONDS: "180"
+          HARMONY_CAPACITY_SETTLE_SECONDS: "30"
         run: |
           DATABASE_URL=sqlite:.local/capacity-ci.db HARMONY_STORAGE_DIR=.local/capacity-ci-files HARMONY_BIND=127.0.0.1:8081 HARMONY_PUBLIC_API_URL=http://127.0.0.1:8081 HARMONY_MEDIA_TRANSPORT=p2p HARMONY_P2P_DIAGNOSTICS=false HARMONY_CALL_STUN_URLS= HARMONY_MAX_ROOM_PARTICIPANTS=8 LIVEKIT_API_KEY= LIVEKIT_API_SECRET= python3 scripts/with-env.py target/debug/harmony-server > .local/capacity-ci.log 2>&1 &
           capacity_pid=$!
