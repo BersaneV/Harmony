@@ -82,7 +82,10 @@ class Sender {
   };
   hold?: Promise<void>;
   rejectParameters = false;
+  replacementCalls: (MediaStreamTrack | null)[] = [];
+  parameterCalls = 0;
   async replaceTrack(track: MediaStreamTrack | null) {
+    this.replacementCalls.push(track);
     const hold = track ? this.hold : undefined;
     this.hold = undefined;
     if (hold) await hold;
@@ -92,6 +95,7 @@ class Sender {
     return structuredClone(this.parameters);
   }
   async setParameters(value: RTCRtpSendParameters) {
+    this.parameterCalls++;
     if (this.rejectParameters) throw new Error("Parameters unsupported");
     this.parameters = value;
   }
@@ -426,6 +430,131 @@ describe("real call ownership and authority", () => {
 });
 
 describe("real call negotiation and measured controls", () => {
+  it("preserves live senders through SDP without redundant native mutations and reapplies reset caps", async () => {
+    const test = setup(),
+      socket = await test.connect();
+    const peer = test.peers[0],
+      mic = new Track("audio");
+    await test.call.setTrack("microphone", mic.media());
+    const before = peer.slots.map(({ sender }) => ({
+      replace: sender.replacementCalls.length,
+      parameters: sender.parameterCalls,
+    }));
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { description: { type: "answer", sdp } },
+    });
+    await flush();
+    expect(
+      peer.slots.map(({ sender }) => ({
+        replace: sender.replacementCalls.length,
+        parameters: sender.parameterCalls,
+      })),
+    ).toEqual(before);
+    expect(peer.slots[0].sender.track).toBe(mic);
+    expect(peer.slots[0].sender.parameters.encodings[0].maxBitrate).toBe(
+      64_000,
+    );
+    expect(peer.slots[2].sender.parameters.encodings[0].maxBitrate).toBe(
+      8_000_000,
+    );
+    expect(mic.readyState).toBe("live");
+    // A subsequent negotiation may reset native parameters: do not trust a cache.
+    delete peer.slots[2].sender.parameters.encodings[0].maxBitrate;
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { description: { type: "offer", sdp } },
+    });
+    await flush();
+    expect(peer.slots[2].sender.parameters.encodings[0].maxBitrate).toBe(
+      8_000_000,
+    );
+    expect(peer.slots[2].sender.parameterCalls).toBe(before[2].parameters + 1);
+    expect(peer.slots[0].sender.replacementCalls.length).toBe(
+      before[0].replace,
+    );
+    expect(peer.signalingState).toBe("stable");
+  });
+  it("does not replace an identical muted microphone but still switches devices and revokes publication", async () => {
+    const test = setup(),
+      socket = await test.connect();
+    const sender = test.peers[0].slots[0].sender,
+      first = new Track("audio");
+    first.enabled = false;
+    await test.call.setTrack("microphone", first.media());
+    await test.call.setTrack("microphone", first.media());
+    expect(sender.replacementCalls).toEqual([first]);
+    expect(first.enabled).toBe(false);
+    const second = new Track("audio");
+    await test.call.setTrack("microphone", second.media());
+    expect(first.readyState).toBe("ended");
+    expect(sender.track).toBe(second);
+    socket.receive({
+      type: "roster",
+      participants: [roster("a", false), roster("b")],
+    });
+    await flush();
+    expect(second.readyState).toBe("ended");
+    expect(sender.track).toBeNull();
+    expect(sender.replacementCalls).toEqual([first, second, null]);
+    expect(test.call.snapshot.localTracks).toEqual({});
+  });
+  it("applies changed screen controls once and preserves each recipient's independent resolution cap", async () => {
+    const test = setup(),
+      socket = await test.connect([roster("a"), roster("b"), roster("c")]);
+    const screen = new Track("video");
+    await test.call.setTrack("screen", screen.media());
+    const profile = {
+      height: 720,
+      fps: 60,
+      bitrate: 3,
+      content: "motion" as const,
+      audio: true,
+    };
+    await test.call.setScreenProfile(profile);
+    const [first, second] = test.peers.map((peer) => peer.slots[2].sender);
+    const counts = [first.parameterCalls, second.parameterCalls];
+    await test.call.setScreenProfile(profile);
+    expect([first.parameterCalls, second.parameterCalls]).toEqual(counts);
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 240 } },
+    });
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 240 } },
+    });
+    await flush();
+    expect(first.parameterCalls).toBe(counts[0] + 1);
+    expect(second.parameterCalls).toBe(counts[1]);
+    expect(first.parameters.encodings[0]).toMatchObject({
+      maxBitrate: 3_000_000,
+      maxFramerate: 60,
+      scaleResolutionDownBy: 3,
+    });
+    expect(second.parameters.encodings[0].scaleResolutionDownBy).toBe(1);
+    await test.call.setScreenProfile({
+      ...profile,
+      fps: 24,
+      bitrate: 4,
+      content: "text",
+    });
+    expect([first.parameterCalls, second.parameterCalls]).toEqual([
+      counts[0] + 2,
+      counts[1] + 1,
+    ]);
+    expect(first.parameters.encodings[0]).toMatchObject({
+      maxBitrate: 4_000_000,
+      maxFramerate: 24,
+      scaleResolutionDownBy: 3,
+    });
+    expect(first.parameters.degradationPreference).toBe("maintain-resolution");
+    expect(screen.readyState).toBe("live");
+  });
   it("isolates invalid peer SDP without closing other participants or captured media", async () => {
     const test = setup(),
       socket = await test.connect([roster("a"), roster("b"), roster("c")]);

@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-14",
+  "version": "0.4.1",
+  "status": "CORE_PASS_CAPACITY_PENDING",
+  "scope": "Pre-CI checks; eight-party acceptance and publication pending",
+  "base_commit": "13d08ddd301e582b977db9d8f014fe13e9458db7",
+  "authorization": {
+    "before": {
+      "authorized_peers": 0,
+      "elapsed_ms": 502
+    },
+    "after": {
+      "authorized_peers": 8,
+      "elapsed_ms": 174
+    },
+    "conditions": "Eight real SQLite sessions;150ms artificial pool-acquisition delay, same500ms deadline; negative650ms acquisition still rejected",
+    "rust_tests": 40,
+    "clippy": "PASS",
+    "sql_differential_checks": 23,
+    "protocol_checks": 59,
+    "protocol_timings_ms": {
+      "mute_ms": 33,
+      "publish_revoke_ms": 494,
+      "connect_revoke_ms": 338,
+      "idle_ms": 34995,
+      "long_call_ms": 122118
+    }
+  },
+  "frontend": {
+    "tests": 84,
+    "engine_tests": 15,
+    "typecheck": "PASS",
+    "changes": "Avoid redundant native replaceTrack/setParameters/track.enabled mutations; no parameter cache or quality-default changes"
+  },
+  "review": "Independent production and harness review: no blocking findings after empty-sample diagnostic fix; runtime acceptance pending",
+  "source_sha256": {
+    "crates/server/src/calls.rs": "0fde3f16e35f5c2dc69640ae8741472559eea7c9338317919ecf407b413e8391",
+    "apps/desktop/src/lib/call.ts": "4255301e5234926166be8e4d52f4b2c445957520853a76ef27f431dc7b75c7c3",
+    "apps/desktop/src/lib/call.test.ts": "3ad4450eb7b985836b986d9fc2e9a88d6e4b7a6634489707e8b398ee8f4858d6",
+    "scripts/test_call_capacity.mjs": "9d5dbeacc8ba51cb3a7d546b29d04a5d7c0085dea5a3abfbee7a987e9f1a16bd"
+  },
+  "capacity": {
+    "status": "PENDING",
+    "attempts_preserved": "Local oscillator/canvas attempts failed; source/analyser clocks slowed versus wall time. Isolated fake-file probe could read generated WAV only from sandbox-permitted location on macOS. These findings do not establish stable eight-party media.",
+    "ci_profile": "Eight separate Chrome processes; native fake inputs;720p15,180s; minimum12averageFPS; 56 directional voice plus seven screen-audio RTP progress/energy/concealment gates and security gates; not equivalent to720p30",
+    "local_target": "720p30 with at least24averageFPS; physical Windows and WAN remain separate"
+  },
+  "paid_resources_created": false,
+  "limits": [
+    "No physical Windows capture/voice acceptance",
+    "No new WAN/5G test; user deferred it",
+    "No permanent free external host provisioned"
+  ]
+}

@@ -297,7 +297,8 @@ export class P2PCall {
         for (const source of callSources) {
           const track = peer.tracks[source];
           const allowed = peer.member.can_publish && peer.member.media[source];
-          if (track) track.enabled = allowed && !peer.failed;
+          const enabled = allowed && !peer.failed;
+          if (track && track.enabled !== enabled) track.enabled = enabled;
           if (track && allowed && !peer.failed && track.readyState === "live")
             tracks[source] = track;
         }
@@ -650,7 +651,9 @@ export class P2PCall {
       this.stopLocal();
       for (const peer of this.peers.values()) {
         for (const transceiver of peer.pc.getTransceivers())
-          void transceiver.sender.replaceTrack(null).catch(() => {});
+          void this.replaceSenderTrack(transceiver.sender, null).catch(
+            () => {},
+          );
       }
     }
     this.data = { ...this.data, self };
@@ -843,7 +846,8 @@ export class P2PCall {
     for (let i = 0; i < transceivers.length; i++) {
       const source = callSources[i];
       transceivers[i].direction = "sendrecv";
-      await transceivers[i].sender.replaceTrack(
+      await this.replaceSenderTrack(
+        transceivers[i].sender,
         this.mayPublish() ? (this.local[source] ?? null) : null,
       );
     }
@@ -893,14 +897,38 @@ export class P2PCall {
     const parameters = sender.getParameters();
     // Answers may not have assigned an encoding yet. Apply again after negotiation.
     if (!parameters.encodings.length) return;
-    for (const encoding of parameters.encodings)
-      Object.assign(encoding, this.encoding(source, peer));
-    if (source === "screen")
-      parameters.degradationPreference =
+    const desired = this.encoding(source, peer);
+    let changed = false;
+    for (const encoding of parameters.encodings) {
+      if (
+        Object.entries(desired).some(
+          ([key, value]) =>
+            encoding[key as keyof RTCRtpEncodingParameters] !== value,
+        )
+      ) {
+        Object.assign(encoding, desired);
+        changed = true;
+      }
+    }
+    if (source === "screen") {
+      const preference =
         this.data.profile.content === "text"
           ? "maintain-resolution"
           : "maintain-framerate";
-    await sender.setParameters(parameters);
+      if (parameters.degradationPreference !== preference) {
+        parameters.degradationPreference = preference;
+        changed = true;
+      }
+    }
+    // Read the browser's current parameters instead of caching: negotiation may
+    // reset them, while applying an identical cap needlessly enters native code.
+    if (changed) await sender.setParameters(parameters);
+  }
+  private async replaceSenderTrack(
+    sender: RTCRtpSender,
+    track: MediaStreamTrack | null,
+  ) {
+    if (sender.track !== track) await sender.replaceTrack(track);
   }
   private async constrain(track: MediaStreamTrack, profile: StreamProfile) {
     const settings = track.getSettings();
@@ -1012,11 +1040,12 @@ export class P2PCall {
             const sender =
               peer.pc.getTransceivers()[callSources.indexOf(source)]?.sender;
             if (!sender) return;
-            await sender.replaceTrack(
+            await this.replaceSenderTrack(
+              sender,
               track && this.mayPublish(run, epoch) ? track : null,
             );
             if (track && !this.mayPublish(run, epoch)) {
-              await sender.replaceTrack(null);
+              await this.replaceSenderTrack(sender, null);
               return;
             }
             await this.parameters(peer, source);
@@ -1029,11 +1058,12 @@ export class P2PCall {
       if (this.local[source] === track) delete this.local[source];
       track?.stop();
       if (this.live(run)) {
-        for (const peer of this.peers.values())
-          void peer.pc
-            .getTransceivers()
-            [callSources.indexOf(source)]?.sender.replaceTrack(null)
-            .catch(() => {});
+        for (const peer of this.peers.values()) {
+          const sender =
+            peer.pc.getTransceivers()[callSources.indexOf(source)]?.sender;
+          if (sender)
+            void this.replaceSenderTrack(sender, null).catch(() => {});
+        }
         this.publishMedia();
       }
       throw error;

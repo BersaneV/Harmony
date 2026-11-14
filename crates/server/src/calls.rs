@@ -4,7 +4,6 @@
 use crate::{
     AppState,
     auth::{self, Auth, Claims},
-    db,
     error::ApiResult,
 };
 use axum::{
@@ -170,25 +169,32 @@ async fn access(s: &AppState, cid: Uuid, c: &Claims) -> ApiResult<Access> {
     if c.exp <= chrono::Utc::now().timestamp() as usize {
         return Err(Error::Unauthorized.into());
     }
-    let valid: bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=$1 AND u.id=$2 AND s.version>=$3 AND u.auth_version=$4 AND s.revoked_at IS NULL AND julianday(s.expires_at)>julianday('now') AND NOT u.disabled)")
-        .bind(c.sid).bind(c.sub).bind(c.ver).bind(c.uv).fetch_one(&s.pool).await?;
+    // A single acquisition and SQLite read snapshot avoids accumulating pool
+    // queue/scheduler latency four times per check (twice for each signal).
+    // This is still a fresh read; no authorization result is cached.
+    let (valid, effective, kind, guild, banned, muted):
+        (bool, i64, Option<String>, Option<Uuid>, bool, bool) = sqlx::query_as(
+        "SELECT
+          EXISTS(SELECT 1 FROM sessions s JOIN users u ON u.id=s.user_id
+            WHERE s.id=$1 AND u.id=$2 AND s.version>=$3 AND u.auth_version=$4
+              AND s.revoked_at IS NULL AND julianday(s.expires_at)>julianday('now') AND NOT u.disabled),
+          COALESCE((SELECT permissions FROM effective_channel_permissions ep
+            WHERE ep.channel_id=$5 AND ep.user_id=$2),0),
+          c.kind,c.guild_id,
+          EXISTS(SELECT 1 FROM media_bans WHERE channel_id=$5 AND user_id=$2 AND julianday(until_at)>julianday('now')),
+          EXISTS(SELECT 1 FROM media_mutes WHERE channel_id=$5 AND user_id=$2)
+         FROM (SELECT 1) AS singleton LEFT JOIN channels c ON c.id=$5"
+    ).bind(c.sid).bind(c.sub).bind(c.ver).bind(c.uv).bind(cid).fetch_one(&s.pool).await?;
     if !valid {
         return Err(Error::Unauthorized.into());
     }
-    let effective = db::permissions(&s.pool, cid, c.sub).await?;
     if effective & (p::VIEW | p::CONNECT) != p::VIEW | p::CONNECT {
         return Err(Error::Forbidden.into());
     }
-    let (kind, guild): (String, Option<Uuid>) =
-        sqlx::query_as("SELECT kind,guild_id FROM channels WHERE id=$1")
-            .bind(cid)
-            .fetch_one(&s.pool)
-            .await?;
+    let kind = kind.ok_or(Error::NotFound)?;
     if !matches!(kind.as_str(), "voice" | "dm" | "group") {
         return Err(Error::Forbidden.into());
     }
-    let (banned,muted): (bool,bool)=sqlx::query_as("SELECT EXISTS(SELECT 1 FROM media_bans WHERE channel_id=$1 AND user_id=$2 AND julianday(until_at)>julianday('now')),EXISTS(SELECT 1 FROM media_mutes WHERE channel_id=$1 AND user_id=$2)")
-        .bind(cid).bind(c.sub).fetch_one(&s.pool).await?;
     if banned {
         return Err(Error::Forbidden.into());
     }
@@ -492,6 +498,259 @@ async fn session(mut socket: WebSocket, s: AppState) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    async fn contended_database() -> (
+        AppState,
+        Uuid,
+        Vec<Claims>,
+        Arc<AtomicU64>,
+        std::path::PathBuf,
+    ) {
+        let directory =
+            std::env::temp_dir().join(format!("harmony-call-contention-{}", Uuid::now_v7()));
+        std::fs::create_dir(&directory).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let latency = Arc::new(AtomicU64::new(0));
+        let delayed = latency.clone();
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .min_connections(8)
+            .max_connections(8)
+            .before_acquire(move |_, _| {
+                let delay = delayed.load(Ordering::Relaxed);
+                Box::pin(async move {
+                    // Controlled pool-queue latency, not delayed SQL or a fake
+                    // authorization response. All migrations/queries are real.
+                    tokio::time::sleep(Duration::from_millis(delay)).await;
+                    Ok(true)
+                })
+            })
+            .connect_with(
+                sqlx::sqlite::SqliteConnectOptions::new()
+                    .filename(directory.join("calls.db"))
+                    .create_if_missing(true)
+                    .foreign_keys(true)
+                    .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal),
+            )
+            .await
+            .unwrap();
+        harmony_database::migrate(&pool).await.unwrap();
+        let channel = Uuid::now_v7();
+        sqlx::query("INSERT INTO channels(id,name,kind) VALUES($1,'Eight participants','group')")
+            .bind(channel)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let mut claims = Vec::new();
+        let now = chrono::Utc::now().timestamp() as usize;
+        for index in 0..8 {
+            let uid = Uuid::now_v7();
+            let sid = Uuid::now_v7();
+            sqlx::query("INSERT INTO users(id,username,display_name,password_hash) VALUES($1,$2,'Fixture','not-a-login-hash')")
+                .bind(uid).bind(format!("contention_{index}")).execute(&pool).await.unwrap();
+            sqlx::query("INSERT INTO sessions(id,user_id,refresh_hash,expires_at) VALUES($1,$2,$3,strftime('%Y-%m-%dT%H:%M:%fZ','now','+1 hour'))")
+                .bind(sid).bind(uid).bind(format!("fixture_{index}")).execute(&pool).await.unwrap();
+            sqlx::query("INSERT INTO channel_members(channel_id,user_id) VALUES($1,$2)")
+                .bind(channel)
+                .bind(uid)
+                .execute(&pool)
+                .await
+                .unwrap();
+            claims.push(Claims {
+                sub: uid,
+                sid,
+                ver: 1,
+                uv: 1,
+                exp: now + 600,
+                iat: now,
+                iss: "harmony".into(),
+                aud: "harmony-client".into(),
+            });
+        }
+        let config = crate::config::Config::from_env().expect("integration test environment");
+        let state = AppState::new(pool, config).await.unwrap();
+        (state, channel, claims, latency, directory)
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HARMONY_JWT_SECRET and test storage configuration"]
+    async fn eight_authorized_peers_survive_bounded_pool_contention() {
+        let (state, channel, claims, latency, directory) = contended_database().await;
+        latency.store(150, Ordering::Relaxed);
+        let started = Instant::now();
+        let results =
+            futures_util::future::join_all(claims.iter().map(|c| checked(&state, channel, c)))
+                .await;
+        let accepted = results
+            .iter()
+            .filter(|r| r.as_ref().is_ok_and(|a| a.can_publish && a.guild.is_none()))
+            .count();
+        eprintln!(
+            "authorized peers: {accepted}/8; elapsed={}ms",
+            started.elapsed().as_millis()
+        );
+        state.pool.close().await;
+        std::fs::remove_dir_all(directory).unwrap();
+        assert_eq!(
+            accepted, 8,
+            "Valid participants must remain authorized within the existing deadline under bounded pool acquisition latency"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HARMONY_JWT_SECRET and test storage configuration"]
+    async fn authorization_still_fails_closed_when_database_exceeds_deadline() {
+        let (state, channel, claims, latency, directory) = contended_database().await;
+        latency.store(650, Ordering::Relaxed);
+        let started = Instant::now();
+        let result = checked(&state, channel, &claims[0]).await;
+        let elapsed = started.elapsed();
+        eprintln!("database deadline rejected after {}ms", elapsed.as_millis());
+        state.pool.close().await;
+        std::fs::remove_dir_all(directory).unwrap();
+        assert!(matches!(
+            result,
+            Err(crate::error::ApiError(Error::Unavailable(_)))
+        ));
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "The bounded fail-closed guarantee must remain intact"
+        );
+    }
+    // Contract assertions use committed SQLite state, not a mock ACL response.
+    #[tokio::test]
+    #[ignore = "requires HARMONY_JWT_SECRET and test storage configuration"]
+    async fn access_snapshot_preserves_identity_precedence_and_fresh_revocation() {
+        async fn verdict(
+            s: &AppState,
+            cid: Uuid,
+            claims: &Claims,
+        ) -> Result<(bool, Option<Uuid>), &'static str> {
+            match access(s, cid, claims).await {
+                Ok(a) => Ok((a.can_publish, a.guild)),
+                Err(crate::error::ApiError(Error::Unauthorized)) => Err("unauthorized"),
+                Err(crate::error::ApiError(Error::Forbidden)) => Err("forbidden"),
+                Err(crate::error::ApiError(Error::NotFound)) => Err("not_found"),
+                Err(_) => Err("database_failure"),
+            }
+        }
+        let (state, channel, claims, _, directory) = contended_database().await;
+        let valid = &claims[0];
+        assert_eq!(
+            verdict(&state, channel, valid).await,
+            Ok((true, None)),
+            "Private groups legitimately have no guild"
+        );
+        let missing = Uuid::now_v7();
+        assert_eq!(
+            verdict(&state, missing, valid).await,
+            Err("forbidden"),
+            "Absent ACL must deny without disclosing channel existence"
+        );
+        for change in 0..5 {
+            let mut invalid = valid.clone();
+            match change {
+                0 => invalid.sid = Uuid::now_v7(),
+                1 => invalid.sub = claims[1].sub,
+                2 => invalid.ver += 1,
+                3 => invalid.uv += 1,
+                _ => invalid.exp = chrono::Utc::now().timestamp() as usize,
+            }
+            assert_eq!(
+                verdict(&state, channel, &invalid).await,
+                Err("unauthorized")
+            );
+            assert_eq!(
+                verdict(&state, missing, &invalid).await,
+                Err("unauthorized"),
+                "Identity failure must precede missing channel/ACL"
+            );
+        }
+        sqlx::query("UPDATE sessions SET version=version+1 WHERE id=$1")
+            .bind(valid.sid)
+            .execute(&state.pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            verdict(&state, channel, valid).await,
+            Ok((true, None)),
+            "Admitted claims survive legitimate refresh rotation"
+        );
+        for sql in [
+            "UPDATE sessions SET revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=$1",
+            "UPDATE sessions SET expires_at=strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 second') WHERE id=$1",
+        ] {
+            sqlx::query(sql)
+                .bind(valid.sid)
+                .execute(&state.pool)
+                .await
+                .unwrap();
+            assert_eq!(verdict(&state, channel, valid).await, Err("unauthorized"));
+            sqlx::query("UPDATE sessions SET revoked_at=NULL,expires_at=strftime('%Y-%m-%dT%H:%M:%fZ','now','+1 hour') WHERE id=$1").bind(valid.sid).execute(&state.pool).await.unwrap();
+        }
+        for sql in [
+            "UPDATE users SET disabled=true WHERE id=$1",
+            "UPDATE users SET auth_version=auth_version+1 WHERE id=$1",
+        ] {
+            sqlx::query(sql)
+                .bind(valid.sub)
+                .execute(&state.pool)
+                .await
+                .unwrap();
+            assert_eq!(verdict(&state, channel, valid).await, Err("unauthorized"));
+            sqlx::query("UPDATE users SET disabled=false,auth_version=1 WHERE id=$1")
+                .bind(valid.sub)
+                .execute(&state.pool)
+                .await
+                .unwrap();
+        }
+        sqlx::query("INSERT INTO media_mutes(channel_id,user_id) VALUES($1,$2)")
+            .bind(channel)
+            .bind(valid.sub)
+            .execute(&state.pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            verdict(&state, channel, valid).await,
+            Ok((false, None)),
+            "Mute preserves reception but forbids publication"
+        );
+        sqlx::query("INSERT INTO media_bans(channel_id,user_id,until_at) VALUES($1,$2,strftime('%Y-%m-%dT%H:%M:%fZ','now','+1 hour'))").bind(channel).bind(valid.sub).execute(&state.pool).await.unwrap();
+        assert_eq!(verdict(&state, channel, valid).await, Err("forbidden"));
+        sqlx::query("UPDATE media_bans SET until_at=strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 second') WHERE channel_id=$1").bind(channel).execute(&state.pool).await.unwrap();
+        assert_eq!(
+            verdict(&state, channel, valid).await,
+            Ok((false, None)),
+            "Expired ban lifts, existing mute remains authoritative"
+        );
+        sqlx::query("DELETE FROM channel_members WHERE channel_id=$1 AND user_id=$2")
+            .bind(channel)
+            .bind(valid.sub)
+            .execute(&state.pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            verdict(&state, channel, valid).await,
+            Err("forbidden"),
+            "Every read observes committed membership removal"
+        );
+        sqlx::query("ALTER TABLE sessions RENAME TO unavailable_sessions")
+            .execute(&state.pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            verdict(&state, channel, valid).await,
+            Err("database_failure"),
+            "Missing identity storage must fail closed"
+        );
+        state.pool.close().await;
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
     #[test]
     fn signaling_has_bounded_typed_payloads_without_spoofable_fields() {
         assert!(valid_signal(

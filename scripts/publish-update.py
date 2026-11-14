@@ -64,7 +64,7 @@ def main():
         "--output", str(directory / "local-signature-verification.json")], check=True, cwd=ROOT)
     manifest = {
         "version": args.version,
-        "notes": "Chamadas P2P reais com voz, câmera, compartilhamento de tela e áudio, entrando pelo canal sem códigos. Controles de resolução, FPS e bitrate; LiveKit opcional. Conexão direta depende da rede. Worker, personalização e atualizações assinadas preservados. Consulte as notas da versão no GitHub.",
+        "notes": "Correção da contenção na autorização de chamadas P2P e redução das reconfigurações de mídia repetidas. Voz, câmera, tela e áudio da tela com controles de resolução, FPS e bitrate. Conexão direta e qualidade dependem da rede e do equipamento. Consulte as provas e limites nas notas da versão.",
         "pub_date": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "platforms": {"windows-x86_64": {
             "signature": (directory / (name + ".sig")).read_text().strip(),
