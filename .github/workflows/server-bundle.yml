@@ -1,0 +1,67 @@
+name: Package verified Harmony Linux server
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: server-bundle-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  bundle:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with: {fetch-depth: 0}
+      - name: Verify product source matches the accepted 0.4.1 build
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, subprocess
+          from pathlib import Path
+          evidence = json.loads(Path('docs/evidence/calls-0.4.1-ci.json').read_text())
+          assert evidence['version'] == '0.4.1' and evidence['signed_ci_status'] == 'PASS'
+          base = '2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d'
+          assert evidence['release_source_commit'] == base
+          changed = subprocess.check_output(['git', 'diff', '--name-only', base, 'HEAD'], text=True).splitlines()
+          assert all(p.startswith('docs/') or p in ('README.md', '.github/workflows/server-bundle.yml') for p in changed), changed
+          for name, expected in evidence['source_sha256'].items():
+              assert hashlib.sha256(Path(name).read_bytes()).hexdigest() == expected, name
+          assert json.loads(Path('apps/desktop/src-tauri/tauri.conf.json').read_text())['version'] == evidence['version']
+          PY
+      - name: Build the existing pinned production image
+        run: docker build -f infra/Dockerfile.harmony -t harmony-server-bundle:verified .
+      - name: Export binaries, frontend, supervisor and licenses
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          set -eu
+          docker create --name harmony-bundle-export harmony-server-bundle:verified
+          mkdir -p .local/server-bundle/{bin,web,scripts,licenses}
+          docker cp harmony-bundle-export:/usr/local/bin/. .local/server-bundle/bin/
+          docker cp harmony-bundle-export:/usr/bin/tini .local/server-bundle/bin/tini
+          docker cp harmony-bundle-export:/srv/harmony/. .local/server-bundle/web/
+          docker cp harmony-bundle-export:/opt/harmony/. .local/server-bundle/scripts/
+          docker cp harmony-bundle-export:/usr/share/doc/harmony/. .local/server-bundle/licenses/
+          docker rm harmony-bundle-export
+          cp infra/Dockerfile.harmony .local/server-bundle/licenses/BUILD-Dockerfile
+          cp LICENSE .local/server-bundle/licenses/Harmony-LICENSE
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path('.local/server-bundle')
+          files = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob('*')) if p.is_file()}
+          evidence = json.loads(Path('docs/evidence/calls-0.4.1-ci.json').read_text())
+          manifest = {'version': '0.4.1', 'platform': 'linux-x86_64', 'source_commit': os.environ['SOURCE_COMMIT'], 'verified_product_commit': evidence['release_source_commit'], 'source_sha256': evidence['source_sha256'], 'files': files, 'scope': 'Binaries and assets from the unchanged pinned production Dockerfile. Deployment requires the same worker sandbox; this bundle is not a host compatibility PASS.'}
+          (root / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          PY
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -czf .local/harmony-server-0.4.1-linux-x86_64.tar.gz -C .local/server-bundle .
+          cd .local
+          sha256sum harmony-server-0.4.1-linux-x86_64.tar.gz > harmony-server-0.4.1-linux-x86_64.sha256
+      - name: Save immutable server bundle beside the verified Windows release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v0.4.1 .local/harmony-server-0.4.1-linux-x86_64.tar.gz .local/harmony-server-0.4.1-linux-x86_64.sha256 --repo BersaneV/Harmony
