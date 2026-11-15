@@ -16,7 +16,7 @@ O modo `HARMONY_MEDIA_TRANSPORT=livekit` preserva o caminho SFU anterior. Em ins
 
 ## Alvo de uso: 5 a 8 pessoas
 
-Victor definiu grupos de 5 a 8 pessoas como alvo. Isso não transforma o limite configurável de 12 em capacidade homologada. O teste entre redes diferentes ficou para depois por decisão do usuário.
+Victor definiu grupos de 5 a 8 pessoas como alvo. Isso não transforma o limite configurável de 12 em capacidade homologada. A preparação do ensaio real no EXE entre redes diferentes está em [WINDOWS-WAN-TEST.md](WINDOWS-WAN-TEST.md); sua execução e suas medições dependem da presença dos participantes Windows.
 
 Em uma sala com uma tela transmitida, o emissor atende quatro espectadores com cinco pessoas, ou sete com oito. O bitrate selecionado é por espectador:
 
@@ -75,7 +75,7 @@ O cliente oficial para capturas ao perder PUBLISH/mute, descarta mídia não aut
 
 **Limite do P2P:** depois que dois clientes trocam chaves e endereços, o servidor de sinalização não consegue cortar fisicamente pacotes entre clientes modificados que cooperem para ignorá-lo. LiveKit permanece como modo opcional para controle central da mídia. DTLS-SRTP protege o transporte WebRTC, mas a aplicação não oferece identidade E2EE verificável pelo usuário nem promete que o administrador não possa acessar conteúdo persistido. Os participantes podem conhecer os endereços de rede uns dos outros.
 
-Redes com NAT/firewall restritivo podem impedir a conexão direta. O cliente tenta recuperar e depois mostra falha; não compra relay. Trocar de rede ou configurar conscientemente a instância em modo LiveKit são alternativas. O túnel HTTPS temporário transporta apenas aplicação/sinalização e depende do computador de desenvolvimento; não é hospedagem definitiva.
+Redes com NAT/firewall restritivo podem impedir a conexão direta. O cliente tenta recuperar e depois mostra falha; não compra relay. Trocar de rede ou configurar conscientemente a instância em modo LiveKit são alternativas. O piloto atual usa a [hospedagem externa Altare](HOSTING.md); o antigo túnel HTTPS do computador de desenvolvimento foi desligado.
 
 ## Verificação reproduzível
 
