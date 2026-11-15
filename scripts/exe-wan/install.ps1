@@ -8,10 +8,14 @@ foreach ($key in @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Ha
 $root = Join-Path $env:RUNNER_TEMP ('harmony-exe-wan-' + [guid]::NewGuid().ToString('N'))
 if ($root -match '[\s"\r\n]') { throw 'Simple private temporary path required' }
 $null = New-Item -ItemType Directory -Path $root
-$installer = Join-Path $root 'Harmony_0.4.1_x64-setup.exe'
-Invoke-WebRequest -Uri 'https://github.com/BersaneV/Harmony/releases/download/v0.4.1/Harmony_0.4.1_x64-setup.exe' -OutFile $installer -TimeoutSec 120 -MaximumRetryCount 2
+$releaseVersion = if ($env:HARMONY_EXE_RELEASE) { $env:HARMONY_EXE_RELEASE } else { '0.4.1' }
+if ($releaseVersion -notmatch '^0\.4\.[0-9]{1,3}$') { throw 'Unsupported test release' }
+$manifest = Get-Content (Join-Path $PSScriptRoot "releases/$releaseVersion.json") -Raw | ConvertFrom-Json
+if ($manifest.version -cne $releaseVersion -or $manifest.installer_url -cne "https://github.com/BersaneV/Harmony/releases/download/v$releaseVersion/Harmony_${releaseVersion}_x64-setup.exe" -or $manifest.installer_sha256 -notmatch '^[a-f0-9]{64}$' -or $manifest.main_sha256 -notmatch '^[a-f0-9]{64}$') { throw 'Invalid owned release manifest' }
+$installer = Join-Path $root "Harmony_${releaseVersion}_x64-setup.exe"
+Invoke-WebRequest -Uri $manifest.installer_url -OutFile $installer -TimeoutSec 120 -MaximumRetryCount 2
 $digest = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($digest -cne '509e30e8781876caa64ec8b36fc37ddb76bf868924717fd44ca6c109b7ab42bf') { throw 'Published installer hash mismatch' }
+if ($digest -cne $manifest.installer_sha256) { throw 'Published installer hash mismatch' }
 $install = Join-Path $root 'installed'
 $process = Start-Process -FilePath $installer -ArgumentList "/S /D=$install" -PassThru
 if (-not $process.WaitForExit(300000)) { $process.Kill($true); throw 'NSIS timeout' }
@@ -20,7 +24,8 @@ $apps = @(Get-ChildItem $install -Filter '*.exe' -File | Where-Object Name -ine 
 if ($apps.Count -ne 1) { throw 'One installed application required' }
 $exe = $apps[0].FullName
 $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe).ProductVersion
-if ($version -notin @('0.4.1','0.4.1.0')) { throw 'Wrong installed ProductVersion' }
+if ($version -notin @($releaseVersion,"$releaseVersion.0")) { throw 'Wrong installed ProductVersion' }
+if ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() -cne $manifest.main_sha256) { throw 'Installed main binary hash mismatch' }
 "HARMONY_EXE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 "HARMONY_EXE_PATH=$exe" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 [ordered]@{kind='exe_install';installer_sha256=$digest;main_sha256=(Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant();version=$version;main_name=$apps[0].Name;machine=$env:RUNNER_NAME} | ConvertTo-Json -Compress | Write-Output

@@ -1,18 +1,26 @@
 name: Probe the published Windows EXE
 on:
   workflow_dispatch:
+    inputs:
+      release:
+        description: Pinned published Windows package to test
+        type: choice
+        options: ['0.4.1']
+        default: '0.4.1'
 permissions:
   contents: read
 jobs:
   probe:
-    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main'
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
     runs-on: windows-2022
     timeout-minutes: 10
+    env:
+      HARMONY_EXE_RELEASE: ${{ inputs.release }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with: {node-version: '26.13.0'}
-      - name: Verify and install the existing 0.4.1 release
+      - name: Verify and install the pinned published release
         shell: pwsh
         run: ./scripts/exe-wan/install.ps1
       - name: Verify the compiled app, generated audio and native test-window capture

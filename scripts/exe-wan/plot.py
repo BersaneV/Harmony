@@ -80,7 +80,10 @@ for x, value in enumerate(audio):
     if np.isfinite(value):
         audio_axis.annotate(f'{value:.3f}%', (x, value), xytext=(0, 4), textcoords='offset points', ha='center', fontsize=8)
 
-fig.suptitle('Harmony 0.4.1 · oito EXEs Windows · voz passou, tela falhou em P5', fontsize=18, weight='bold')
+version = report.get('product', {}).get('version', '0.4.1')
+voice_ok = all(c['voice_status'] == 'PASS' for c in phases['screen']['clients'])
+result = ('voz passou' if voice_ok else 'voz falhou') + (', tela passou' if not failed else ', tela falhou em ' + ', '.join(f'P{i+1}' for i in sorted(failed)))
+fig.suptitle(f'Harmony {version} · oito EXEs Windows · {result}', fontsize=18, weight='bold')
 fig.supxlabel('RTT: amostras do último valor ICE a cada ~3 s. Áudio gerado e janela de teste; ambiente de nuvem, sem medição de acústica física.', fontsize=9)
 destination.parent.mkdir(parents=True, exist_ok=True)
 fig.savefig(destination, dpi=160, facecolor=fig.get_facecolor())
