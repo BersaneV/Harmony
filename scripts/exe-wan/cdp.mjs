@@ -29,6 +29,14 @@ export class CDP {
   close() { this.socket.close(); }
 }
 export const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+export function hasFlag(argumentsList, flag) {
+  if (flag.startsWith('--disable-features=')) {
+    const required=flag.slice('--disable-features='.length).split(',');
+    const actual=argumentsList.find(a=>a.startsWith('--disable-features='))?.slice('--disable-features='.length).split(',')||[];
+    return required.every(value=>actual.includes(value));
+  }
+  return argumentsList.includes(flag);
+}
 export async function until(predicate, label, timeout = 30000) {
   const end = Date.now() + timeout;
   while (Date.now() < end) { if (await predicate()) return; await delay(250); }

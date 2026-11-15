@@ -3,7 +3,7 @@ import {spawn,spawnSync} from 'node:child_process';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {resolve,join} from 'node:path';
-import {CDP,until,delay} from './cdp.mjs';
+import {CDP,until,delay,hasFlag} from './cdp.mjs';
 assert.equal(process.platform,'win32');assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REPOSITORY,'BersaneV/Harmony');
 const root=process.env.HARMONY_EXE_ROOT,exe=process.env.HARMONY_EXE_PATH;assert.ok(root&&exe&&exe.startsWith(root)&&!/[\s"\r\n]/.test(root));
 const profile=join(root,'webview'),wav=join(root,'microphone.wav'),title='HarmonyWAN-'+process.env.GITHUB_RUN_ID,port=9222;
@@ -19,7 +19,7 @@ try{
  app=spawn(exe,[],{env:{...process.env,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:flags.join(' '),WEBVIEW2_USER_DATA_FOLDER:profile},stdio:'ignore'});
  let target;await until(async()=>{try{const targets=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();target=targets.find(t=>['http://tauri.localhost','https://tauri.localhost'].includes(new URL(t.url).origin));return !!target?.webSocketDebuggerUrl}catch{return false}},'owned EXE WebView CDP',60000);
  cdp=new CDP(target.webSocketDebuggerUrl);await cdp.send('Runtime.enable');
- const command=await cdp.send('Browser.getBrowserCommandLine');for(const flag of flags)assert.ok(command.arguments.includes(flag),'Required fake/loopback flag missing: '+flag.split('=')[0]);
+ const command=await cdp.send('Browser.getBrowserCommandLine');for(const flag of flags)assert.ok(hasFlag(command.arguments,flag),'Required fake/loopback flag missing: '+flag.split('=')[0]);
  const userData=command.arguments.find(a=>a.startsWith('--user-data-dir='));result.profile_observation={actual:userData,expected:profile};assert.ok([profile,join(profile,'EBWebView')].some(p=>userData?.slice(16).replace(/^"|"$/g,'').toLowerCase()===p.toLowerCase()),'Private WebView profile mismatch');
  const listening=spawnSync('pwsh',['-NoProfile','-Command',`@(Get-NetTCPConnection -State Listen -LocalPort ${port}).LocalAddress | ConvertTo-Json -Compress`],{encoding:'utf8'});const addresses=[JSON.parse(listening.stdout)].flat();assert.ok(addresses.length&&addresses.every(a=>['127.0.0.1','::1'].includes(a)),'Debugger must not listen publicly');
  await until(()=>cdp.evaluate(`document.querySelector('input[autocomplete="username"]')!==null`),'compiled login UI');
