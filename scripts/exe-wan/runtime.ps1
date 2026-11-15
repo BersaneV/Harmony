@@ -10,4 +10,5 @@ if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notm
 $process = Start-Process -FilePath $installer -ArgumentList '/silent /install' -PassThru
 if (-not $process.WaitForExit(300000)) { $process.Kill($true); throw 'WebView2 installation timed out' }
 if ($process.ExitCode -ne 0) { throw "WebView2 installer failed: $($process.ExitCode)" }
-[ordered]@{kind='runtime_install';sha256=(Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant();signer=$signature.SignerCertificate.Subject;installer_version=[Diagnostics.FileVersionInfo]::GetVersionInfo($installer).ProductVersion;exit_code=$process.ExitCode} | ConvertTo-Json -Compress | Write-Output
+$versions = @('HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}','HKCU:\Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}') | ForEach-Object { if (Test-Path $_) { (Get-ItemProperty $_).pv } }
+[ordered]@{kind='runtime_install';sha256=(Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant();signer=$signature.SignerCertificate.Subject;installer_version=[Diagnostics.FileVersionInfo]::GetVersionInfo($installer).ProductVersion;installed_versions=@($versions);exit_code=$process.ExitCode} | ConvertTo-Json -Compress | Write-Output
