@@ -2,6 +2,11 @@ name: Probe the published Windows EXE
 on:
   workflow_dispatch:
     inputs:
+      profile:
+        description: Requested native capture and receiver quality gate
+        type: choice
+        options: ['720p30', '1080p60', '1440p60']
+        default: '720p30'
       release:
         description: Pinned published Windows package to test
         type: choice
@@ -16,6 +21,7 @@ jobs:
     timeout-minutes: 10
     env:
       HARMONY_EXE_RELEASE: ${{ inputs.release }}
+      HARMONY_EXE_PROFILE: ${{ inputs.profile }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38

@@ -1,6 +1,7 @@
+import{getProfile}from'./profiles.mjs';
 export function quantile(values,p){const a=values.filter(Number.isFinite).sort((x,y)=>x-y);if(!a.length)return null;return a[Math.min(a.length-1,Math.max(0,Math.ceil(p*a.length)-1))];}
 const delta=(a,b,key)=>typeof a?.[key]==='number'&&typeof b?.[key]==='number'&&b[key]>=a[key]?b[key]-a[key]:null;
-export function summarize(samples,index,phase){
+export function summarize(samples,index,phase,profile=getProfile()){
  const steady=samples.filter(s=>s.segment==='steady');const groups=new Map();
  for(const {sample}of steady)for(const peer of sample.peers){const k=peer.local_fingerprint+':'+peer.remote_fingerprint;if(!groups.has(k))groups.set(k,[]);groups.get(k).push({at:sample.at,peer});}
  const peers=[];
@@ -19,7 +20,7 @@ export function summarize(samples,index,phase){
  const audio=peers.flatMap(p=>p.streams.filter(s=>s.source==='microphone')),video=peers.flatMap(p=>p.streams.filter(s=>s.source==='screen'));
  const functional=peers.length===7&&peers.every(p=>p.all_samples_connected)&&audio.length===7;
  const voice=audio.length===7&&audio.every(s=>s.nonconcealed_audio_wall_ratio>=.8&&s.concealment_ratio!==null&&s.concealment_ratio<=.02&&s.decoded_rms>=.03);
- const screen=phase!=='screen'||index===0||video.length===1&&video.every(s=>s.width===1280&&s.height===720&&s.displayed_fps>=24&&s.freeze_count===0&&s.freeze_seconds===0&&!s.sampled_sizes.some(size=>size!=='1280x720'));
+ const screen=phase!=='screen'||index===0||video.length===1&&video.every(s=>s.width===profile.width&&s.height===profile.height&&s.displayed_fps>=profile.min_displayed_fps&&s.freeze_count===0&&s.freeze_seconds===0&&!s.sampled_sizes.some(size=>size!==`${profile.width}x${profile.height}`));
  const duration=steady.length?(steady.at(-1).sample.at-steady[0].sample.at)/1000:0;
- return{phase,index,observed_steady_seconds:duration,samples:steady.length,functional_status:functional?'PASS':'FAIL',voice_status:voice?'PASS':'FAIL',video_status:phase==='screen'?(screen?'PASS':'FAIL'):'NOT_APPLICABLE',status:functional&&voice&&screen&&duration>=180?'PASS':'FAIL',peers};
+ return{phase,index,requested_profile:profile,observed_steady_seconds:duration,samples:steady.length,functional_status:functional?'PASS':'FAIL',voice_status:voice?'PASS':'FAIL',video_status:phase==='screen'?(screen?'PASS':'FAIL'):'NOT_APPLICABLE',status:functional&&voice&&screen&&duration>=180?'PASS':'FAIL',peers};
 }

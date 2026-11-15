@@ -2,6 +2,11 @@ name: Eight published Windows EXEs over separate VMs
 on:
   workflow_dispatch:
     inputs:
+      profile:
+        description: Requested native capture and receiver quality gate
+        type: choice
+        options: ['720p30', '1080p60', '1440p60']
+        default: '720p30'
       release:
         description: Pinned published Windows package to test
         type: choice
@@ -32,7 +37,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with: {node-version: '26.13.0'}
-      - run: node --test scripts/exe-wan/metrics.test.mjs scripts/exe-wan/auth.test.mjs
+      - run: node --test scripts/exe-wan/metrics.test.mjs scripts/exe-wan/auth.test.mjs scripts/exe-wan/profiles.test.mjs
       - name: Create the private eight-account fixture
         id: fixture
         env:
@@ -58,6 +63,7 @@ jobs:
       HARMONY_COHORT_USERS: ${{ needs.prepare.outputs.users }}
       HARMONY_CLIENT_INDEX: ${{ matrix.client }}
       HARMONY_EXE_RELEASE: ${{ inputs.release }}
+      HARMONY_EXE_PROFILE: ${{ inputs.profile }}
       HARMONY_ENCODER_PROBE: ${{ inputs.encoder_probe }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09

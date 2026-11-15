@@ -12,6 +12,7 @@ import numpy as np
 report = json.loads(Path(sys.argv[1]).read_text())
 destination = Path(sys.argv[2])
 phases = {p['phase']: p for p in report['phases']}
+request = report.get('requested_profile', {'id':'720p30','width':1280,'height':720,'fps':30,'min_displayed_fps':24})
 matrices = []
 for phase in ('voice', 'screen'):
     values = np.full((8, 8), np.nan)
@@ -51,12 +52,12 @@ positions = np.arange(len(video))
 fps = [stream['displayed_fps'] or 0 for _, stream in video]
 failed = {c['index'] for c in phases['screen']['clients'] if c['video_status'] == 'FAIL'}
 fps_axis.bar(positions, fps, color=['#b45309' if index in failed else '#047857' for index, _ in video], width=.65)
-fps_axis.axhline(30, color='#475569', linestyle=':', label='Solicitado: 30 FPS')
-fps_axis.axhline(24, color='#b45309', linestyle='--', label='Meta do ensaio: 24 FPS')
+fps_axis.axhline(request['fps'], color='#475569', linestyle=':', label=f"Solicitado: {request['fps']} FPS")
+fps_axis.axhline(request['min_displayed_fps'], color='#b45309', linestyle='--', label=f"Meta do ensaio: {request['min_displayed_fps']} FPS")
 fps_axis.set_xticks(positions, [f'P{index+1}' for index, _ in video])
-fps_axis.set_ylim(0, max(35, max(fps, default=0) + 5))
+fps_axis.set_ylim(0, max(request['fps']+5, max(fps, default=0) + 5))
 fps_axis.set_ylabel('FPS exibidos · média na fase sustentada')
-fps_axis.set_title('Uma janela 1280×720 → sete espectadores', loc='left', weight='bold', pad=12)
+fps_axis.set_title(f"Uma janela {request['width']}×{request['height']} → sete espectadores", loc='left', weight='bold', pad=12)
 for x, value, (index, stream) in zip(positions, fps, video):
     label = f'{value:.1f}' + (f"\n{stream['height']}p final" if index in failed else '')
     fps_axis.text(x, value + .5, label, ha='center', fontsize=9)
@@ -83,7 +84,7 @@ for x, value in enumerate(audio):
 version = report.get('product', {}).get('version', '0.4.1')
 voice_ok = all(c['voice_status'] == 'PASS' for c in phases['screen']['clients'])
 result = ('voz passou' if voice_ok else 'voz falhou') + (', tela passou' if not failed else ', tela falhou em ' + ', '.join(f'P{i+1}' for i in sorted(failed)))
-fig.suptitle(f'Harmony {version} · oito EXEs Windows · {result}', fontsize=18, weight='bold')
+fig.suptitle(f"Harmony {version} · {request['id']} · oito EXEs Windows · {result}", fontsize=18, weight='bold')
 fig.supxlabel('RTT: amostras do último valor ICE a cada ~3 s. Áudio gerado e janela de teste; ambiente de nuvem, sem medição de acústica física.', fontsize=9)
 destination.parent.mkdir(parents=True, exist_ok=True)
 fig.savefig(destination, dpi=160, facecolor=fig.get_facecolor())
