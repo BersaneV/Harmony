@@ -1,6 +1,50 @@
 # Harmony 0.4.2 — resolução manual e teste de oito EXEs
 
-Estado desta candidata: **validação final Windows/WAN NOT_RUN**. Este registro será completado com o pacote e a execução medidos; build e diagnóstico controlado não aprovam capacidade.
+**PASS no ensaio normal:** oito EXEs 0.4.2, oito VMs e oito endereços UDP públicos distintos; os sete espectadores mantiveram 1280×720 em todas as amostras sustentadas, com **28,9566–28,9756 FPS exibidos e zero congelamentos contabilizados**. O alvo solicitado foi 30 FPS; a captura teve mediana de 29 FPS. Voz passou nos oito clientes durante as duas fases.
+
+[Execução 43686643520](https://github.com/BersaneV/Harmony/actions/runs/43686643520), head `82f21f7c2a93faeb277baa509c722a208ec68011`, 06:42:10–06:51:31 UTC em 15/11/2026. [Dados sanitizados](evidence/exe-wan-0.4.2-20261115.json) · [Instalador Windows x64](https://github.com/BersaneV/Harmony/releases/download/v0.4.2/Harmony_0.4.2_x64-setup.exe).
+
+![RTT por par, FPS e reconstrução de áudio](evidence/exe-wan-0.4.2-20261115.png)
+
+| Medida sustentada | Voz | Voz + uma tela |
+|---|---:|---:|
+| Conexões com certificados nativos inversos confirmados | 28 | 28 |
+| Recepções direcionais de microfone | 56 | 56 |
+| RTT ICE mediano | 37 ms | 37 ms |
+| RTT ICE p95 | 67 ms | 67 ms |
+| Maior RTT ICE observado | 75 ms | 80 ms |
+| Pior perda de pacotes de voz por fluxo | 0,07739% | 0,01107% |
+| Pior reconstrução de amostras de voz por fluxo | 0,05463% | 0,01561% |
+| Pior p95 de jitter de voz por fluxo | 1 ms | 4 ms |
+| Clientes aprovados em voz | 8/8 | 8/8 |
+| Espectadores aprovados em vídeo | N/A | 7/7 |
+
+A fase sustentada de voz durou 180,655–181,012 s por cliente; a fase com tela, 180,684–181,435 s. Cada uma começou depois de 30 s fixos de acomodação. Os percentis de RTT agregam 3.416 leituras temporais por fase, sem alegar sondagens STUN independentes. A voz não reconstruída correspondeu a pelo menos 99,9436%/99,9833% do tempo; RMS decodificado mínimo 0,3732/0,3731. Essas métricas de fala gerada não são avaliação acústica humana.
+
+| Receptor | FPS exibidos | Resolução nas amostras | Congelamentos adicionais |
+|---|---:|---|---:|
+| P2 | 28,9566 | 1280×720 | 0 |
+| P3 | 28,9756 | 1280×720 | 0 |
+| P4 | 28,9715 | 1280×720 | 0 |
+| P5 | 28,9708 | 1280×720 | 0 |
+| P6 | 28,9586 | 1280×720 | 0 |
+| P7 | 28,9667 | 1280×720 | 0 |
+| P8 | 28,9628 | 1280×720 | 0 |
+
+P5 terminou em 1280×720, 28,9708 FPS, zero perdas de pacotes de vídeo e zero congelamentos na fase sustentada. Todos os sete fluxos usaram H264; o envio somado de vídeo foi **3,051 Mb/s de payload**, sem áudio e overhead. A fonte é compressível e não satura o orçamento de 28 Mb/s dos sete tetos de 4 Mb/s. Não foram negociados TURN ou SFU; as rotas efetivas foram UDP srflx ↔ srflx.
+
+O código do produto foi validado em `843aa2c6a6f6889d86b44a7c76b5fa61f34e4784`. O pacote foi gerado em `9e7a6ee4f083b7c65adad73da5d1fa69d7a80ae2`, com identidade das fontes de produto conferida por Git; diferenças somente em QA/documentação/entrega. O instalador tem **4.061.086 bytes**, SHA-256 `315fef35166b618d00fec3167b4ee7fa10d7935ae7bd3c19b36ba6ff4420f096`; EXE instalado de 15.138.304 bytes, SHA-256 `31559a726a64ae063a3e4b06b3c0fd57c55aae34b0a09fdb8b07c9437de7cb12`, igual nos oito clientes.
+
+O [primeiro CI completo](https://github.com/BersaneV/Harmony/actions/runs/43682676291) passou todos os gates de produto Linux/Windows, assinatura e instalação, mas falhou ao criar o draft: mudanças posteriores de workflows na main fizeram o alvo exigir permissão que GITHUB_TOKEN não possui. A [retomada 43685792324](https://github.com/BersaneV/Harmony/actions/runs/43685792324) verificou os gates anteriores e a identidade das fontes, repetiu todos os gates Windows e salvou o pacote com a main estável. Não houve aumento de permissões para editar workflows, PAT novo ou exclusão de testes. Os 17 testes locais de assinatura/versão repetidos após download também passaram.
+
+O [preflight 0.4.2](https://github.com/BersaneV/Harmony/actions/runs/43686642066) passou: captura nativa própria 1280×720, 28,9768 FPS e hash esperado do EXE. A mudança de resolução do desktop e o helper opcional do seletor não obtiveram sucesso; a seleção automática foi confirmada independentemente por HWND, geometria, conteúdo colorido e avanço de frames. Diagnósticos negativos não foram convertidos em PASS.
+
+
+## Distribuição e encerramento
+
+O canal público foi atualizado após a aprovação da rodada normal. A consulta HTTPS como 0.4.1 ofereceu a 0.4.2; o plugin oficial baixou o pacote e validou assinatura, vínculo da versão, tamanho e SHA-256 iguais aos do teste. Como 0.4.2, retornou `no_update`. Esses probes usam MockRuntime com alvo Windows x64 e não instalam no Mac. As duas respostas estão nos dados sanitizados.
+
+Todos os jobs terminaram e os oito clientes saíram da chamada. O segredo temporário `HARMONY_EXE_WAN_SEED` foi removido; os dois segredos originais do atualizador foram preservados. A hospedagem e os dados reais permaneceram intactos. Publicação direta na main pessoal, sem PR.
 
 ## Alteração e reprodução
 

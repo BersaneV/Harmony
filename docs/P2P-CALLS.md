@@ -1,8 +1,12 @@
-# Chamadas reais P2P — 0.4.1
+# Chamadas reais P2P — 0.4.2
 
 O transporte padrão usa WebRTC diretamente entre participantes. Entrar em um canal de voz abre a chamada; conversas diretas e grupos têm o botão de chamada existente. Não há código para copiar nem prazo de 120 segundos. Microfone e câmera começam desligados e só são capturados por ação do usuário. Compartilhar tela exige escolher uma fonte, conferir a prévia e iniciar a transmissão.
 
-A [prévia 0.4.1 para Windows x64](https://github.com/BersaneV/Harmony/releases/tag/v0.4.1) está publicada, com instalador e canal de atualização verificados. Passou no ensaio anterior com oito Chromes em um runner Ubuntu descrito abaixo. O [teste posterior de oito EXEs em VMs Windows externas](EXE-WAN-VALIDATION.md) aprovou voz nos oito clientes, mas reprovou a tela em um dos sete espectadores (720p → 180p). O CI completo também repetiu o perfil de 720p/15 FPS em seu ambiente próprio. Consulte [VALIDATION.md](VALIDATION.md) para os commits, hashes e limites.
+A [prévia 0.4.2 para Windows x64](https://github.com/BersaneV/Harmony/releases/tag/v0.4.2) está publicada, com instalador e canal de atualização verificados. A [prova atual com oito EXEs externos](EXE-WAN-0.4.2.md) passou em voz e tela nos critérios abaixo. As provas anteriores da 0.4.1, incluindo o FAIL de P5 e o PASS em Ubuntu, permanecem históricas em [VALIDATION.md](VALIDATION.md).
+
+## Resultado atual 0.4.2
+
+A resolução manual recebe prioridade `maintain-resolution` inclusive no perfil movimento; o contentHint de movimento, tetos de FPS/bitrate e limites por espectador permanecem. Movimento com resolução automática continua adaptando resolução. A [rodada normal de oito EXEs 0.4.2](EXE-WAN-0.4.2.md) passou: sete espectadores mantiveram 720p/28,96–28,98 FPS para alvo de 30 FPS, sem congelamentos contabilizados na fase sustentada; voz PASS em 8/8, RTT mediano de 37 ms e p95 de 67 ms. O diagnóstico com cap artificial é separado e suas falhas globais permanecem documentadas. O backend hospedado 0.4.1 é compatível.
 
 ## Transporte e configuração
 
@@ -16,7 +20,7 @@ O modo `HARMONY_MEDIA_TRANSPORT=livekit` preserva o caminho SFU anterior. Em ins
 
 ## Alvo de uso: 5 a 8 pessoas
 
-Victor definiu grupos de 5 a 8 pessoas como alvo. Isso não transforma o limite configurável de 12 em capacidade homologada. O [ensaio automatizado do EXE com oito VMs e oito IPs públicos](EXE-WAN-VALIDATION.md) foi executado: RTT mediano de 45 ms, p95 de 66–67 ms; voz PASS, tela FAIL em um receptor. Não certifica redes residenciais/5G. O roteiro complementar para PCs e participantes físicos está em [WINDOWS-WAN-TEST.md](WINDOWS-WAN-TEST.md).
+Victor definiu grupos de 5 a 8 pessoas como alvo. Isso não transforma o limite configurável de 12 em capacidade homologada. O [ensaio automatizado atual de oito EXEs 0.4.2](EXE-WAN-0.4.2.md) passou em voz e tela: oito VMs/egressos UDP distintos, 720p nos sete receptores e zero congelamentos na fase sustentada. A primeira rodada 0.4.1, FAIL em P5, permanece histórica. Não certifica redes residenciais/5G. O roteiro complementar para PCs e participantes físicos está em [WINDOWS-WAN-TEST.md](WINDOWS-WAN-TEST.md).
 
 Em uma sala com uma tela transmitida, o emissor atende quatro espectadores com cinco pessoas, ou sete com oito. O bitrate selecionado é por espectador:
 

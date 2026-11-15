@@ -1,5 +1,7 @@
 # Instância externa gratuita — 14/11/2026
 
+O cliente Windows atual é a [prévia 0.4.2](https://github.com/BersaneV/Harmony/releases/tag/v0.4.2), validada em [oito EXEs externos](EXE-WAN-0.4.2.md). O serviço hospedado descrito neste registro continua na 0.4.1, compatível com esse cliente, sem migração ou alteração da infraestrutura.
+
 Servidor para o cliente Windows e navegador: **https://harmony.go.altare.global**. No campo de servidor do `.exe` 0.4.1, informe essa origem, sem `/api`. As contas, senhas, comunidades, mensagens e anexos do piloto foram migrados; cada comunidade continua controlando a entrada dos membros. O endereço temporário `trycloudflare.com` foi aposentado.
 
 ## Hospedagem e orçamento

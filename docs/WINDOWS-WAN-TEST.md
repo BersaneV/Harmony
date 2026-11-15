@@ -1,10 +1,10 @@
 # Testar o EXE em redes diferentes com oito pessoas
 
-Este roteiro complementar trata de PCs e participantes físicos e permanece **NOT_RUN** nesse recorte. O [teste automatizado de oito EXEs em VMs Windows externas com oito IPs públicos](EXE-WAN-VALIDATION.md) já foi executado: voz PASS, tela FAIL em um dos sete espectadores. As fontes desse ensaio são fala gerada e captura real de janela própria; não substituem redes residenciais/5G, microfones físicos ou avaliação dos usuários.
+Este roteiro complementar trata de PCs e participantes físicos e permanece **NOT_RUN** nesse recorte. O [teste automatizado atual de oito EXEs 0.4.2 em VMs Windows externas](EXE-WAN-0.4.2.md) passou: voz nos oito clientes, tela em 720p nos sete espectadores e zero congelamentos na fase sustentada. A primeira ocorrência 0.4.1 permanece FAIL e está preservada no histórico. As fontes desse ensaio são fala gerada e captura real de janela própria; não substituem redes residenciais/5G, microfones físicos ou avaliação dos usuários.
 
 ## Preparação
 
-1. Cada pessoa usa um PC Windows, sua própria conta e o [instalador 0.4.1](https://github.com/BersaneV/Harmony/releases/download/v0.4.1/Harmony_0.4.1_x64-setup.exe). Servidor: **https://harmony.go.altare.global**, sem `/api`.
+1. Cada pessoa usa um PC Windows, sua própria conta e o [instalador 0.4.2](https://github.com/BersaneV/Harmony/releases/download/v0.4.2/Harmony_0.4.2_x64-setup.exe). Servidor: **https://harmony.go.altare.global**, sem `/api`.
 2. Confirmar a versão de cada aplicativo. Para conferir o instalador com PowerShell: `Get-FileHash .\Harmony_0.4.1_x64-setup.exe -Algorithm SHA256`. Hash esperado: `509e30e8781876caa64ec8b36fc37ddb76bf868924717fd44ca6c109b7ab42bf`.
 3. Usar conexões de internet independentes. Atribuir códigos de rede R1–R8; máquinas atrás do mesmo roteador recebem o mesmo código. Registrar cabo, Wi-Fi ou internet móvel. Um PC conectado ao hotspot 4G/5G continua sendo um cliente Windows válido. O celular sozinho testa o cliente web móvel.
 4. Usar fones e deixar câmeras desligadas nesta primeira rodada. Cada pessoa escolhe e ativa seu próprio microfone. Fechar transferências grandes e pausar outras transmissões durante a referência inicial; anotar VPN ou rede corporativa se estiverem em uso.

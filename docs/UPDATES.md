@@ -33,8 +33,17 @@ A [prévia 0.4.0 para Windows x64](https://github.com/BersaneV/Harmony/releases/
 Atualize servidor e clientes juntos ao ativar P2P: o servidor 0.4 em modo P2P recusa a rota LiveKit usada pelos clientes antigos. A configuração e o corte estão em [OPERATIONS.md](OPERATIONS.md), e as evidências completas em [VALIDATION.md](VALIDATION.md).
 
 
-## Canal atual: 0.4.1
+## Histórico do canal 0.4.1
 
 A [prévia 0.4.1 para Windows x64](https://github.com/BersaneV/Harmony/releases/tag/v0.4.1) foi publicada após o CI [43579178430](https://github.com/BersaneV/Harmony/actions/runs/43579178430), fonte `2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d`. O instalador tem 4.059.851 bytes e SHA-256 `509e30e8781876caa64ec8b36fc37ddb76bf868924717fd44ca6c109b7ab42bf`. Passou em 17 verificações de assinatura/versão no Windows, nove de instalação/remoção silenciosa e 17 verificações locais após o download. O aplicativo não foi aberto pelo ensaio de instalação.
 
 O canal HTTPS ofereceu a 0.4.1 para um cliente 0.4.0 e retornou `no_update` para 0.4.1. O download público foi aprovado pelo plugin, com alvo Windows x64 explícito, assinatura vinculada à versão e digest igual ao instalador do CI. Os probes usam MockRuntime e não instalam no Mac. Substituição de uma versão em uso e captura em Windows físico continuam sem homologação. Os relatórios públicos e o escopo da prova de oito participantes estão em [VALIDATION.md](VALIDATION.md) e [calls-0.4.1-ci.json](evidence/calls-0.4.1-ci.json).
+
+
+## Canal atual: 0.4.2 — 15/11/2026
+
+A [prévia Windows 0.4.2](https://github.com/BersaneV/Harmony/releases/tag/v0.4.2) prioriza a resolução manual durante a adaptação. Fontes de produto em `843aa2c`; pacote em `9e7a6ee`, com identidade das fontes validada. O [CI completo 43682676291](https://github.com/BersaneV/Harmony/actions/runs/43682676291) passou os gates de produto e falhou somente ao salvar a release por permissão de workflows. A [retomada 43685792324](https://github.com/BersaneV/Harmony/actions/runs/43685792324) repetiu os gates Windows e publicou o pacote. Os resultados históricos continuam identificados por execução.
+
+O instalador tem 4.061.086 bytes e SHA-256 `315fef35166b618d00fec3167b4ee7fa10d7935ae7bd3c19b36ba6ff4420f096`. Passaram 17 verificações de assinatura/versão e nove de instalação/remoção no Windows, mais 17 locais após o download. O [ensaio de oito EXEs](EXE-WAN-0.4.2.md) passou com sete espectadores em 720p, 28,96–28,98 FPS efetivos para alvo de 30 e zero congelamentos na fase sustentada. O canal foi atualizado depois dessa prova.
+
+A consulta HTTPS como 0.4.1 ofereceu a 0.4.2; o download passou pela verificação oficial de assinatura/versão e coincidiu com o hash do instalador testado. A consulta como 0.4.2 retornou `no_update`. Os [resultados do canal](evidence/exe-wan-0.4.2-20261115.json) usam MockRuntime com alvo Windows x64, sem instalar no Mac. Atualização com o aplicativo em uso em Windows físico continua sem homologação.

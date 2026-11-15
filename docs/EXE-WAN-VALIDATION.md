@@ -1,5 +1,7 @@
 # Oito EXEs Windows em VMs externas — 15/11/2026
 
+Registro histórico da primeira rodada 0.4.1. O [resultado posterior 0.4.2](EXE-WAN-0.4.2.md) passou e é documentado separadamente; este FAIL não foi apagado ou reclassificado.
+
 **Voz: PASS nos oito clientes. Tela: FAIL em um dos sete espectadores. Resultado geral: FAIL.** O teste automatizado executou a versão Windows publicada em oito VMs simultâneas, com oito IPs públicos distintos. Seis espectadores mantiveram 720p; P5 terminou em 180p e registrou seis congelamentos, somando 3,478 segundos. O produto e os critérios não foram alterados para aprovar o resultado.
 
 [Execução completa 43673049591](https://github.com/BersaneV/Harmony/actions/runs/43673049591), head `4e20b0570765fc370a19c691f726d9b3c3336d03`, de 03:35:25 a 03:44:15 UTC. O job `client 4` reprovou a qualidade de vídeo; os demais concluíram. P1–P8 correspondem aos índices 0–7 dos logs. [Dados sanitizados e métricas por fluxo](evidence/exe-wan-0.4.1-20261115.json).
