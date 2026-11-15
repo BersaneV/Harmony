@@ -1,7 +1,9 @@
 import assert from'node:assert/strict';import{writeFile}from'node:fs/promises';import{join}from'node:path';import{cpus,totalmem,hostname,version}from'node:os';
+import{spawnSync}from'node:child_process';
 import{guard,cohort,identity,login,origin,api,postControl,controls,opaque}from'./lab.mjs';import{session}from'./session.mjs';import{until,delay}from'./cdp.mjs';import{summarize}from'./metrics.mjs';
 guard();const index=Number(process.env.HARMONY_CLIENT_INDEX);assert.ok(Number.isInteger(index)&&index>=0&&index<8);const users=JSON.parse(process.env.HARMONY_COHORT_USERS);assert.equal(users.length,8);
-const report={kind:'exe_wan_client',index,cohort:cohort(),status:'RUNNING',scope:'One published Windows EXE per independent GitHub VM; synthetic microphone, actual owned Windows test-window screen capture',windows:version(),cpus:cpus().length,memory_bytes:totalmem(),vm_identity_hash:opaque(hostname()),phases:[]};let app,token;
+const vm=spawnSync('powershell.exe',['-NoProfile','-Command','(Get-CimInstance Win32_ComputerSystemProduct).UUID'],{encoding:'utf8',timeout:20000});const vmId=vm.stdout?.trim();assert.match(vmId||'',/^[A-Fa-f0-9-]{36}$/);assert.ok(!/^(0|-)+$/.test(vmId));
+const report={kind:'exe_wan_client',index,cohort:cohort(),status:'RUNNING',scope:'One published Windows EXE per independent GitHub VM; synthetic microphone, actual owned Windows test-window screen capture',windows:version(),cpus:cpus().length,memory_bytes:totalmem(),vm_identity_hash:opaque(vmId.toLowerCase()),vm_identity_source:'Win32_ComputerSystemProduct.UUID',hostname_hash:opaque(hostname()),phases:[]};let app,token;
 function emit(kind,value){console.log(kind+' '+JSON.stringify(value));}
 async function messages(){return(await controls(token)).filter(m=>users.some(u=>u.id===m.author_id));}
 async function waitFor(kind,count=1){let found;await until(async()=>{await delay(1500);const all=await messages();if(all.some(m=>m.kind==='abort'))throw Error('Another owned fixture client aborted');found=all.filter(m=>m.kind===kind);return count===8?new Set(found.map(m=>m.index)).size===8:found.length>=count},'cohort '+kind,480000);return found;}

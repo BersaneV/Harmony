@@ -3,19 +3,21 @@ param([Parameter(Mandatory=$true)][string]$Title)
 if ($env:OS -ne 'Windows_NT' -or $env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne 'BersaneV/Harmony' -or $Title -notmatch '^HarmonyWAN-[a-zA-Z0-9-]+$') { throw 'Owned test window required' }
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms,System.Drawing
-Add-Type -ReferencedAssemblies System.Windows.Forms,System.Drawing -TypeDefinition @'
+Add-Type -ReferencedAssemblies System.Windows.Forms,System.Drawing,System -TypeDefinition @'
 using System; using System.Drawing; using System.Windows.Forms; using System.Threading; using System.Runtime.InteropServices;
 public class HarmonyCanvas : Form {
  int frames; readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
  [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd,int command);
  [DllImport("user32.dll")] static extern bool UpdateWindow(IntPtr hwnd);
+ [DllImport("winmm.dll")] static extern uint timeBeginPeriod(uint period);
+ [DllImport("winmm.dll")] static extern uint timeEndPeriod(uint period);
  public HarmonyCanvas(string title) {
   Text=title; FormBorderStyle=FormBorderStyle.None; AutoScaleMode=AutoScaleMode.None;
   MinimumSize=new Size(1280,720); MaximumSize=new Size(1280,720); ClientSize=new Size(1280,720);
   StartPosition=FormStartPosition.Manual; Location=new Point(0,0); TopMost=true;
   BackColor=Color.FromArgb(18,27,44); DoubleBuffered=true;
   SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
-  timer.Interval=33; timer.Tick+=(s,e)=>{frames++;Invalidate();if(frames%300==0)Console.WriteLine("TICK "+frames);};
+  timer.Interval=15; timer.Tick+=(s,e)=>{frames++;Invalidate();if(frames%300==0)Console.WriteLine("TICK "+frames);};
   Shown+=(s,e)=>{ShowWindow(Handle,5);ShowWindow(Handle,5);UpdateWindow(Handle);timer.Start();Console.WriteLine("WINDOW "+Handle.ToInt64());};
  }
  protected override void OnPaint(PaintEventArgs e) {
@@ -26,7 +28,7 @@ public class HarmonyCanvas : Form {
   using(var f=new Font("Segoe UI",28))g.DrawString("Harmony generated Windows capture frame "+frames,f,Brushes.White,30,620);
  }
  public static void Run(string title) {
-  var thread=new Thread(()=>Application.Run(new HarmonyCanvas(title)));
+  var thread=new Thread(()=>{timeBeginPeriod(1);try{Application.Run(new HarmonyCanvas(title));}finally{timeEndPeriod(1);}});
   thread.SetApartmentState(ApartmentState.STA);thread.Start();thread.Join();
  }
 }
