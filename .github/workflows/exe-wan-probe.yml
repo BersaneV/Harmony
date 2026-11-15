@@ -5,8 +5,8 @@ on:
       release:
         description: Pinned published Windows package to test
         type: choice
-        options: ['0.4.1']
-        default: '0.4.1'
+        options: ['0.4.1', '0.4.2']
+        default: '0.4.2'
 permissions:
   contents: read
 jobs:
