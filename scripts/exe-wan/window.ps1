@@ -12,7 +12,7 @@ Add-Type -AssemblyName System.Windows.Forms,System.Drawing
 Add-Type -ReferencedAssemblies System.Windows.Forms,System.Drawing,System -TypeDefinition @'
 using System; using System.Drawing; using System.Windows.Forms; using System.Threading; using System.Runtime.InteropServices;
 public class HarmonyCanvas : Form {
- int frames, pending; readonly int canvasWidth,canvasHeight;
+ int frames, pending; readonly System.Diagnostics.Stopwatch clock=System.Diagnostics.Stopwatch.StartNew(); readonly int canvasWidth,canvasHeight;
  readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
  System.Threading.Timer highRateTimer;
  [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd,int command);
@@ -26,11 +26,11 @@ public class HarmonyCanvas : Form {
   StartPosition=FormStartPosition.Manual; Location=new Point(0,0); TopMost=true;
   BackColor=Color.FromArgb(18,27,44); DoubleBuffered=true;
   SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
-  timer.Interval=15; timer.Tick+=(s,e)=>{frames++;Invalidate();if(frames%300==0)Console.WriteLine("TICK "+frames);};
+  timer.Interval=15; timer.Tick+=(s,e)=>{frames++;Invalidate();if(frames%300==0)Console.WriteLine("TICK "+frames+" ELAPSED_MS "+clock.ElapsedMilliseconds);};
   FormClosed+=(s,e)=>{timer.Stop();if(highRateTimer!=null)highRateTimer.Dispose();};
   Shown+=(s,e)=>{ShowWindow(Handle,5);ShowWindow(Handle,5);UpdateWindow(Handle);if(fps==30)timer.Start();else highRateTimer=new System.Threading.Timer(_=>{
    if(IsDisposed||!IsHandleCreated||Interlocked.Exchange(ref pending,1)!=0)return;
-   try{BeginInvoke((Action)(()=>{try{frames++;Invalidate();Update();if(frames%300==0)Console.WriteLine("TICK "+frames);}finally{Interlocked.Exchange(ref pending,0);}}));}catch(InvalidOperationException){Interlocked.Exchange(ref pending,0);}
+   try{BeginInvoke((Action)(()=>{try{frames++;Invalidate();Update();if(frames%300==0)Console.WriteLine("TICK "+frames+" ELAPSED_MS "+clock.ElapsedMilliseconds);}finally{Interlocked.Exchange(ref pending,0);}}));}catch(InvalidOperationException){Interlocked.Exchange(ref pending,0);}
   },null,0,Math.Max(1,1000/(fps*2)));
   Console.WriteLine("WINDOW "+Handle.ToInt64()+" "+width+"x"+height+" TARGET "+fps);};
  }
