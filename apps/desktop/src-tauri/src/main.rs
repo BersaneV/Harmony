@@ -1,8 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod capture;
 mod updates;
 
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
 
 fn credential_origin(value: &str) -> Result<String, String> {
@@ -88,6 +89,7 @@ fn set_push_to_talk(app: tauri::AppHandle, enabled: bool) -> Result<(), String> 
 fn main() {
     tauri::Builder::default()
         .manage(updates::UpdateState::default())
+        .manage(capture::CaptureState::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(
@@ -108,6 +110,12 @@ fn main() {
             load_refresh_token,
             open_external_url,
             set_push_to_talk,
+            capture::native_capture_available,
+            capture::native_capture_sources,
+            capture::native_capture_start,
+            capture::native_capture_ack,
+            capture::native_capture_profile,
+            capture::native_capture_stop,
             updates::check_update,
             updates::download_update,
             updates::cancel_update,
@@ -115,15 +123,11 @@ fn main() {
             updates::update_status
         ])
         .setup(|app| {
+            let navigation_app = app.handle().clone();
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
-                .on_navigation(|url| {
-                    url.scheme() == "tauri"
-                        || (matches!(url.scheme(), "http" | "https")
-                            && url.host_str() == Some("tauri.localhost"))
-                        || (cfg!(debug_assertions)
-                            && url.scheme() == "http"
-                            && url.host_str() == Some("127.0.0.1")
-                            && url.port() == Some(1420))
+                .on_navigation(move |url| {
+                    navigation_app.state::<capture::CaptureState>().cancel_all();
+                    capture::document_allowed(url)
                 })
                 .build()?;
             Ok(())

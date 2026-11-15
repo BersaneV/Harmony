@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { P2PCall, type CallEnvironment, type CallParticipant } from "./call";
 import type { Session } from "./types";
 import type { StreamProfile } from "./stream";
+import { registerCaptureTrack } from "./capture-track";
 
 vi.mock("./api", () => ({
   getServer: vi.fn(),
@@ -514,18 +515,34 @@ describe("real call negotiation and measured controls", () => {
     const screen = new Track("video");
     await test.call.setTrack("screen", screen.media());
     for (const peer of test.peers) {
-      expect(peer.slots[2].sender.parameters.degradationPreference).toBe("maintain-resolution");
+      expect(peer.slots[2].sender.parameters.degradationPreference).toBe(
+        "maintain-resolution",
+      );
       expect(peer.slots[2].sender.parameters.encodings[0]).toMatchObject({
-        maxBitrate: 4_000_000, maxFramerate: 30, scaleResolutionDownBy: 1,
+        maxBitrate: 4_000_000,
+        maxFramerate: 30,
+        scaleResolutionDownBy: 1,
       });
     }
     expect(screen.contentHint).toBe("motion");
-    socket.receive({ type: "signal", from: "b", data: { receive: { screen_height: 240 } } });
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 240 } },
+    });
     await flush();
-    expect(test.peers[0].slots[2].sender.parameters.encodings[0].scaleResolutionDownBy).toBe(3);
-    expect(test.peers[1].slots[2].sender.parameters.encodings[0].scaleResolutionDownBy).toBe(1);
+    expect(
+      test.peers[0].slots[2].sender.parameters.encodings[0]
+        .scaleResolutionDownBy,
+    ).toBe(3);
+    expect(
+      test.peers[1].slots[2].sender.parameters.encodings[0]
+        .scaleResolutionDownBy,
+    ).toBe(1);
     await test.call.setScreenProfile({ ...screenProfile, height: 0 });
-    expect(test.peers[1].slots[2].sender.parameters.degradationPreference).toBe("maintain-framerate");
+    expect(test.peers[1].slots[2].sender.parameters.degradationPreference).toBe(
+      "maintain-framerate",
+    );
     expect(screen.contentHint).toBe("motion");
   });
 
@@ -789,6 +806,112 @@ const description = async (
 };
 const codecOf = (sender: Sender) => sender.parameters.encodings[0]?.codec;
 
+describe("captura nativa no engine real", () => {
+  it("mantém caps e escala por destinatário com settings nativos e oito espectadores com voz", async () => {
+    const test = setup({ codecs: videoCodecs });
+    const socket = await test.connect(
+      "abcdefghi".split("").map((peer) => roster(peer)),
+    );
+    for (const peer of "bcdefghi") await description(socket, peer);
+    const track = new Track("video");
+    track.settings = {};
+    const release = vi.fn(() => track.stop());
+    const constrain = vi.fn(async () => {});
+    registerCaptureTrack(track.media(), {
+      settings: () => ({ width: 2560, height: 1440, frameRate: 59.9 }),
+      applyConstraints: constrain,
+      release,
+    });
+    track.onConstraints = () => {
+      throw new Error("Controle do navegador não pertence à captura nativa");
+    };
+    await test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+      fps: 60,
+      bitrate: 8,
+      audio: false,
+    });
+    await test.call.setTrack("microphone", new Track("audio").media());
+    await test.call.setTrack("screen", track.media());
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 720 } },
+    });
+    await flush();
+    expect(track.getSettings()).toEqual({});
+    expect(constrain).toHaveBeenCalledWith({
+      height: { max: 1440 },
+      width: { max: 2560 },
+      frameRate: { max: 60 },
+    });
+    expect(test.peers).toHaveLength(8);
+    for (const [index, peer] of test.peers.entries()) {
+      expect(peer.slots[2].sender.track).toBe(track);
+      expect(peer.slots[2].sender.parameters.encodings[0]).toMatchObject({
+        maxBitrate: 8_000_000,
+        maxFramerate: 60,
+        scaleResolutionDownBy: index === 0 ? 2 : 1,
+        codec: { mimeType: "video/VP8" },
+      });
+      expect(peer.slots[0].sender.track?.kind).toBe("audio");
+    }
+    test.call.close();
+    expect(release).toHaveBeenCalledOnce();
+    expect(track.readyState).toBe("ended");
+  });
+
+  it("revoga a captura nativa enquanto aplicar perfil ainda aguarda um quadro", async () => {
+    const test = setup(),
+      socket = await test.connect();
+    const track = new Track("video");
+    let releaseProfile!: () => void;
+    const held = new Promise<void>((resolve) => {
+      releaseProfile = resolve;
+    });
+    const release = vi.fn(() => track.stop());
+    registerCaptureTrack(track.media(), {
+      settings: () => ({ width: 1920, height: 1080 }),
+      applyConstraints: () => held,
+      release,
+    });
+    const publishing = test.call.setTrack("screen", track.media());
+    const rejection = expect(publishing).rejects.toThrow("permissão");
+    await flush();
+    socket.receive({
+      type: "roster",
+      participants: [roster("a", false), roster("b")],
+    });
+    expect(release).toHaveBeenCalledOnce();
+    expect(track.readyState).toBe("ended");
+    releaseProfile();
+    await rejection;
+    expect(test.call.snapshot.localTracks.screen).toBeUndefined();
+    expect(test.peers[0].slots[2].sender.track).toBeNull();
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("preserva a elegibilidade H264 de720p30 com geometria da porta", async () => {
+    const test = setup({ codecs: videoCodecs }),
+      socket = await test.connect();
+    await description(socket);
+    await test.call.setScreenProfile(screenProfile);
+    const track = new Track("video");
+    track.settings = {};
+    let settings = { width: 1920, height: 1080 };
+    registerCaptureTrack(track.media(), {
+      settings: () => settings,
+      applyConstraints: async () => {
+        settings = { width: 1280, height: 720 };
+      },
+      release: () => track.stop(),
+    });
+    await test.call.setTrack("screen", track.media());
+    expect(codecOf(test.peers[0].slots[2].sender)?.mimeType).toBe("video/H264");
+  });
+});
+
 describe("screen codec selection per negotiated sender", () => {
   it("selects only Constrained Baseline before the first screen frame and preserves negotiated codecs", async () => {
     const test = setup({ codecs: videoCodecs });
@@ -975,6 +1098,8 @@ describe("screen codec selection per negotiated sender", () => {
       expect(sender.parameters.encodings[0]).toEqual({
         ...previous,
         codec: codecOf(sender),
+        // The optional temporal mode is independent of existing FPS/bitrate/scale caps.
+        scalabilityMode: "L1T1",
       });
       expect(track.getSettings().height).toBe(720);
     };

@@ -27,6 +27,18 @@ import {
   validateProfile,
 } from "../lib/stream";
 import type { StreamProfile } from "../lib/stream";
+import {
+  applyCaptureConstraints,
+  getCaptureSettings,
+  releaseCaptureTrack,
+} from "../lib/capture-track";
+import {
+  createNativeScreenTrack,
+  nativeScreenAvailable,
+  nativeScreenSources,
+} from "../lib/native-screen";
+import type { NativeSource } from "../lib/native-screen";
+import { NativeSourcePicker } from "./NativeSourcePicker";
 import type { CallPanelProps } from "./CallPanel";
 import {
   Avatar,
@@ -127,7 +139,8 @@ function RemoteTile({
   const overCeiling =
     source === "screen" &&
     height > 0 &&
-    (stats?.height || track?.getSettings().height || 0) > height;
+    (stats?.height || (track && getCaptureSettings(track).height) || 0) >
+      height;
   const speaking =
     peer.media.microphone &&
     (peer.stats.received.microphone?.audioLevel ?? 0) > 0.015;
@@ -265,6 +278,15 @@ export default function P2PCallPanel({
   const [preview, setPreview] = useState<MediaStream | null>(null);
   const previewRef = useRef<MediaStream | null>(null);
   const previewGeneration = useRef(0);
+  const [nativeAvailable, setNativeAvailable] = useState(false);
+  const [captureMethod, setCaptureMethod] = useState<"auto" | "browser">(
+    "auto",
+  );
+  const [nativeSources, setNativeSources] = useState<NativeSource[] | null>(
+    null,
+  );
+  const nativeSelection = useRef<((key: string | null) => void) | null>(null);
+  const nativeCaptureAbort = useRef<AbortController | null>(null);
   const generations = useRef<Record<CallSource, number>>({
     microphone: 0,
     camera: 0,
@@ -306,10 +328,24 @@ export default function P2PCallPanel({
 
   const stopPreview = () => {
     previewGeneration.current++;
-    previewRef.current?.getTracks().forEach((t) => t.stop());
+    nativeCaptureAbort.current?.abort();
+    nativeCaptureAbort.current = null;
+    nativeSelection.current?.(null);
+    nativeSelection.current = null;
+    setNativeSources(null);
+    previewRef.current?.getTracks().forEach(releaseCaptureTrack);
     previewRef.current = null;
     setPreview(null);
   };
+  useEffect(() => {
+    let active = true;
+    void nativeScreenAvailable().then((available) => {
+      if (active) setNativeAvailable(available);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   useEffect(() => {
     mounted.current = true;
     const unsubscribe = engine.subscribe((next) => {
@@ -331,7 +367,11 @@ export default function P2PCallPanel({
       clearTimeout(timer);
       unsubscribe();
       previewGeneration.current++;
-      previewRef.current?.getTracks().forEach((t) => t.stop());
+      nativeCaptureAbort.current?.abort();
+      nativeCaptureAbort.current = null;
+      nativeSelection.current?.(null);
+      nativeSelection.current = null;
+      previewRef.current?.getTracks().forEach(releaseCaptureTrack);
       previewRef.current = null;
       for (const source of Object.keys(generations.current) as CallSource[])
         generations.current[source]++;
@@ -508,33 +548,55 @@ export default function P2PCallPanel({
     validateProfile(profile, state.maxVideoBitrate);
     stopPreview();
     const attempt = previewGeneration.current;
+    const controller = new AbortController();
+    nativeCaptureAbort.current = controller;
     let stream: MediaStream | undefined;
     try {
-      if (!navigator.mediaDevices.getDisplayMedia)
-        throw new Error(
-          "Este navegador não permite compartilhar a tela. Use o aplicativo Windows ou um navegador desktop compatível.",
-        );
-      const options: DisplayMediaStreamOptions & {
-        selfBrowserSurface: string;
-        systemAudio: string;
-        surfaceSwitching: string;
-      } = {
-        video: {
-          ...(profile.height ? { height: { ideal: profile.height } } : {}),
-          frameRate: { ideal: profile.fps || 30 },
-        },
-        audio: profile.audio,
-        selfBrowserSurface: "exclude",
-        systemAudio: "include",
-        surfaceSwitching: "include",
-      };
-      // Called directly from the button gesture; never on mount or reconnection.
-      stream = await navigator.mediaDevices.getDisplayMedia(options);
+      const useNative =
+        nativeAvailable &&
+        captureMethod === "auto" &&
+        profile.fps === 60 &&
+        !profile.audio;
+      if (useNative) {
+        const sources = await nativeScreenSources();
+        if (controller.signal.aborted) return;
+        const key = await new Promise<string | null>((resolve) => {
+          nativeSelection.current = resolve;
+          setNativeSources(sources);
+        });
+        nativeSelection.current = null;
+        if (!key || controller.signal.aborted) return;
+        const track = await createNativeScreenTrack(key, profile, {
+          signal: controller.signal,
+        });
+        stream = new MediaStream([track]);
+      } else {
+        if (!navigator.mediaDevices.getDisplayMedia)
+          throw new Error(
+            "Este navegador não permite compartilhar a tela. Use o aplicativo Windows ou um navegador desktop compatível.",
+          );
+        const options: DisplayMediaStreamOptions & {
+          selfBrowserSurface: string;
+          systemAudio: string;
+          surfaceSwitching: string;
+        } = {
+          video: {
+            ...(profile.height ? { height: { ideal: profile.height } } : {}),
+            frameRate: { ideal: profile.fps || 30 },
+          },
+          audio: profile.audio,
+          selfBrowserSurface: "exclude",
+          systemAudio: "include",
+          surfaceSwitching: "include",
+        };
+        // Browser capture stays in the button gesture, including screen audio.
+        stream = await navigator.mediaDevices.getDisplayMedia(options);
+      }
       const video = stream.getVideoTracks()[0];
       if (!video) throw new Error("A captura não forneceu vídeo.");
-      const settings = video.getSettings();
+      const settings = getCaptureSettings(video);
       const ratio = (settings.width || 16) / (settings.height || 9);
-      await video.applyConstraints({
+      await applyCaptureConstraints(video, {
         ...(profile.height
           ? {
               height: { max: profile.height },
@@ -549,7 +611,7 @@ export default function P2PCallPanel({
         !allowed.current ||
         attempt !== previewGeneration.current
       ) {
-        stream.getTracks().forEach((t) => t.stop());
+        stream.getTracks().forEach(releaseCaptureTrack);
         return;
       }
       previewRef.current = stream;
@@ -562,7 +624,8 @@ export default function P2PCallPanel({
         { once: true },
       );
     } catch (e) {
-      stream?.getTracks().forEach((t) => t.stop());
+      stream?.getTracks().forEach(releaseCaptureTrack);
+      if (controller.signal.aborted) return;
       throw e instanceof DOMException && e.name === "NotAllowedError"
         ? new Error("A seleção foi cancelada ou a captura não foi autorizada.")
         : e;
@@ -587,7 +650,7 @@ export default function P2PCallPanel({
       if (!allowed.current || attempt !== previewGeneration.current)
         throw new Error("A publicação foi cancelada.");
       const audio = stream.getAudioTracks()[0];
-      if (!profile.audio) audio?.stop();
+      if (!profile.audio) releaseCaptureTrack(audio);
       await engine.setTrack(
         "screen_audio",
         profile.audio ? audio || null : null,
@@ -595,10 +658,11 @@ export default function P2PCallPanel({
       if (!allowed.current || attempt !== previewGeneration.current)
         throw new Error("A publicação foi cancelada.");
       previewRef.current = null;
+      nativeCaptureAbort.current = null;
       setPreview(null);
       setSharing(false);
     } catch (e) {
-      stream.getTracks().forEach((t) => t.stop());
+      stream.getTracks().forEach(releaseCaptureTrack);
       if (engine.snapshot.localTracks.screen === video) await stopSharing();
       stopPreview();
       throw e;
@@ -635,7 +699,9 @@ export default function P2PCallPanel({
   const measuredUpload = outgoing.length
     ? `${(outgoing.reduce((total, s) => total + s!.bitrate!, 0) / 1e6).toFixed(2)} Mb/s${outgoing.length < state.participants.length ? " (parcial)" : ""}`
     : "aguardando medição";
-  const screenSettings = screenTrack?.getSettings();
+  const screenSettings = screenTrack
+    ? getCaptureSettings(screenTrack)
+    : undefined;
   const status =
     state.state === "connected"
       ? "Chamada direta"
@@ -950,6 +1016,24 @@ export default function P2PCallPanel({
             publicar.
           </p>
           <div className="stream-form">
+            {nativeAvailable && (
+              <Field label="Método de captura">
+                <select
+                  disabled={busy}
+                  value={captureMethod}
+                  onChange={(event) =>
+                    setCaptureMethod(event.target.value as "auto" | "browser")
+                  }
+                >
+                  <option value="auto">
+                    Automático: janela nativa em 60 FPS sem áudio
+                  </option>
+                  <option value="browser">
+                    Navegador: tela, janela ou aba
+                  </option>
+                </select>
+              </Field>
+            )}
             <Field label="Resolução">
               <select
                 disabled={busy}
@@ -1048,6 +1132,8 @@ export default function P2PCallPanel({
             compartilhar o som da própria chamada. Cada espectador recebe uma
             conexão: o upload total aumenta com a quantidade de pessoas. O
             bitrate é um teto, com áudio e protocolo adicionais.
+            {nativeAvailable &&
+              " Em 60 FPS sem áudio da tela, o modo automático usa captura nativa de janela. Para outra fonte ou se ela falhar, escolha Navegador. Com áudio da tela, a seleção usa o navegador."}
           </p>
           {preview?.getVideoTracks()[0] && (
             <div className="share-preview">
@@ -1104,6 +1190,19 @@ export default function P2PCallPanel({
             )}
           </div>
         </Modal>
+      )}
+      {nativeSources && (
+        <NativeSourcePicker
+          sources={nativeSources}
+          onSelect={(key) => {
+            setNativeSources(null);
+            nativeSelection.current?.(key);
+          }}
+          onCancel={() => {
+            setNativeSources(null);
+            nativeSelection.current?.(null);
+          }}
+        />
       )}
       {settings && (
         <Modal title="Dispositivos e voz" onClose={() => setSettings(false)}>

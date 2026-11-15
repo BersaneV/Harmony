@@ -8,6 +8,12 @@ import {
 } from "./stream";
 import type { StreamProfile } from "./stream";
 import { classifyRoute } from "./p2p";
+import { tryScreenVp8L1T1 } from "./screen-encoder";
+import {
+  applyCaptureConstraints,
+  getCaptureSettings,
+  releaseCaptureTrack,
+} from "./capture-track";
 
 /** Stable m-line order. A track ID supplied by another client is never an identity. */
 export const callSources = [
@@ -980,7 +986,9 @@ export class P2PCall {
   ): RTCRtpEncodingParameters {
     if (source === "screen") {
       const actualHeight =
-        this.local.screen?.getSettings().height || profile.height || 1080;
+        (this.local.screen && getCaptureSettings(this.local.screen).height) ||
+        profile.height ||
+        1080;
       return {
         maxBitrate: Math.min(
           this.data.maxVideoBitrate,
@@ -1006,7 +1014,7 @@ export class P2PCall {
     codecs: RTCRtpCodecParameters[],
     projected: boolean,
   ): RTCRtpCodecParameters | undefined {
-    const settings = track.getSettings();
+    const settings = getCaptureSettings(track);
     const width = finite(settings.width),
       height = finite(settings.height);
     if (
@@ -1084,10 +1092,15 @@ export class P2PCall {
       return false;
     const sender = peer.pc.getTransceivers()[2]?.sender;
     if (!sender) return false;
+    const finish = async () => {
+      if (!allowed()) return false;
+      const result = await tryScreenVp8L1T1(sender, allowed);
+      return result !== "stale" && allowed();
+    };
     const state = peer.screenCodec;
     if (state.api === "unsupported") {
       state.mode = "vp8";
-      return true;
+      return finish();
     }
     const parameters = sender.getParameters() as CodecParameters;
     const vp8 = parameters.codecs.find(
@@ -1119,7 +1132,7 @@ export class P2PCall {
           "Não foi possível preservar a qualidade da tela com VP8.",
         );
       state.mode = "vp8";
-      return true;
+      return finish();
     }
     const codec = codecValue(selected);
     const mode = selected === h264 && !resetWhileSending ? "h264" : "vp8";
@@ -1128,7 +1141,7 @@ export class P2PCall {
     ) {
       state.mode = mode;
       state.api = "supported";
-      return true;
+      return finish();
     }
     const leavingH264 = state.mode === "h264" && mode === "vp8";
     for (const encoding of parameters.encodings) encoding.codec = codec;
@@ -1141,7 +1154,7 @@ export class P2PCall {
       if (leavingH264) throw error;
       state.api = "unsupported";
       state.mode = "vp8";
-      return true; // Optional codec selection failed; normal cap errors still propagate.
+      return finish(); // Optional codec selection failed; normal cap errors still propagate.
     }
     if (!allowed()) return false;
     const applied = sender.getParameters() as CodecParameters;
@@ -1157,7 +1170,7 @@ export class P2PCall {
       state.api = "unsupported";
       state.mode = "vp8";
     }
-    return true;
+    return finish();
   }
   private async parameters(peer: Peer, source: CallSource) {
     if (!this.current(peer)) return;
@@ -1198,7 +1211,7 @@ export class P2PCall {
     if (sender.track !== track) await sender.replaceTrack(track);
   }
   private async constrain(track: MediaStreamTrack, profile: StreamProfile) {
-    const settings = track.getSettings();
+    const settings = getCaptureSettings(track);
     const geometryKnown =
       this.screenGeometry.get(track) !== false &&
       typeof settings.width === "number" &&
@@ -1211,7 +1224,7 @@ export class P2PCall {
       settings.width && settings.height
         ? settings.width / settings.height
         : 16 / 9;
-    await track.applyConstraints({
+    await applyCaptureConstraints(track, {
       height: profile.height ? { max: profile.height } : undefined,
       width: profile.height
         ? { max: Math.round(profile.height * ratio) }
@@ -1246,17 +1259,17 @@ export class P2PCall {
             track.kind !== kinds[callSources.indexOf(source)] ||
             track.readyState !== "live")
         ) {
-          track.stop();
+          releaseCaptureTrack(track);
           throw new Error(
             "A publicação de mídia não está autorizada nesta chamada.",
           );
         }
         if (!this.live(run)) {
-          track?.stop();
+          releaseCaptureTrack(track);
           return;
         }
         if (source === "screen_audio" && track && !this.local.screen) {
-          track.stop();
+          releaseCaptureTrack(track);
           throw new Error("Compartilhe uma tela antes de publicar seu áudio.");
         }
         if (source === "screen" && this.local.screen !== track)
@@ -1265,7 +1278,7 @@ export class P2PCall {
           try {
             await this.constrain(track, this.data.profile);
           } catch (error) {
-            track.stop();
+            releaseCaptureTrack(track);
             throw error;
           }
         }
@@ -1284,18 +1297,18 @@ export class P2PCall {
     epoch: number,
   ) {
     if (track && !this.mayPublish(run, epoch)) {
-      track.stop();
+      releaseCaptureTrack(track);
       throw new Error("Sua permissão de transmissão foi removida.");
     }
     if (!this.live(run)) {
-      track?.stop();
+      releaseCaptureTrack(track);
       return;
     }
     const old = this.local[source];
     if (old !== track && old) {
       old.removeEventListener("ended", this.ended.get(old)!);
       this.ended.delete(old);
-      old.stop();
+      releaseCaptureTrack(old);
     }
     delete this.local[source];
     if (track) {
@@ -1346,7 +1359,7 @@ export class P2PCall {
         throw new Error("Sua permissão de transmissão foi removida.");
     } catch (error) {
       if (this.local[source] === track) delete this.local[source];
-      track?.stop();
+      releaseCaptureTrack(track);
       if (this.live(run)) {
         for (const peer of this.peers.values()) {
           const sender =
@@ -1608,14 +1621,14 @@ export class P2PCall {
     this.screenTransition = undefined;
     for (const track of this.pendingTracks) {
       track.enabled = false;
-      track.stop();
+      releaseCaptureTrack(track);
     }
     this.pendingTracks.clear();
     for (const track of Object.values(this.local)) {
       const ended = this.ended.get(track);
       if (ended) track.removeEventListener("ended", ended);
       track.enabled = false;
-      track.stop();
+      releaseCaptureTrack(track);
     }
     this.ended.clear();
     this.local = {};

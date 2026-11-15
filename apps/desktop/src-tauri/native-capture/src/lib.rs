@@ -2,7 +2,7 @@
 use std::time::Duration;
 
 pub const MAX_BYTES: usize = 64 * 1024 * 1024;
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Profile {
     pub height: u32,
     pub fps: u32,

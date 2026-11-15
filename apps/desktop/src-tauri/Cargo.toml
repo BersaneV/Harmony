@@ -7,6 +7,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [workspace]
+members = ["native-capture"]
 
 [build-dependencies]
 tauri-build = { version = "2.6", features = [] }
@@ -24,9 +25,12 @@ semver = "1"
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 tokio = { version = "1", features = ["sync", "time", "macros"] }
 tokio-util = { version = "0.7", features = ["rt"] }
+harmony-native-capture = { path = "native-capture" }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 keyring = { version = "3.6.3", features = ["windows-native"] }
+webview2-com = "=0.39.1"
+windows = "=0.62.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring = { version = "3.6.3", features = ["apple-native"] }

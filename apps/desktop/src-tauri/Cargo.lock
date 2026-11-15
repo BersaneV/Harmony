@@ -1619,6 +1619,7 @@ dependencies = [
 name = "harmony-desktop"
 version = "0.4.2"
 dependencies = [
+ "harmony-native-capture",
  "keyring",
  "open",
  "reqwest",
@@ -1633,6 +1634,16 @@ dependencies = [
  "tokio",
  "tokio-util",
  "url",
+ "webview2-com",
+ "windows",
+]
+
+[[package]]
+name = "harmony-native-capture"
+version = "0.4.3"
+dependencies = [
+ "windows",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -33,10 +33,9 @@ fn main() {
         );
         thread::sleep(Duration::from_millis(100));
     };
-    assert!(source.confirm(0), "Native consent required");
     let handle = source.handle();
     let profile = Profile { height, fps: 60 };
-    let mut capture = Capture::new(source, profile).unwrap();
+    let mut capture = Capture::new(source, profile, 0, || true).unwrap();
     let mut frame = Vec::new();
     let start = Instant::now();
     let settle = start + Duration::from_secs(5);
@@ -49,7 +48,10 @@ fn main() {
     let mut durations = Vec::new();
     while Instant::now() < end {
         let begin = Instant::now();
-        let (w, h) = capture.frame(&mut frame).unwrap();
+        let Some((w, h)) = capture.frame(&mut frame).unwrap() else {
+            thread::sleep(Duration::from_millis(1));
+            continue;
+        };
         let duration = begin.elapsed().as_secs_f64() * 1000.;
         if begin >= settle {
             frames += 1;
@@ -71,6 +73,7 @@ fn main() {
     }
     let elapsed = Instant::now().duration_since(settle).as_secs_f64();
     durations.sort_by(f64::total_cmp);
+    let backend = capture.backend();
     let capture_fps = frames as f64 / elapsed;
     let distinct_fps = changed as f64 / elapsed;
     let size = sizes.iter().next().copied().unwrap();
@@ -90,7 +93,7 @@ fn main() {
         && sizes.len() == 1
         && size == expected
         && colored > 13680;
-    println!("HARMONY_NATIVE_CAPTURE_PROBE {{\"status\":\"{}\",\"backend\":\"native-gdi\",\"owned_window_handle\":{},\"width\":{},\"height\":{},\"capture_fps\":{},\"distinct_marker_fps\":{},\"frames\":{},\"colored_pixels_of_14400\":{},\"capture_ms_p50\":{},\"capture_ms_p95\":{}}}",if ok{"PASS"}else{"FAIL"},handle,size.0,size.1,capture_fps,distinct_fps,frames,colored,durations[durations.len()/2],durations[durations.len()*95/100]);
+    println!("HARMONY_NATIVE_CAPTURE_PROBE {{\"status\":\"{}\",\"backend\":\"{}\",\"owned_window_handle\":{},\"width\":{},\"height\":{},\"capture_fps\":{},\"distinct_marker_fps\":{},\"frames\":{},\"colored_pixels_of_14400\":{},\"capture_ms_p50\":{},\"capture_ms_p95\":{}}}",if ok{"PASS"}else{"FAIL"},backend,handle,size.0,size.1,capture_fps,distinct_fps,frames,colored,durations[durations.len()/2],durations[durations.len()*95/100]);
     if !ok {
         std::process::exit(1);
     }

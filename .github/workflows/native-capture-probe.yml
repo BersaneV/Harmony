@@ -2,6 +2,17 @@ name: Native Windows capture calibration
 on:
   workflow_dispatch:
     inputs:
+      image:
+        type: choice
+        options: ['windows-2022', 'windows-2025']
+        default: 'windows-2022'
+      source:
+        type: choice
+        options: ['window', 'layered']
+        default: 'window'
+      check_desktop:
+        type: boolean
+        default: false
       height:
         type: choice
         options: ['1080', '1440']
@@ -10,8 +21,8 @@ permissions:
   contents: read
 jobs:
   capture:
-    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
-    runs-on: windows-2022
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["windows-2022","windows-2025"]'), inputs.image)
+    runs-on: ${{ inputs.image }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -20,19 +31,21 @@ jobs:
       - name: Compile and test the capture adapter
         shell: pwsh
         run: |
-          cargo test --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --locked
+          cargo test --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --locked --target-dir "$env:RUNNER_TEMP/harmony-native-target"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cargo build --release --example capture_probe --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --locked
+          cargo build --release --example capture_probe --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --locked --target-dir "$env:RUNNER_TEMP/harmony-native-target"
           exit $LASTEXITCODE
       - name: Capture only our generated native window
         shell: pwsh
         env:
           HARMONY_CAPTURE_HEIGHT: ${{ inputs.height }}
+          HARMONY_CAPTURE_SOURCE: ${{ inputs.source }}
         run: |
           $env:HARMONY_OWNED_WINDOW="HarmonyWAN-$env:GITHUB_RUN_ID"
           $width=[int]$env:HARMONY_CAPTURE_HEIGHT*16/9
-          $window=Start-Process powershell.exe -ArgumentList @('-NoProfile','-File',"$PWD/scripts/exe-wan/window.ps1",'-Title',$env:HARMONY_OWNED_WINDOW,'-Width',"$width",'-Height',$env:HARMONY_CAPTURE_HEIGHT,'-Fps','60') -PassThru
-          $probe=Start-Process "$PWD/apps/desktop/src-tauri/native-capture/target/release/examples/capture_probe.exe" -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/native-probe.json" -RedirectStandardError "$env:RUNNER_TEMP/native-probe-error.log"
+          if ($env:HARMONY_CAPTURE_SOURCE -eq 'layered') { $sourceFile="$PWD/scripts/exe-wan/window-layered.ps1" } elseif ($env:HARMONY_CAPTURE_SOURCE -eq 'window') { $sourceFile="$PWD/scripts/exe-wan/window.ps1" } else { throw 'Only owned source fixtures allowed' }
+          $window=Start-Process powershell.exe -ArgumentList @('-NoProfile','-File',$sourceFile,'-Title',$env:HARMONY_OWNED_WINDOW,'-Width',"$width",'-Height',$env:HARMONY_CAPTURE_HEIGHT,'-Fps','60') -PassThru
+          $probe=Start-Process "$env:RUNNER_TEMP/harmony-native-target/release/examples/capture_probe.exe" -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/native-probe.json" -RedirectStandardError "$env:RUNNER_TEMP/native-probe-error.log"
           try {
             powershell.exe -NoProfile -File scripts/exe-wan/native-consent.ps1 -Title $env:HARMONY_OWNED_WINDOW
             if ($LASTEXITCODE -ne 0) { throw 'Native confirmation failed' }
@@ -41,5 +54,20 @@ jobs:
             Get-Content "$env:RUNNER_TEMP/native-probe-error.log"
             exit $probe.ExitCode
           } finally {
+            if (Test-Path "$env:RUNNER_TEMP/native-probe.json") { Get-Content "$env:RUNNER_TEMP/native-probe.json" }
+            if (Test-Path "$env:RUNNER_TEMP/native-probe-error.log") { Get-Content "$env:RUNNER_TEMP/native-probe-error.log" }
             foreach ($process in @($probe,$window)) { if (-not $process.HasExited) { taskkill /PID $process.Id /T /F | Out-Null } }
           }
+
+  desktop:
+    if: inputs.check_desktop && github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with: {toolchain: '1.99.1', components: 'clippy'}
+      - name: Type check the actual Windows native bridge
+        run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --all-targets --locked -- -D warnings
+      - name: Test the Windows bridge guards and pixel layouts
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --locked

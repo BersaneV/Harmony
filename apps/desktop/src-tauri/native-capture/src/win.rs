@@ -4,9 +4,11 @@ use std::{
     ptr::{null_mut, NonNull},
 };
 use windows_sys::Win32::{
-    Foundation::*, Graphics::Gdi::*, Storage::Xps::PrintWindow,
-    System::Threading::GetCurrentProcessId, UI::WindowsAndMessaging::*,
+    Foundation::*, Graphics::Gdi::*, System::Threading::GetCurrentProcessId,
+    UI::WindowsAndMessaging::*,
 };
+#[path = "wgc.rs"]
+mod wgc;
 
 #[derive(Clone, Debug)]
 pub struct Source {
@@ -15,6 +17,10 @@ pub struct Source {
     pid: u32,
 }
 impl Source {
+    pub fn dimensions(&self) -> Result<(u32, u32), String> {
+        let r = self.rect()?;
+        Ok(((r.right - r.left) as u32, (r.bottom - r.top) as u32))
+    }
     pub fn handle(&self) -> usize {
         self.handle
     }
@@ -53,8 +59,8 @@ impl Source {
         list
     }
     /// An OS-owned confirmation is always required, even if renderer code invokes IPC.
-    pub fn confirm(&self, owner: isize) -> bool {
-        let text:Vec<u16>=format!("Compartilhar o conteúdo da janela ‘{}’?\n\nA prévia ficará no Harmony. Você pode encerrar a captura a qualquer momento.",self.title).encode_utf16().chain(Some(0)).collect();
+    fn confirm_title(&self, owner: isize, selected_title: &str) -> bool {
+        let text:Vec<u16>=format!("Compartilhar o conteúdo da janela ‘{}’?\n\nA prévia ficará no Harmony. Você pode encerrar a captura a qualquer momento.",selected_title).encode_utf16().chain(Some(0)).collect();
         let title: Vec<u16> = "Harmony — autorizar captura"
             .encode_utf16()
             .chain(Some(0))
@@ -148,48 +154,62 @@ impl Drop for Dib {
 }
 
 pub struct Capture {
-    source: Source,
     raw: Option<Dib>,
     scaled: Option<Dib>,
     profile: Profile,
+    wgc: wgc::Wgc,
 }
 impl Capture {
-    pub fn new(source: Source, profile: Profile) -> Result<Self, String> {
+    pub fn new(
+        source: Source,
+        profile: Profile,
+        owner: isize,
+        authorized: impl Fn() -> bool,
+    ) -> Result<Self, String> {
         profile.validate()?;
         source.rect()?;
+        let wgc = wgc::Wgc::new(&source, profile, owner, authorized)?;
         Ok(Self {
-            source,
             raw: None,
             scaled: None,
             profile,
+            wgc,
         })
     }
+    pub fn supported() -> bool {
+        wgc::Wgc::supported()
+    }
+    pub fn source_title(&self) -> &str {
+        &self.wgc.title
+    }
+    pub fn source_dimensions(&self) -> (u32, u32) {
+        self.wgc.dimensions()
+    }
+    pub fn dimensions(&self) -> Result<(u32, u32), String> {
+        let (w, h) = self.source_dimensions();
+        self.profile.size(w, h)
+    }
     pub fn set_profile(&mut self, p: Profile) -> Result<(), String> {
-        self.profile = p.validate()?;
+        let p = p.validate()?;
+        if self.profile.fps != p.fps {
+            self.wgc.set_fps(p.fps);
+        }
+        self.profile = p;
         Ok(())
     }
     pub fn profile(&self) -> Profile {
         self.profile
     }
     /// Writes BGRX into caller-owned storage, retaining DCs and DIBs across frames.
-    pub fn frame(&mut self, output: &mut Vec<u8>) -> Result<(u32, u32), String> {
-        let r = self.source.rect()?;
-        let (w, h) = ((r.right - r.left) as u32, (r.bottom - r.top) as u32);
-        if self
-            .raw
-            .as_ref()
-            .is_none_or(|b| b.width != w || b.height != h)
-        {
-            self.raw = Some(Dib::new(w, h)?);
+    pub fn backend(&self) -> &'static str {
+        "native-wgc"
+    }
+    pub fn frame(&mut self, output: &mut Vec<u8>) -> Result<Option<(u32, u32)>, String> {
+        if !self.wgc.read(&mut self.raw)? {
+            return Ok(None);
         }
-        let raw = self.raw.as_ref().unwrap();
-        unsafe {
-            // WM_PRINT rendering includes off-screen portions; no Chromium capture
-            // scheduler or base64 copy sits between this bitmap and the media track.
-            if PrintWindow(self.source.handle as HWND, raw.dc, 2) == 0 {
-                return Err("O Windows não disponibilizou o conteúdo desta janela.".into());
-            }
-        }
+        let raw = self.raw.as_ref().ok_or("Quadro indisponível.")?;
+        let (w, h) = (raw.width, raw.height);
         let (width, height) = self.profile.size(w, h)?;
         let dib = if (width, height) != (w, h) {
             if self
@@ -231,6 +251,6 @@ impl Capture {
             GdiFlush();
             std::ptr::copy_nonoverlapping(dib.bits.as_ptr(), output.as_mut_ptr(), len);
         }
-        Ok((width, height))
+        Ok(Some((width, height)))
     }
 }

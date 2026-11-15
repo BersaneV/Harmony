@@ -12,6 +12,7 @@
     "allow-push-to-talk",
     "core:event:allow-listen",
     "core:event:allow-unlisten",
-    "allow-signed-updates"
+    "allow-signed-updates",
+    "allow-native-capture"
   ]
 }
