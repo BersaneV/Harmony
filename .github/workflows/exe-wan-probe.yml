@@ -2,6 +2,10 @@ name: Probe the published Windows EXE
 on:
   workflow_dispatch:
     inputs:
+      runtime_upgrade:
+        description: Diagnostic only; update the disposable VM using the signed Microsoft Evergreen installer
+        type: boolean
+        default: false
       profile:
         description: Requested native capture and receiver quality gate
         type: choice
@@ -18,7 +22,7 @@ jobs:
   probe:
     if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
     runs-on: windows-2022
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       HARMONY_EXE_RELEASE: ${{ inputs.release }}
       HARMONY_EXE_PROFILE: ${{ inputs.profile }}
@@ -29,5 +33,9 @@ jobs:
       - name: Verify and install the pinned published release
         shell: pwsh
         run: ./scripts/exe-wan/install.ps1
+      - name: Update the disposable VM WebView2 runtime for comparison
+        if: inputs.runtime_upgrade
+        shell: pwsh
+        run: ./scripts/exe-wan/runtime.ps1
       - name: Verify the compiled app, generated audio and native test-window capture
         run: node scripts/exe-wan/probe.mjs
