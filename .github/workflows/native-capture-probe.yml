@@ -1,0 +1,45 @@
+name: Native Windows capture calibration
+on:
+  workflow_dispatch:
+    inputs:
+      height:
+        type: choice
+        options: ['1080', '1440']
+        default: '1440'
+permissions:
+  contents: read
+jobs:
+  capture:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with: {toolchain: '1.99.1'}
+      - name: Compile and test the capture adapter
+        shell: pwsh
+        run: |
+          cargo test --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --release --example capture_probe --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --locked
+          exit $LASTEXITCODE
+      - name: Capture only our generated native window
+        shell: pwsh
+        env:
+          HARMONY_CAPTURE_HEIGHT: ${{ inputs.height }}
+        run: |
+          $env:HARMONY_OWNED_WINDOW="HarmonyWAN-$env:GITHUB_RUN_ID"
+          $width=[int]$env:HARMONY_CAPTURE_HEIGHT*16/9
+          $window=Start-Process powershell.exe -ArgumentList @('-NoProfile','-File',"$PWD/scripts/exe-wan/window.ps1",'-Title',$env:HARMONY_OWNED_WINDOW,'-Width',"$width",'-Height',$env:HARMONY_CAPTURE_HEIGHT,'-Fps','60') -PassThru
+          $probe=Start-Process "$PWD/apps/desktop/src-tauri/native-capture/target/release/examples/capture_probe.exe" -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/native-probe.json" -RedirectStandardError "$env:RUNNER_TEMP/native-probe-error.log"
+          try {
+            powershell.exe -NoProfile -File scripts/exe-wan/native-consent.ps1 -Title $env:HARMONY_OWNED_WINDOW
+            if ($LASTEXITCODE -ne 0) { throw 'Native confirmation failed' }
+            if (-not $probe.WaitForExit(45000)) { throw 'Capture probe timed out' }
+            Get-Content "$env:RUNNER_TEMP/native-probe.json"
+            Get-Content "$env:RUNNER_TEMP/native-probe-error.log"
+            exit $probe.ExitCode
+          } finally {
+            foreach ($process in @($probe,$window)) { if (-not $process.HasExited) { taskkill /PID $process.Id /T /F | Out-Null } }
+          }
