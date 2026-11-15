@@ -6,7 +6,7 @@
 
 Comunidades, conversas e compartilhamento de tela em uma plataforma open source, hospedada por você. Cliente Windows com Tauri 2, React e TypeScript; servidor Rust com SQLite, arquivos locais privados e chamadas WebRTC P2P; LiveKit opcional.
 
-**Versão de desenvolvimento.** A [prova automatizada da 0.4.2 com oito EXEs em VMs Windows e oito IPs UDP públicos](docs/EXE-WAN-0.4.2.md) passou: voz nos oito clientes, sete recepções em 720p a 28,96–28,98 FPS efetivos para alvo de 30 e zero congelamentos na fase sustentada. A resolução escolhida manualmente tem prioridade durante a adaptação. Captura em Windows físico e redes residenciais/5G continuam sem validação. Não há conta obrigatória em serviço pago.
+**Versão de desenvolvimento.** A [prova automatizada da 0.4.2 com oito EXEs em VMs Windows e oito IPs UDP públicos](docs/EXE-WAN-0.4.2.md) passou: voz nos oito clientes, sete recepções em 720p a 28,96–28,98 FPS efetivos para alvo de 30 e zero congelamentos na fase sustentada. A resolução escolhida manualmente tem prioridade durante a adaptação. Captura em Windows físico e redes residenciais/5G continuam sem validação. Não há conta obrigatória em serviço pago. Os ensaios posteriores de [1080p60 e 1440p60 com oito EXEs](docs/EXE-WAN-HIGHRES.md) reprovaram a meta de FPS; voz passou em 8/8, mas essas qualidades ainda não estão aprovadas.
 
 ## O que já funciona
 

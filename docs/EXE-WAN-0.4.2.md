@@ -85,3 +85,8 @@ Os critérios de voz permanecem: sete fluxos por cliente, áudio não reconstru�
 As VMs são runners Windows standard de um repositório pessoal público, sem runners maiores, artifacts, caches ou relay pago. [Política de uso gratuito do GitHub](https://docs.github.com/en/actions/concepts/billing-and-usage). A hospedagem Altare existente, os dados reais e o config.toml do Codex não são alterados. O backend 0.4.1 é compatível com o cliente 0.4.2; não há mudança de protocolo ou migração.
 
 São fontes de teste: fala gerada pelo SAPI e captura getDisplayMedia real de janela WinForms própria, usando GPU por software. IPs e identidades de VM aparecem somente como HMAC. Os oito egressos cloud não representam oito operadoras residenciais/5G. PCs físicos, eco/acústica, jogos, áudio do sistema, múltiplas telas, 1440p+, 60 FPS e uso prolongado continuam fora dessa comprovação. O gráfico e os valores efetivos devem identificar resolução, FPS e congelamentos separadamente.
+
+
+## Ensaios posteriores de alta resolução
+
+A [campanha posterior de 1080p60 e 1440p60](EXE-WAN-HIGHRES.md) executou duas rodadas por perfil com oito EXEs. A voz passou, mas os dois perfis reprovaram a meta de FPS. A aprovação de 720p30 deste documento não se estende a essas qualidades. As fontes do produto e o pacote 0.4.2 foram preservados.

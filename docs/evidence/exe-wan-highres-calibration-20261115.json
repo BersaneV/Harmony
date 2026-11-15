@@ -1,0 +1,1050 @@
+{
+  "schema": 1,
+  "status": "FAIL",
+  "scope": "Diagnostic source calibration, not eight-client quality approval; generated audio and owned native Windows window only",
+  "probes": [
+    {
+      "run_id": "43689325300",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43689325300",
+      "head_sha": "8ba4375fc5ab6603a056ab001b9a58b397aee2fc",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": null,
+      "diagnostic_gpu_mode": null,
+      "capture": {
+        "width": 1920,
+        "height": 1080,
+        "configured_fps": 60,
+        "preview_measured_fps": 30.49664536900948,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": 14285,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": null,
+      "generator_ticks": [],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43689326708",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43689326708",
+      "head_sha": "8ba4375fc5ab6603a056ab001b9a58b397aee2fc",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": null,
+      "diagnostic_gpu_mode": null,
+      "capture": {
+        "width": 2560,
+        "height": 1440,
+        "configured_fps": 60,
+        "preview_measured_fps": 21.59632862413387,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": 14273,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": null,
+      "generator_ticks": [],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43689718492",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43689718492",
+      "head_sha": "c37889f13d5d02f3da862bc8d07abf91952dd9e7",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": null,
+      "diagnostic_gpu_mode": "default_browser_gpu",
+      "capture": {
+        "width": 1920,
+        "height": 1080,
+        "configured_fps": 60,
+        "preview_measured_fps": 31.999360012799706,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": 14278,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": null,
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 5448
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 10129
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 14840
+        },
+        {
+          "frame": 1200,
+          "elapsed_ms": 19559
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43689720144",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43689720144",
+      "head_sha": "c37889f13d5d02f3da862bc8d07abf91952dd9e7",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": null,
+      "diagnostic_gpu_mode": "default_browser_gpu",
+      "capture": {
+        "width": 2560,
+        "height": 1440,
+        "configured_fps": 60,
+        "preview_measured_fps": 22.99586074506578,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": 14278,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": null,
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 4955
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 9691
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 14385
+        },
+        {
+          "frame": 1200,
+          "elapsed_ms": 19073
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43689930185",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43689930185",
+      "head_sha": "e323826582180693854188dabfa7f886ed6d4a56",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": {
+        "webgl": true,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+      },
+      "diagnostic_gpu_mode": "default_browser_gpu_wgc",
+      "capture": {
+        "width": 1920,
+        "height": 1080,
+        "configured_fps": 60,
+        "preview_measured_fps": 30.19788614796961,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": 14279,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": null,
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 5099
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 9870
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 14549
+        },
+        {
+          "frame": 1200,
+          "elapsed_ms": 19239
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43689931541",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43689931541",
+      "head_sha": "e323826582180693854188dabfa7f886ed6d4a56",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": {
+        "webgl": true,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+      },
+      "diagnostic_gpu_mode": "default_browser_gpu_wgc",
+      "capture": {
+        "width": 2560,
+        "height": 1440,
+        "configured_fps": 60,
+        "preview_measured_fps": 21.398930053497324,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": 14277,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": null,
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 5008
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 9731
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 14419
+        },
+        {
+          "frame": 1200,
+          "elapsed_ms": 19106
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43690342864",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43690342864",
+      "head_sha": "b758306fb5f0fb5bd4623003079188ef52281bda",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": null,
+      "graphics": null,
+      "diagnostic_gpu_mode": null,
+      "capture": {
+        "width": null,
+        "height": null,
+        "configured_fps": null,
+        "preview_measured_fps": null,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": null,
+        "owned_native_window_confirmed": false
+      },
+      "native_capture_timing": null,
+      "generator_ticks": [],
+      "error": "Timeout: owned EXE WebView CDP"
+    },
+    {
+      "run_id": "43690345732",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43690345732",
+      "head_sha": "b758306fb5f0fb5bd4623003079188ef52281bda",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": null,
+      "graphics": null,
+      "diagnostic_gpu_mode": null,
+      "capture": {
+        "width": null,
+        "height": null,
+        "configured_fps": null,
+        "preview_measured_fps": null,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": null,
+        "owned_native_window_confirmed": false
+      },
+      "native_capture_timing": null,
+      "generator_ticks": [],
+      "error": "Timeout: owned EXE WebView CDP"
+    },
+    {
+      "run_id": "43690578016",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43690578016",
+      "head_sha": "627bf04baf9a5cd3925552e8f0d4a627b8332530",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": {
+        "webgl": true,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+      },
+      "diagnostic_gpu_mode": "default_browser_gpu",
+      "capture": {
+        "width": 2560,
+        "height": 1440,
+        "configured_fps": 60,
+        "preview_measured_fps": 21.59697642330069,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": 14277,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": {
+        "capture_wall_duration": {
+          "count": 615,
+          "p50_ms": 6,
+          "p95_ms": 9
+        },
+        "scheduled_period": {
+          "count": 615,
+          "p50_ms": 16,
+          "p95_ms": 18
+        },
+        "initialization": [
+          "DesktopCaptureDevice [zero_hertz_is_supported=1]",
+          "AllocateAndStart (requested_frame_rate=60, max_frame_size=2560x1440, requested_frame_duration=16, max_cpu_consumption_percentage=50)"
+        ]
+      },
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 5422
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 10113
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 14795
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43690750908",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43690750908",
+      "head_sha": "b4d6fd003ae8c1158cf7c7664b2604a329849979",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": {
+        "webgl": true,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+      },
+      "diagnostic_gpu_mode": "default_browser_gpu",
+      "capture": {
+        "width": 2560,
+        "height": 1440,
+        "configured_fps": 60,
+        "preview_measured_fps": 22.495725812095912,
+        "processor_source_fps": 22.495725812095912,
+        "colored_pixels_of_14400": 14276,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": {
+        "capture_wall_duration": {
+          "count": 621,
+          "p50_ms": 5,
+          "p95_ms": 7
+        },
+        "scheduled_period": {
+          "count": 621,
+          "p50_ms": 16,
+          "p95_ms": 16
+        },
+        "initialization": [
+          "DesktopCaptureDevice [zero_hertz_is_supported=1]",
+          "AllocateAndStart (requested_frame_rate=60, max_frame_size=2560x1440, requested_frame_duration=16, max_cpu_consumption_percentage=50)"
+        ]
+      },
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 4969
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 9694
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 14394
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43690753784",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43690753784",
+      "head_sha": "b4d6fd003ae8c1158cf7c7664b2604a329849979",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": null,
+      "graphics": null,
+      "diagnostic_gpu_mode": null,
+      "capture": {
+        "width": null,
+        "height": null,
+        "configured_fps": null,
+        "preview_measured_fps": null,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": null,
+        "owned_native_window_confirmed": false
+      },
+      "native_capture_timing": {
+        "status": "UNAVAILABLE"
+      },
+      "generator_ticks": [],
+      "error": "Timeout: owned EXE WebView CDP"
+    },
+    {
+      "run_id": "43690868361",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43690868361",
+      "head_sha": "7b7291a20226babaca631042a077c12b47bd5668",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": {
+        "webgl": true,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+      },
+      "diagnostic_gpu_mode": "default_browser_gpu",
+      "capture": {
+        "width": 1920,
+        "height": 1080,
+        "configured_fps": 60,
+        "preview_measured_fps": 48.6980520779162,
+        "processor_source_fps": 48.6980520779162,
+        "colored_pixels_of_14400": 14280,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": {
+        "capture_wall_duration": {
+          "count": 622,
+          "p50_ms": 4,
+          "p95_ms": 6
+        },
+        "scheduled_period": {
+          "count": 622,
+          "p50_ms": 16,
+          "p95_ms": 16
+        },
+        "initialization": [
+          "DesktopCaptureDevice [zero_hertz_is_supported=1]",
+          "AllocateAndStart (requested_frame_rate=60, max_frame_size=1920x1080, requested_frame_duration=16, max_cpu_consumption_percentage=50)"
+        ]
+      },
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 4981
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 9667
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 14354
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43690871262",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43690871262",
+      "head_sha": "7b7291a20226babaca631042a077c12b47bd5668",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": {
+        "webgl": true,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+      },
+      "diagnostic_gpu_mode": "default_browser_gpu",
+      "capture": {
+        "width": 2560,
+        "height": 1440,
+        "configured_fps": 60,
+        "preview_measured_fps": 48.795608395244315,
+        "processor_source_fps": 48.795608395244315,
+        "colored_pixels_of_14400": 14277,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": {
+        "capture_wall_duration": {
+          "count": 626,
+          "p50_ms": 5,
+          "p95_ms": 6
+        },
+        "scheduled_period": {
+          "count": 626,
+          "p50_ms": 16,
+          "p95_ms": 16
+        },
+        "initialization": [
+          "DesktopCaptureDevice [zero_hertz_is_supported=1]",
+          "AllocateAndStart (requested_frame_rate=60, max_frame_size=2560x1440, requested_frame_duration=16, max_cpu_consumption_percentage=50)"
+        ]
+      },
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 4962
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 9656
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 14345
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43691179749",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43691179749",
+      "head_sha": "2b439c0deeba2ac863e365239a6a49b849d34476",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": null,
+      "graphics": null,
+      "diagnostic_gpu_mode": null,
+      "capture": {
+        "width": null,
+        "height": null,
+        "configured_fps": null,
+        "preview_measured_fps": null,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": null,
+        "owned_native_window_confirmed": false
+      },
+      "native_capture_timing": {
+        "status": "UNAVAILABLE"
+      },
+      "generator_ticks": [],
+      "error": "Scoped diagnostic policy refused a duplicate registry alias; no capture measured."
+    },
+    {
+      "run_id": "43691182602",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43691182602",
+      "head_sha": "2b439c0deeba2ac863e365239a6a49b849d34476",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": null,
+      "graphics": null,
+      "diagnostic_gpu_mode": null,
+      "capture": {
+        "width": null,
+        "height": null,
+        "configured_fps": null,
+        "preview_measured_fps": null,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": null,
+        "owned_native_window_confirmed": false
+      },
+      "native_capture_timing": {
+        "status": "UNAVAILABLE"
+      },
+      "generator_ticks": [],
+      "error": "Scoped diagnostic policy refused a duplicate registry alias; no capture measured."
+    },
+    {
+      "run_id": "43691328363",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43691328363",
+      "head_sha": "bb762b59c09553353277fb63f11594c46e838579",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "tauri": true
+      },
+      "graphics": {
+        "webgl": true,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+      },
+      "diagnostic_gpu_mode": "default_browser_gpu",
+      "capture": {
+        "width": 2560,
+        "height": 1440,
+        "configured_fps": 60,
+        "preview_measured_fps": 49.89501049895011,
+        "processor_source_fps": 49.89501049895011,
+        "colored_pixels_of_14400": 14276,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": {
+        "capture_wall_duration": {
+          "count": 567,
+          "p50_ms": 8,
+          "p95_ms": 11
+        },
+        "scheduled_period": {
+          "count": 567,
+          "p50_ms": 16,
+          "p95_ms": 23
+        },
+        "initialization": [
+          "DesktopCaptureDevice [zero_hertz_is_supported=1]",
+          "AllocateAndStart (requested_frame_rate=60, max_frame_size=2560x1440, requested_frame_duration=16, max_cpu_consumption_percentage=50)"
+        ]
+      },
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 3022
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 5749
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 8423
+        },
+        {
+          "frame": 1200,
+          "elapsed_ms": 11117
+        },
+        {
+          "frame": 1500,
+          "elapsed_ms": 13896
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43691331879",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43691331879",
+      "head_sha": "bb762b59c09553353277fb63f11594c46e838579",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": null,
+      "graphics": null,
+      "diagnostic_gpu_mode": null,
+      "capture": {
+        "width": null,
+        "height": null,
+        "configured_fps": null,
+        "preview_measured_fps": null,
+        "processor_source_fps": null,
+        "colored_pixels_of_14400": null,
+        "owned_native_window_confirmed": false
+      },
+      "native_capture_timing": {
+        "status": "UNAVAILABLE"
+      },
+      "generator_ticks": [],
+      "error": "Timeout: owned EXE WebView CDP"
+    },
+    {
+      "run_id": "43691706929",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43691706929",
+      "head_sha": "ca4ab1ea11e1bffef92fc61c388a694fabd64927",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
+        "tauri": true
+      },
+      "graphics": {
+        "webgl": true,
+        "renderer": "ANGLE (Microsoft, Microsoft Basic Render Driver (0x0000008C) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+      },
+      "diagnostic_gpu_mode": "default_browser_gpu",
+      "capture": {
+        "width": 1920,
+        "height": 1080,
+        "configured_fps": 60,
+        "preview_measured_fps": 40.59553449120606,
+        "processor_source_fps": 40.495545489996196,
+        "colored_pixels_of_14400": 14273,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": {
+        "capture_wall_duration": {
+          "count": 481,
+          "p50_ms": 10,
+          "p95_ms": 13
+        },
+        "scheduled_period": {
+          "count": 481,
+          "p50_ms": 21,
+          "p95_ms": 27
+        },
+        "initialization": [
+          "AllocateAndStart (requested_frame_rate=60, max_frame_size=1920x1080, requested_frame_duration=16, max_cpu_consumption_percentage=50)"
+        ]
+      },
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 3005
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 5684
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 8358
+        },
+        {
+          "frame": 1200,
+          "elapsed_ms": 11041
+        },
+        {
+          "frame": 1500,
+          "elapsed_ms": 13763
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43691950656",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43691950656",
+      "head_sha": "2b952ad9f2a79be513022c3d572aa363ab1f4782",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+        "tauri": true
+      },
+      "graphics": {
+        "webgl": true,
+        "renderer": "ANGLE (Microsoft, Microsoft Basic Render Driver (0x0000008C) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+      },
+      "diagnostic_gpu_mode": "default_browser_gpu",
+      "capture": {
+        "width": 1920,
+        "height": 1080,
+        "configured_fps": 60,
+        "preview_measured_fps": 38.69303525365439,
+        "processor_source_fps": 38.593439115350456,
+        "colored_pixels_of_14400": 14282,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": {
+        "capture_wall_duration": {
+          "count": 500,
+          "p50_ms": 10,
+          "p95_ms": 14
+        },
+        "scheduled_period": {
+          "count": 500,
+          "p50_ms": 21,
+          "p95_ms": 28
+        },
+        "initialization": [
+          "AllocateAndStart (requested_frame_rate=60, max_frame_size=1920x1080, requested_frame_duration=16, max_cpu_consumption_percentage=50)"
+        ]
+      },
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 2850
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 5308
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 7759
+        },
+        {
+          "frame": 1200,
+          "elapsed_ms": 10191
+        },
+        {
+          "frame": 1500,
+          "elapsed_ms": 12683
+        },
+        {
+          "frame": 1800,
+          "elapsed_ms": 15112
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    },
+    {
+      "run_id": "43691953447",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43691953447",
+      "head_sha": "2b952ad9f2a79be513022c3d572aa363ab1f4782",
+      "status": "FAIL",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "webview": {
+        "origin": "http://tauri.localhost",
+        "agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+        "tauri": true
+      },
+      "graphics": {
+        "webgl": true,
+        "renderer": "ANGLE (Microsoft, Microsoft Basic Render Driver (0x0000008C) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+      },
+      "diagnostic_gpu_mode": "default_browser_gpu",
+      "capture": {
+        "width": 2560,
+        "height": 1440,
+        "configured_fps": 60,
+        "preview_measured_fps": 38.39424086387042,
+        "processor_source_fps": 38.39424086387042,
+        "colored_pixels_of_14400": 14276,
+        "owned_native_window_confirmed": true
+      },
+      "native_capture_timing": {
+        "capture_wall_duration": {
+          "count": 444,
+          "p50_ms": 12,
+          "p95_ms": 14
+        },
+        "scheduled_period": {
+          "count": 444,
+          "p50_ms": 24,
+          "p95_ms": 28
+        },
+        "initialization": [
+          "AllocateAndStart (requested_frame_rate=60, max_frame_size=2560x1440, requested_frame_duration=16, max_cpu_consumption_percentage=50)"
+        ]
+      },
+      "generator_ticks": [
+        {
+          "frame": 300,
+          "elapsed_ms": 2748
+        },
+        {
+          "frame": 600,
+          "elapsed_ms": 5222
+        },
+        {
+          "frame": 900,
+          "elapsed_ms": 7653
+        },
+        {
+          "frame": 1200,
+          "elapsed_ms": 10098
+        },
+        {
+          "frame": 1500,
+          "elapsed_ms": 12642
+        },
+        {
+          "frame": 1800,
+          "elapsed_ms": 15085
+        }
+      ],
+      "error": "Native capture must contain decoded generated content"
+    }
+  ],
+  "latest_runtime_installer": {
+    "url": "https://go.microsoft.com/fwlink/?linkid=2124701",
+    "sha256": "d3cbe8fedb104282d745fff106993efead51ae94f5595a4e75804446a974f9c3",
+    "authenticode": "Valid Microsoft Corporation",
+    "observed_installed_version": "157.0.4341.60"
+  },
+  "not_verified": [
+    "No diagnostic variant sustained a native source >=54 FPS at either high-resolution profile",
+    "Physical GPU and residential/5G behavior"
+  ],
+  "adjacent_regression": {
+    "run_id": "43692641745",
+    "url": "https://github.com/BersaneV/Harmony/actions/runs/43692641745",
+    "profile": "720p30",
+    "status": "PASS",
+    "width": 1280,
+    "height": 720,
+    "observed_source_fps": 29.196788353281207,
+    "note": "One-VM calibration after harness changes; does not replace the separate eight-EXE 720p30 result."
+  }
+}
