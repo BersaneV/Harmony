@@ -40,6 +40,11 @@ public class HarmonyCanvas : Form {
   using(var p=new SolidBrush(Color.Turquoise))g.FillRectangle(p,(frames*7)%1100,180,150,110);
   using(var p=new SolidBrush(Color.Orange))g.FillEllipse(p,800,300+(int)(Math.Sin(frames/20.0)*110),100,100);
   using(var f=new Font("Segoe UI",28))g.DrawString("Harmony generated Windows capture frame "+frames,f,Brushes.White,30,620);
+  // Keep an advancing native marker inside even a small virtual desktop.
+  // Desktop capturers may skip unchanged frames when the other moving objects
+  // are outside its visible area; that must not masquerade as a 60 FPS source.
+  g.ResetTransform();
+  using(var p=new SolidBrush(Color.FromArgb(frames%256,255-frames%256,127)))g.FillRectangle(p,0,0,32,32);
  }
  public static void Run(string title,int width,int height,int fps) {
   var thread=new Thread(()=>{timeBeginPeriod(1);try{Application.Run(new HarmonyCanvas(title,width,height,fps));}finally{timeEndPeriod(1);}});
