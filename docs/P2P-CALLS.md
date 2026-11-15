@@ -2,7 +2,7 @@
 
 O transporte padrão usa WebRTC diretamente entre participantes. Entrar em um canal de voz abre a chamada; conversas diretas e grupos têm o botão de chamada existente. Não há código para copiar nem prazo de 120 segundos. Microfone e câmera começam desligados e só são capturados por ação do usuário. Compartilhar tela exige escolher uma fonte, conferir a prévia e iniciar a transmissão.
 
-A [prévia 0.4.1 para Windows x64](https://github.com/BersaneV/Harmony/releases/tag/v0.4.1) está publicada, com instalador e canal de atualização verificados. Passou no ensaio de oito participantes com voz e uma transmissão em 720p/30 FPS descrito abaixo. O CI completo também repetiu o perfil de 720p/15 FPS. Consulte [VALIDATION.md](VALIDATION.md) para os commits, hashes e limites.
+A [prévia 0.4.1 para Windows x64](https://github.com/BersaneV/Harmony/releases/tag/v0.4.1) está publicada, com instalador e canal de atualização verificados. Passou no ensaio anterior com oito Chromes em um runner Ubuntu descrito abaixo. O [teste posterior de oito EXEs em VMs Windows externas](EXE-WAN-VALIDATION.md) aprovou voz nos oito clientes, mas reprovou a tela em um dos sete espectadores (720p → 180p). O CI completo também repetiu o perfil de 720p/15 FPS em seu ambiente próprio. Consulte [VALIDATION.md](VALIDATION.md) para os commits, hashes e limites.
 
 ## Transporte e configuração
 
@@ -16,7 +16,7 @@ O modo `HARMONY_MEDIA_TRANSPORT=livekit` preserva o caminho SFU anterior. Em ins
 
 ## Alvo de uso: 5 a 8 pessoas
 
-Victor definiu grupos de 5 a 8 pessoas como alvo. Isso não transforma o limite configurável de 12 em capacidade homologada. A preparação do ensaio real no EXE entre redes diferentes está em [WINDOWS-WAN-TEST.md](WINDOWS-WAN-TEST.md); sua execução e suas medições dependem da presença dos participantes Windows.
+Victor definiu grupos de 5 a 8 pessoas como alvo. Isso não transforma o limite configurável de 12 em capacidade homologada. O [ensaio automatizado do EXE com oito VMs e oito IPs públicos](EXE-WAN-VALIDATION.md) foi executado: RTT mediano de 45 ms, p95 de 66–67 ms; voz PASS, tela FAIL em um receptor. Não certifica redes residenciais/5G. O roteiro complementar para PCs e participantes físicos está em [WINDOWS-WAN-TEST.md](WINDOWS-WAN-TEST.md).
 
 Em uma sala com uma tela transmitida, o emissor atende quatro espectadores com cinco pessoas, ou sete com oito. O bitrate selecionado é por espectador:
 
@@ -40,7 +40,7 @@ O [registro da 0.4.0](evidence/p2p-0.4.0-capacity.json) preserva esses resultado
 
 Não houve intervalo inteiro de amostragem nominal de três segundos sem avanço do vídeo exibido. Essa observação não demonstra ausência de pausas menores. Mute e mudanças de permissão chegaram em 52–464 ms; reset de senha, em 1.159 ms, dentro do limite de dois segundos do ensaio.
 
-As fontes da prova de oito participantes são dispositivos virtuais WAV/Y4M: o vídeo é uma câmera falsa enviada no slot de tela. Não foi capturado monitor, jogo, microfone ou áudio do sistema pessoal. O microfone do emissor e seu áudio de tela usam o mesmo arquivo de tom de 330 Hz; o roteamento de fontes distintas e o getDisplayMedia real de uma aba própria são exercitados pela suíte separada de três navegadores. A prova não homologa oito máquinas Windows físicas, redes distintas, múltiplas telas/câmeras simultâneas, 1440p ou 60 FPS sustentados. Esses cenários, medição de upload real e aceite entre usuários permanecem pendentes.
+As fontes da prova de oito participantes são dispositivos virtuais WAV/Y4M: o vídeo é uma câmera falsa enviada no slot de tela. Não foi capturado monitor, jogo, microfone ou áudio do sistema pessoal. O microfone do emissor e seu áudio de tela usam o mesmo arquivo de tom de 330 Hz; o roteamento de fontes distintas e o getDisplayMedia real de uma aba própria são exercitados pela suíte separada de três navegadores. A prova não homologa oito máquinas Windows físicas, redes distintas, múltiplas telas/câmeras simultâneas, 1440p ou 60 FPS sustentados. Esses cenários não receberam PASS por essa prova Ubuntu. O ensaio Windows externo posterior mediu upload real de payload de vídeo, com os resultados e limites registrados separadamente em [EXE-WAN-VALIDATION.md](EXE-WAN-VALIDATION.md); o aceite em PCs e redes dos usuários permanece pendente.
 
 ## Fontes, controles e estatísticas
 

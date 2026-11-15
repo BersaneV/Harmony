@@ -6,7 +6,7 @@
 
 Comunidades, conversas e compartilhamento de tela em uma plataforma open source, hospedada por você. Cliente Windows com Tauri 2, React e TypeScript; servidor Rust com SQLite, arquivos locais privados e chamadas WebRTC P2P; LiveKit opcional.
 
-**Versão de desenvolvimento.** O núcleo funciona com serviços reais e possui testes de integração e implantação externa gratuita. Captura em Windows físico e qualidade das chamadas entre redes diferentes ainda precisam das provas descritas na documentação. Não há conta obrigatória em serviço pago.
+**Versão de desenvolvimento.** O núcleo funciona com serviços reais e implantação externa gratuita. No [teste automatizado de oito EXEs em VMs Windows com oito IPs públicos](docs/EXE-WAN-VALIDATION.md), a voz passou em todos; uma das sete recepções de tela caiu de 720p para 180p, reprovando a qualidade de vídeo. Captura em Windows físico e redes residenciais/5G continuam sem validação. Não há conta obrigatória em serviço pago.
 
 ## O que já funciona
 
@@ -55,7 +55,7 @@ Os testes de integração exigem serviços locais e usam contas descartáveis. V
 - [Arquitetura e diagrama](ARCHITECTURE.md) · [SVG](arquitetura-v1.svg) · [Mermaid](arquitetura-v1.mmd)
 - [Contrato de API](docs/API.md) · [Servidor](docs/BACKEND.md) · [Cliente](apps/desktop/README.md)
 - [Operação, backup e build](docs/OPERATIONS.md) · [Roadmap](ROADMAP.md)
-- [Validação e pendências da versão](docs/VALIDATION.md)
+- [Validação e pendências da versão](docs/VALIDATION.md) · [Oito EXEs Windows externos: ping, voz e tela](docs/EXE-WAN-VALIDATION.md)
 - [Revisão de segurança](docs/SECURITY-REVIEW.md) · [Teste de mídia real](docs/MEDIA-RTC-VALIDATION.md)
 - [Análise REA do Discord](docs/REA-DISCORD.md)
 
@@ -73,7 +73,7 @@ flowchart LR
   Client <-.->|Modo LiveKit explícito| SFU
 ```
 
-A arquitetura anterior está preservada no histórico e nos arquivos `arquitetura-v1.*`. O desenho acima representa o perfil simplificado atual. Desde a versão 0.4.0, as chamadas reais usam P2P por padrão, sem prazo de dois minutos. A 0.4.1 corrige a contenção na autorização e passou no ensaio de oito participantes com voz e uma transmissão em 720p/30 FPS, nas condições registradas em [VALIDATION.md](docs/VALIDATION.md). O LiveKit fica no perfil opcional `sfu`. Conexões diretas podem falhar em redes restritivas e o upload cresce por espectador. [Banco/migração](docs/EMBEDDED-DATABASE.md), [arquivos locais](docs/LOCAL-STORAGE.md) e [chamadas P2P](docs/P2P-CALLS.md) detalham os limites.
+A arquitetura anterior está preservada no histórico e nos arquivos `arquitetura-v1.*`. O desenho acima representa o perfil simplificado atual. Desde a versão 0.4.0, as chamadas reais usam P2P por padrão, sem prazo de dois minutos. A 0.4.1 corrige a contenção na autorização e passou no ensaio anterior com oito Chromes em um runner Ubuntu, nas condições de [VALIDATION.md](docs/VALIDATION.md). O ensaio posterior com oito EXEs Windows externos aprovou voz e reprovou uma recepção de tela; [resultado e métricas](docs/EXE-WAN-VALIDATION.md). O LiveKit fica no perfil opcional `sfu`. Conexões diretas podem falhar em redes restritivas e o upload cresce por espectador. [Banco/migração](docs/EMBEDDED-DATABASE.md), [arquivos locais](docs/LOCAL-STORAGE.md) e [chamadas P2P](docs/P2P-CALLS.md) detalham os limites.
 
 ## Licença e custos
 

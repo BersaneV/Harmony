@@ -1,6 +1,6 @@
 # Testar o EXE em redes diferentes com oito pessoas
 
-Estado inicial: roteiro preparado; ensaio físico ainda **NOT_RUN**. A aprovação automatizada anterior usa Chrome e fontes geradas. Esta campanha depende de oito participantes reais no aplicativo Windows, com medições recebidas dos clientes.
+Este roteiro complementar trata de PCs e participantes físicos e permanece **NOT_RUN** nesse recorte. O [teste automatizado de oito EXEs em VMs Windows externas com oito IPs públicos](EXE-WAN-VALIDATION.md) já foi executado: voz PASS, tela FAIL em um dos sete espectadores. As fontes desse ensaio são fala gerada e captura real de janela própria; não substituem redes residenciais/5G, microfones físicos ou avaliação dos usuários.
 
 ## Preparação
 
@@ -51,4 +51,4 @@ Concluir separadamente conectividade, voz e vídeo. A condição funcional é oi
 
 Na tela 720p/30, usar como referência inicial a meta já usada no ensaio automatizado: manter 1280×720 e procurar médias de ao menos 24 FPS. As amostras pontuais da interface e a observação manual são evidências parciais; não recebem automaticamente o mesmo PASS de uma série contínua de frames exibidos. Registrar valores efetivos e quem reprovou. Não há limite universal de ping aprovado por este roteiro: apresentar os caminhos medidos e avaliar a experiência real.
 
-Guardar versão, perfil, quantidade de usuários, grupos de rede, duração, observações, amostras e falhas. Um resultado com menos de oito participantes fica identificado com sua quantidade real. Até receber essas evidências, o teste Windows/WAN permanece **NOT_RUN**. Nenhuma gravação de voz ou de tela é iniciada pelo servidor ou por este roteiro.
+Guardar versão, perfil, quantidade de usuários, grupos de rede, duração, observações, amostras e falhas. Um resultado com menos de oito participantes fica identificado com sua quantidade real. Até receber essas evidências, a campanha de PCs físicos em redes dos usuários permanece **NOT_RUN**; o ensaio automatizado em VMs externas possui o resultado próprio vinculado acima. Nenhuma gravação de voz ou de tela é iniciada pelo servidor ou por este roteiro.
