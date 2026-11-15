@@ -1,0 +1,30 @@
+// Passive instrumentation of the shipped WebView. No import of the engine,
+// source replacement, encoder preference change, or media substitution.
+export function observe(){
+ if(!window.__TAURI_INTERNALS__||!['http://tauri.localhost','https://tauri.localhost'].includes(location.origin))throw Error('Owned compiled Tauri page required');
+ if(window.__exeWan)throw Error('Already instrumented');
+ const qa=window.__exeWan={pcs:[],tracks:[],events:[],contexts:[],captures:[],started:performance.now()};
+ const Native=window.RTCPeerConnection;
+ window.RTCPeerConnection=class extends Native{
+  constructor(...args){super(...args);const pc=this,index=qa.pcs.length;qa.pcs.push(pc);pc.addEventListener('connectionstatechange',()=>qa.events.push({at:performance.now(),pc:index,state:pc.connectionState}));
+   pc.addEventListener('track',event=>{const record={pc:index,track:event.track,transceiver:event.transceiver,analyser:null,context:null,error:null};qa.tracks.push(record);
+    if(event.track.kind==='audio'){try{const context=new AudioContext({sinkId:{type:'none'}}),source=context.createMediaStreamSource(new MediaStream([event.track])),a=context.createAnalyser(),gain=context.createGain();a.fftSize=4096;gain.gain.value=0;source.connect(a).connect(gain).connect(context.destination);record.analyser=a;record.context=context;qa.contexts.push(context);context.resume().catch(()=>record.error='audio_analysis_resume')}catch{record.error='audio_analysis_setup'}}
+   });
+  }
+ };
+ // Record the real track returned by getDisplayMedia, without replacing it.
+ const display=navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+ navigator.mediaDevices.getDisplayMedia=async(...args)=>{const stream=await display(...args);for(const track of stream.getVideoTracks())qa.captures.push({track,settings:track.getSettings(),label:track.label});return stream;};
+ const numeric=['timestamp','bytesSent','bytesReceived','packetsSent','packetsReceived','packetsLost','jitter','framesEncoded','framesDecoded','framesPerSecond','frameWidth','frameHeight','totalEncodeTime','totalDecodeTime','totalAudioEnergy','totalSamplesDuration','totalSamplesReceived','concealedSamples','silentConcealedSamples','concealmentEvents','packetsDiscarded','jitterBufferDelay','jitterBufferEmittedCount','freezeCount','totalFreezesDuration'];
+ const sources=['microphone','camera','screen','screen_audio'];
+ qa.sample=async()=>{
+  const peers=await Promise.all(qa.pcs.map(async(pc,index)=>{const report=await pc.getStats(),rows=new Map();report.forEach(r=>rows.set(r.id,r));const all=[...rows.values()],transport=all.find(r=>r.type==='transport'&&r.selectedCandidatePairId),pair=rows.get(transport?.selectedCandidatePairId)||all.find(r=>r.type==='candidate-pair'&&r.nominated&&r.state==='succeeded'),local=rows.get(pair?.localCandidateId),remote=rows.get(pair?.remoteCandidateId);
+   const rtp=all.filter(r=>['inbound-rtp','outbound-rtp'].includes(r.type)&&!r.isRemote&&!/\/(rtx|red|ulpfec)$/i.test(rows.get(r.codecId)?.mimeType||'')).map(r=>{let source=typeof r.mid==='string'?sources[Number(r.mid)]:null;if(!source){const id=r.trackIdentifier||rows.get(r.mediaSourceId)?.trackIdentifier;const position=pc.getTransceivers().findIndex(t=>(r.type==='inbound-rtp'?t.receiver.track:t.sender.track)?.id===id);source=sources[position];}const x={direction:r.type==='inbound-rtp'?'inbound':'outbound',source:source||'unknown',codec:rows.get(r.codecId)?.mimeType||null};for(const key of numeric)if(typeof r[key]==='number'&&Number.isFinite(r[key]))x[key]=r[key];const media=rows.get(r.mediaSourceId);if(media)x.media_source=Object.fromEntries(['timestamp','width','height','frames','framesPerSecond','totalAudioEnergy','totalSamplesDuration'].filter(k=>typeof media[k]==='number').map(k=>[k,media[k]]));return x;});
+   const tracks=qa.tracks.filter(t=>t.pc===index).map(t=>{const out={source:sources[Number(t.transceiver.mid)]||'unknown',kind:t.track.kind,ready:t.track.readyState,muted:t.track.muted,analysis_error:t.error};if(t.analyser){const a=new Float32Array(t.analyser.fftSize);t.analyser.getFloatTimeDomainData(a);out.rms=Math.sqrt(a.reduce((s,v)=>s+v*v,0)/a.length);out.analysis_state=t.context.state;const spectrum=new Float32Array(t.analyser.frequencyBinCount);t.analyser.getFloatFrequencyData(spectrum);let bin=1;for(let i=2;i<spectrum.length;i++)if(spectrum[i]>spectrum[bin])bin=i;out.peak_hz=bin*t.context.sampleRate/t.analyser.fftSize;}
+    if(t.track.kind==='video'){const v=[...document.querySelectorAll('video')].find(v=>v.srcObject?.getVideoTracks?.().some(a=>a.id===t.track.id));if(v){const q=v.getVideoPlaybackQuality();out.video={width:v.videoWidth,height:v.videoHeight,current_time:v.currentTime,total_frames:q.totalVideoFrames,dropped_frames:q.droppedVideoFrames,paused:v.paused,ready_state:v.readyState};}}return out;});
+   return{pc:index,state:pc.connectionState,local_fingerprint:rows.get(transport?.localCertificateId)?.fingerprint||null,remote_fingerprint:rows.get(transport?.remoteCertificateId)?.fingerprint||null,local_candidate:{type:local?.candidateType||null,protocol:local?.protocol||null,address:local?.address||local?.ip||null,port:local?.port||null},remote_candidate:{type:remote?.candidateType||null,protocol:remote?.protocol||null,address:remote?.address||remote?.ip||null,port:remote?.port||null},ice_rtt_ms:typeof pair?.currentRoundTripTime==='number'?pair.currentRoundTripTime*1000:null,rtp,tracks};
+  }));
+  return{at:performance.now(),wall_utc:Date.now(),peers,events:qa.events.slice(-200),captures:qa.captures.map(c=>({settings:c.track.getSettings(),ready:c.track.readyState}))};
+ };
+ return true;
+}

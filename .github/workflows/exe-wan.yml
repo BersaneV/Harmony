@@ -1,0 +1,58 @@
+name: Eight published Windows EXEs over separate VMs
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: exe-wan
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      cohort: ${{ steps.fixture.outputs.cohort }}
+      guild: ${{ steps.fixture.outputs.guild }}
+      guild_name: ${{ steps.fixture.outputs.guild_name }}
+      voice: ${{ steps.fixture.outputs.voice }}
+      control: ${{ steps.fixture.outputs.control }}
+      users: ${{ steps.fixture.outputs.users }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: '26.13.0'}
+      - run: node --test scripts/exe-wan/metrics.test.mjs
+      - name: Create the private eight-account fixture
+        id: fixture
+        env:
+          HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+        run: node scripts/exe-wan/prepare.mjs
+  windows:
+    needs: prepare
+    name: client ${{ matrix.client }}
+    runs-on: windows-2022
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        client: [0,1,2,3,4,5,6,7]
+    env:
+      HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+      HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
+      HARMONY_GUILD_ID: ${{ needs.prepare.outputs.guild }}
+      HARMONY_GUILD_NAME: ${{ needs.prepare.outputs.guild_name }}
+      HARMONY_VOICE_ID: ${{ needs.prepare.outputs.voice }}
+      HARMONY_CONTROL_ID: ${{ needs.prepare.outputs.control }}
+      HARMONY_COHORT_USERS: ${{ needs.prepare.outputs.users }}
+      HARMONY_CLIENT_INDEX: ${{ matrix.client }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: '26.13.0'}
+      - name: Verify and install the published 0.4.1 EXE
+        shell: pwsh
+        run: ./scripts/exe-wan/install.ps1
+      - name: Run the actual app and measure voice and native screen delivery
+        run: node scripts/exe-wan/client.mjs
