@@ -1,5 +1,5 @@
 #requires -Version 7.0
-param([Parameter(Mandatory=$true)][string]$ExePath,[string]$Profile,[string]$BrowserArguments,[switch]$Remove)
+param([Parameter(Mandatory=$true)][string]$ExePath,[string]$Profile,[switch]$Remove)
 $ErrorActionPreference = 'Stop'
 if (-not $IsWindows -or $env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne 'BersaneV/Harmony') { throw 'Owned disposable Windows runner required' }
 $exe = [IO.Path]::GetFullPath($ExePath)
@@ -13,6 +13,7 @@ foreach ($setting in @('AdditionalBrowserArguments','UserDataFolder')) {
   $existing = Get-ItemProperty -LiteralPath $key -Name $name -ErrorAction SilentlyContinue
   if ($null -ne $existing) { throw 'Existing WebView override refused' }
   if (-not (Test-Path $key)) { $null = New-Item -Path $key -Force }
-  $value = if ($setting -eq 'AdditionalBrowserArguments') {$BrowserArguments} else {$Profile}
+  $value = if ($setting -eq 'AdditionalBrowserArguments') {$env:HARMONY_WAN_BROWSER_ARGUMENTS} else {$Profile}
+  if (-not $value) { throw 'Test override value required' }
   $null = New-ItemProperty -LiteralPath $key -Name $name -Value $value -PropertyType String
 }
