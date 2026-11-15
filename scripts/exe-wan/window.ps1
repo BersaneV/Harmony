@@ -17,7 +17,7 @@ public class HarmonyCanvas : Control {
 }
 '@
 $form = [Windows.Forms.Form]::new()
-$form.Text=$Title; $form.FormBorderStyle='None'; $form.AutoScaleMode='None'; $form.ClientSize=[Drawing.Size]::new(1280,720)
+$form.Text=$Title; $form.FormBorderStyle='None'; $form.AutoScaleMode='None'; $form.MinimumSize=[Drawing.Size]::new(1280,720); $form.MaximumSize=[Drawing.Size]::new(1280,720); $form.ClientSize=[Drawing.Size]::new(1280,720)
 $form.StartPosition='Manual'; $form.Location=[Drawing.Point]::new(0,0); $form.TopMost=$true
 $canvas=[HarmonyCanvas]::new(); $canvas.Dock='Fill'; $form.Controls.Add($canvas)
 [Windows.Forms.Application]::Run($form)
