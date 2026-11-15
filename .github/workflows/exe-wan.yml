@@ -1,6 +1,11 @@
 name: Eight published Windows EXEs over separate VMs
 on:
   workflow_dispatch:
+    inputs:
+      encoder_probe:
+        description: Diagnostic only; compare native adaptation on one owned connection, never a capacity PASS
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -47,6 +52,7 @@ jobs:
       HARMONY_CONTROL_ID: ${{ needs.prepare.outputs.control }}
       HARMONY_COHORT_USERS: ${{ needs.prepare.outputs.users }}
       HARMONY_CLIENT_INDEX: ${{ matrix.client }}
+      HARMONY_ENCODER_PROBE: ${{ inputs.encoder_probe }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38

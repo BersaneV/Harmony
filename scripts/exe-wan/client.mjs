@@ -1,3 +1,4 @@
+import{encoderProbe}from'./encoder-probe.mjs';
 import assert from'node:assert/strict';import{writeFile}from'node:fs/promises';import{join}from'node:path';import{cpus,totalmem,hostname,version}from'node:os';
 import{spawnSync}from'node:child_process';
 import{guard,cohort,identity,login,origin,api,postControl,controls,opaque}from'./lab.mjs';import{session}from'./session.mjs';import{until,delay}from'./cdp.mjs';import{summarize}from'./metrics.mjs';
@@ -25,9 +26,9 @@ try{
  if(index===0){await app.click('Compartilhar tela');await app.select('Resolução',720);await app.select('Quadros por segundo',30);await app.select('Bitrate por espectador','manual');await app.fill('input[aria-label="Bitrate em megabits por segundo"]','4');await app.select('Conteúdo','motion');await app.cdp.evaluate(`(()=>{const e=document.querySelector('.check-field input[type="checkbox"]');if(e?.checked)e.click();return true})()`,true);await app.click('Escolher tela ou janela');await until(()=>app.cdp.evaluate(`!!document.querySelector('.share-preview video')`),'real Windows preview',60000);const captured=await app.cdp.evaluate(`__exeWan.captures.map(c=>({label:c.label,settings:c.track.getSettings()}))`);assert.ok(captured.length&&captured.every(c=>c.settings.displaySurface==='window'),'Native window required');const ownHandle=await app.ownedWindow();assert.ok(captured.every(c=>c.label===`window:${ownHandle}:0`),'Owned capture HWND required');report.capture=captured;await app.click('Iniciar transmissão');}
  await until(async()=>{const s=await app.sample();return index===0?s.peers.filter(p=>p.rtp.some(r=>r.source==='screen'&&r.direction==='outbound'&&r.bytesSent>0)).length===7:s.peers.some(p=>p.tracks.some(t=>t.source==='screen'&&t.video?.width>0&&t.video?.total_frames>0))},'native screen reaches all receivers',180000);
  if(index!==0)await app.cdp.evaluate(`(()=>{const v=Array.from(document.querySelectorAll('video')).find(v=>v.srcObject?.getVideoTracks?.().length);const b=v?.closest('.video-tile')?.querySelector('[aria-label="Focar transmissão"]');if(!b)throw Error('Screen focus action missing');b.click();return true})()`,true);
- await postControl(token,{kind:'screen-ready',index});await phase('screen');
+ await postControl(token,{kind:'screen-ready',index});if(process.env.HARMONY_ENCODER_PROBE==='true'){await encoderProbe(app,index,token,emit,users);}else await phase('screen');
  if(index===0||index===7){const png=await app.cdp.send('Page.captureScreenshot',{format:'png'});for(let offset=0;offset<png.data.length;offset+=10000)emit('HARMONY_EXE_WAN_SCREENSHOT',{index,offset,data:png.data.slice(offset,offset+10000),last:offset+10000>=png.data.length});}
- report.status=report.phases.every(p=>p.status==='PASS')?'PASS':'FAIL';
+ report.status=process.env.HARMONY_ENCODER_PROBE==='true'?'DIAGNOSTIC':report.phases.every(p=>p.status==='PASS')?'PASS':'FAIL';
 }catch(error){report.status='FAIL';report.error=String(error.message).slice(0,300);if(token){try{await postControl(token,{kind:'abort',index})}catch{}}if(app){try{report.final_sample=await app.sample();report.visible_errors=await app.cdp.evaluate(`Array.from(document.querySelectorAll('.error-banner')).map(e=>e.textContent.slice(0,180))`)}catch{}}}
 finally{if(app){await writeFile(join(app.root,'result.json'),JSON.stringify(report,null,2)+'\n');try{app.close()}catch{report.cleanup='FAIL'}}emit('HARMONY_EXE_WAN_REPORT',report);}
-if(report.status!=='PASS')process.exitCode=1;
+if(!['PASS','DIAGNOSTIC'].includes(report.status))process.exitCode=1;

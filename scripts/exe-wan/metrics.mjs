@@ -19,7 +19,7 @@ export function summarize(samples,index,phase){
  const audio=peers.flatMap(p=>p.streams.filter(s=>s.source==='microphone')),video=peers.flatMap(p=>p.streams.filter(s=>s.source==='screen'));
  const functional=peers.length===7&&peers.every(p=>p.all_samples_connected)&&audio.length===7;
  const voice=audio.length===7&&audio.every(s=>s.nonconcealed_audio_wall_ratio>=.8&&s.concealment_ratio!==null&&s.concealment_ratio<=.02&&s.decoded_rms>=.03);
- const screen=phase!=='screen'||index===0||video.length===1&&video.every(s=>s.width===1280&&s.height===720&&s.displayed_fps>=24&&!s.sampled_sizes.some(size=>size!=='1280x720'));
+ const screen=phase!=='screen'||index===0||video.length===1&&video.every(s=>s.width===1280&&s.height===720&&s.displayed_fps>=24&&s.freeze_count===0&&s.freeze_seconds===0&&!s.sampled_sizes.some(size=>size!=='1280x720'));
  const duration=steady.length?(steady.at(-1).sample.at-steady[0].sample.at)/1000:0;
  return{phase,index,observed_steady_seconds:duration,samples:steady.length,functional_status:functional?'PASS':'FAIL',voice_status:voice?'PASS':'FAIL',video_status:phase==='screen'?(screen?'PASS':'FAIL'):'NOT_APPLICABLE',status:functional&&voice&&screen&&duration>=180?'PASS':'FAIL',peers};
 }
