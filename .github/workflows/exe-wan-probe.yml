@@ -1,0 +1,19 @@
+name: Probe the published Windows EXE
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main'
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: '26.13.0'}
+      - name: Verify and install the existing 0.4.1 release
+        shell: pwsh
+        run: ./scripts/exe-wan/install.ps1
+      - name: Verify the compiled app, generated audio and native test-window capture
+        run: node scripts/exe-wan/probe.mjs
