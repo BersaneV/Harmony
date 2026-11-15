@@ -507,6 +507,28 @@ describe("real call ownership and authority", () => {
 });
 
 describe("real call negotiation and measured controls", () => {
+  it("preserves an explicit screen resolution without changing its motion content or FPS and bitrate caps", async () => {
+    const test = setup();
+    const socket = await test.connect([roster("a"), roster("b"), roster("c")]);
+    await test.call.setScreenProfile(screenProfile);
+    const screen = new Track("video");
+    await test.call.setTrack("screen", screen.media());
+    for (const peer of test.peers) {
+      expect(peer.slots[2].sender.parameters.degradationPreference).toBe("maintain-resolution");
+      expect(peer.slots[2].sender.parameters.encodings[0]).toMatchObject({
+        maxBitrate: 4_000_000, maxFramerate: 30, scaleResolutionDownBy: 1,
+      });
+    }
+    expect(screen.contentHint).toBe("motion");
+    socket.receive({ type: "signal", from: "b", data: { receive: { screen_height: 240 } } });
+    await flush();
+    expect(test.peers[0].slots[2].sender.parameters.encodings[0].scaleResolutionDownBy).toBe(3);
+    expect(test.peers[1].slots[2].sender.parameters.encodings[0].scaleResolutionDownBy).toBe(1);
+    await test.call.setScreenProfile({ ...screenProfile, height: 0 });
+    expect(test.peers[1].slots[2].sender.parameters.degradationPreference).toBe("maintain-framerate");
+    expect(screen.contentHint).toBe("motion");
+  });
+
   it("preserves live senders through SDP without redundant native mutations and reapplies reset caps", async () => {
     const test = setup(),
       socket = await test.connect();

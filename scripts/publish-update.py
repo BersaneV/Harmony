@@ -64,7 +64,7 @@ def main():
         "--output", str(directory / "local-signature-verification.json")], check=True, cwd=ROOT)
     manifest = {
         "version": args.version,
-        "notes": "Correção da contenção na autorização de chamadas P2P e redução das reconfigurações de mídia repetidas. Voz, câmera, tela e áudio da tela com controles de resolução, FPS e bitrate. Conexão direta e qualidade dependem da rede e do equipamento. Consulte as provas e limites nas notas da versão.",
+        "notes": (ROOT / "docs/releases" / (args.version + ".md")).read_text(),
         "pub_date": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "platforms": {"windows-x86_64": {
             "signature": (directory / (name + ".sig")).read_text().strip(),

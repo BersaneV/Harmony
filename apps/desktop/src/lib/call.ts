@@ -1,6 +1,11 @@
 import { getServer, getSession, onSession, refreshSession } from "./api";
 import type { Session } from "./types";
-import { defaultProfile, resolutions, validateProfile } from "./stream";
+import {
+  defaultProfile,
+  resolutions,
+  validateProfile,
+  screenDegradationPreference,
+} from "./stream";
 import type { StreamProfile } from "./stream";
 import { classifyRoute } from "./p2p";
 
@@ -1176,10 +1181,7 @@ export class P2PCall {
       }
     }
     if (source === "screen") {
-      const preference =
-        this.data.profile.content === "text"
-          ? "maintain-resolution"
-          : "maintain-framerate";
+      const preference = screenDegradationPreference(this.data.profile);
       if (parameters.degradationPreference !== preference) {
         parameters.degradationPreference = preference;
         changed = true;

@@ -64,6 +64,17 @@ export function captureOptions(
     surfaceSwitching: "include",
   };
 }
+/** Keep a manually selected screen size readable when the native encoder adapts.
+ * Motion remains a content hint; automatic motion can still trade resolution
+ * for frame rate. These are preferences, not a promise of network capacity.
+ */
+export function screenDegradationPreference(
+  profile: StreamProfile,
+): "maintain-resolution" | "maintain-framerate" {
+  return profile.height > 0 || profile.content === "text"
+    ? "maintain-resolution"
+    : "maintain-framerate";
+}
 export function publishOptions(
   profile: StreamProfile,
   maxBitrate: number,
@@ -82,7 +93,6 @@ export function publishOptions(
       maxBitrate: target,
       maxFramerate: profile.fps || 30,
     },
-    degradationPreference:
-      profile.content === "text" ? "maintain-resolution" : "maintain-framerate",
+    degradationPreference: screenDegradationPreference(profile),
   };
 }

@@ -9,6 +9,12 @@ import { compareSequences, mergeMessages } from "./messages";
 import { normalizeTheme } from "./theme";
 import type { Message } from "./types";
 describe("orçamento de transmissão", () => {
+  it("prioriza a resolução explícita também no transporte LiveKit, mantendo movimento automático adaptativo", () => {
+    expect(publishOptions({ ...defaultProfile, height: 720, content: "motion" }, 32_000_000).degradationPreference).toBe("maintain-resolution");
+    expect(publishOptions({ ...defaultProfile, height: 0, content: "motion" }, 32_000_000).degradationPreference).toBe("maintain-framerate");
+    expect(publishOptions({ ...defaultProfile, height: 0, content: "text" }, 32_000_000).degradationPreference).toBe("maintain-resolution");
+  });
+
   it("converte Mb/s para bits/s e impede codecs/camadas ocultos", () => {
     const options = publishOptions(
       { ...defaultProfile, bitrate: 4 },
