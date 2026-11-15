@@ -7,7 +7,9 @@ if (-not $exe.StartsWith([IO.Path]::GetFullPath($env:RUNNER_TEMP) + '\',[StringC
 $names = @([IO.Path]::GetFileName($exe), $exe, 'org.harmony.desktop')
 # GitHub Windows runners may be elevated. Microsoft documents that only HKLM
 # overrides are honored by elevated WebView2 hosts. Scope every value to our EXE.
-foreach ($base in @('HKLM:\Software\Policies\Microsoft\Edge\WebView2\','HKLM:\Software\WOW6432Node\Policies\Microsoft\Edge\WebView2\')) {
+# Policies is shared by registry views on this Windows image. Writing a second
+# Wow6432Node alias can revisit values just created by this very invocation.
+foreach ($base in @('HKLM:\Software\Policies\Microsoft\Edge\WebView2\')) {
  foreach ($setting in @('AdditionalBrowserArguments','UserDataFolder')) { foreach ($name in $names) {
   $key = $base + $setting
   if ($Remove) { Remove-ItemProperty -LiteralPath $key -Name $name -ErrorAction SilentlyContinue; continue }
