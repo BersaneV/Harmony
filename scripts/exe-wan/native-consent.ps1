@@ -10,7 +10,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
   $text=$dialog.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
   $names=@($text|ForEach-Object {$_.Current.Name})
   if (-not ($names|Where-Object {$_ -like "*$Title*"})) { throw 'Consent dialog does not name the owned fixture' }
-  $button=$dialog.FindFirst([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::AutomationIdProperty,'1'))
+  $button=$dialog.FindFirst([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.AndCondition]::new([Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::AutomationIdProperty,'1'),[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,[Windows.Automation.ControlType]::Button)))
   if (-not $button) { throw 'Owned confirmation button missing' }
   $button.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
   'Confirmed only the native dialog for the generated test window';exit 0
