@@ -27,5 +27,6 @@ export async function encoderProbe(app,index,token,emit,users){
   await postControl(token,{kind:'probe-'+stage+'-done',index});
   await until(async()=>new Set((await controls(token)).filter(m=>m.kind==='probe-'+stage+'-done'&&users.some(u=>u.id===m.author_id)).map(m=>m.index)).size===8,'all controlled probe clients done',120000);
  }
- if(index===0)await parameters(4000000,'maintain-framerate');
+ // The bitrate was already restored within each stage. Teardown closes the
+ // disposable EXE; do not mutate a sender after peers have started leaving.
 }

@@ -1,0 +1,4020 @@
+{
+  "schema": 1,
+  "status": "DIAGNOSTIC",
+  "scope": "Intentional native encoder bitrate cap on one owned P5 connection: 4 Mb/s -> the recorded lower cap for 30s -> 4 Mb/s; same connection, source and motion hint. Only adaptation preference differs between stages. Not normal-call capacity approval.",
+  "stages": [
+    {
+      "stage": "original",
+      "actions": [
+        {
+          "stage": "original",
+          "seconds": 21.0963906,
+          "action": "limit",
+          "pc": 3,
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "maxBitrate": 50000,
+            "contentHint": "motion"
+          }
+        },
+        {
+          "stage": "original",
+          "seconds": 51.24798080000001,
+          "action": "restore",
+          "pc": 3,
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "maxBitrate": 4000000,
+            "contentHint": "motion"
+          }
+        }
+      ],
+      "observed_seconds": 147.6201204,
+      "sampled_sizes": [
+        "1280x720",
+        "960x540",
+        "640x360",
+        "480x270"
+      ],
+      "additional_freezes": 3,
+      "additional_freeze_seconds": 1.171,
+      "recovery_after_30s": {
+        "sampled_sizes": [
+          "1280x720"
+        ],
+        "displayed_fps": 29.226439444201837,
+        "additional_freezes": 0,
+        "additional_freeze_seconds": 0
+      },
+      "received": [
+        {
+          "seconds": 4.199999995762483e-06,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 725,
+          "freezes": 0,
+          "freeze_seconds": 0,
+          "displayed_frames": 724
+        },
+        {
+          "seconds": 3.013892300000007,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 813,
+          "freezes": 0,
+          "freeze_seconds": 0,
+          "displayed_frames": 812
+        },
+        {
+          "seconds": 6.027179300000004,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 901,
+          "freezes": 0,
+          "freeze_seconds": 0,
+          "displayed_frames": 900
+        },
+        {
+          "seconds": 9.039772500000007,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 989,
+          "freezes": 0,
+          "freeze_seconds": 0,
+          "displayed_frames": 989
+        },
+        {
+          "seconds": 12.052633499999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 1078,
+          "freezes": 0,
+          "freeze_seconds": 0,
+          "displayed_frames": 1077
+        },
+        {
+          "seconds": 15.065043099999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 1166,
+          "freezes": 0,
+          "freeze_seconds": 0,
+          "displayed_frames": 1165
+        },
+        {
+          "seconds": 18.07852160000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 1254,
+          "freezes": 0,
+          "freeze_seconds": 0,
+          "displayed_frames": 1253
+        },
+        {
+          "seconds": 21.091525200000003,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 1342,
+          "freezes": 0,
+          "freeze_seconds": 0,
+          "displayed_frames": 1341
+        },
+        {
+          "seconds": 24.104232400000008,
+          "width": 1280,
+          "height": 720,
+          "fps": 8,
+          "frames": 1376,
+          "freezes": 0,
+          "freeze_seconds": 0,
+          "displayed_frames": 1375
+        },
+        {
+          "seconds": 27.11860699999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 10,
+          "frames": 1408,
+          "freezes": 0,
+          "freeze_seconds": 0,
+          "displayed_frames": 1407
+        },
+        {
+          "seconds": 30.130262599999988,
+          "width": 960,
+          "height": 540,
+          "fps": 15,
+          "frames": 1437,
+          "freezes": 2,
+          "freeze_seconds": 0.859,
+          "displayed_frames": 1436
+        },
+        {
+          "seconds": 33.1419564,
+          "width": 640,
+          "height": 360,
+          "fps": 16,
+          "frames": 1485,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 1484
+        },
+        {
+          "seconds": 36.1540067,
+          "width": 640,
+          "height": 360,
+          "fps": 27,
+          "frames": 1551,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 1550
+        },
+        {
+          "seconds": 39.166312999999995,
+          "width": 480,
+          "height": 270,
+          "fps": 25,
+          "frames": 1625,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 1624
+        },
+        {
+          "seconds": 42.17919899999999,
+          "width": 480,
+          "height": 270,
+          "fps": 29,
+          "frames": 1712,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 1712
+        },
+        {
+          "seconds": 45.19175260000001,
+          "width": 480,
+          "height": 270,
+          "fps": 29,
+          "frames": 1800,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 1799
+        },
+        {
+          "seconds": 48.20425099999999,
+          "width": 480,
+          "height": 270,
+          "fps": 29,
+          "frames": 1888,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 1887
+        },
+        {
+          "seconds": 51.21608619999999,
+          "width": 480,
+          "height": 270,
+          "fps": 29,
+          "frames": 1976,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 1975
+        },
+        {
+          "seconds": 54.230394800000006,
+          "width": 480,
+          "height": 270,
+          "fps": 29,
+          "frames": 2064,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2063
+        },
+        {
+          "seconds": 57.241938,
+          "width": 480,
+          "height": 270,
+          "fps": 30,
+          "frames": 2152,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2151
+        },
+        {
+          "seconds": 60.25392069999999,
+          "width": 640,
+          "height": 360,
+          "fps": 30,
+          "frames": 2240,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2239
+        },
+        {
+          "seconds": 63.265352799999995,
+          "width": 960,
+          "height": 540,
+          "fps": 29,
+          "frames": 2328,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2327
+        },
+        {
+          "seconds": 66.27874960000001,
+          "width": 960,
+          "height": 540,
+          "fps": 29,
+          "frames": 2415,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2414
+        },
+        {
+          "seconds": 69.29246609999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 2504,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2503
+        },
+        {
+          "seconds": 72.3055068,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 2592,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2591
+        },
+        {
+          "seconds": 75.3187308,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 2679,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2679
+        },
+        {
+          "seconds": 78.33301970000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 2768,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2767
+        },
+        {
+          "seconds": 81.34451809999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 2856,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2855
+        },
+        {
+          "seconds": 84.3563022,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 2944,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 2943
+        },
+        {
+          "seconds": 87.36838730000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 3032,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3031
+        },
+        {
+          "seconds": 90.37910690000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 3120,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3119
+        },
+        {
+          "seconds": 93.38990779999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 3208,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3207
+        },
+        {
+          "seconds": 96.40237890000002,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 3296,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3295
+        },
+        {
+          "seconds": 99.415272,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 3384,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3383
+        },
+        {
+          "seconds": 102.4268777,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 3472,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3471
+        },
+        {
+          "seconds": 105.43933650000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 3560,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3559
+        },
+        {
+          "seconds": 108.45201759999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 3648,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3647
+        },
+        {
+          "seconds": 111.4678568,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 3736,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3735
+        },
+        {
+          "seconds": 114.4808497,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 3825,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3824
+        },
+        {
+          "seconds": 117.49404860000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 3913,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 3912
+        },
+        {
+          "seconds": 120.50876199999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 4001,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 4000
+        },
+        {
+          "seconds": 123.5202482,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 4088,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 4087
+        },
+        {
+          "seconds": 126.53386400000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 4177,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 4176
+        },
+        {
+          "seconds": 129.5463258,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 4265,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 4264
+        },
+        {
+          "seconds": 132.56021660000002,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 4353,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 4352
+        },
+        {
+          "seconds": 135.572856,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 4441,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 4440
+        },
+        {
+          "seconds": 138.5845031,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 4529,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 4528
+        },
+        {
+          "seconds": 141.5959671,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 4617,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 4616
+        },
+        {
+          "seconds": 144.6085439,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 4706,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 4705
+        },
+        {
+          "seconds": 147.6201246,
+          "width": 1280,
+          "height": 720,
+          "fps": 28,
+          "frames": 4793,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 4792
+        }
+      ],
+      "sent": [
+        {
+          "seconds": 3.2999999966705216e-06,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 14.182,
+            "cpu": 0,
+            "none": 10.864,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 3.0182272000000085,
+          "width": 1280,
+          "height": 720,
+          "fps": 28,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 14.182,
+            "cpu": 0,
+            "none": 13.886,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 6.034906700000007,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 14.182,
+            "cpu": 0,
+            "none": 16.899,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 9.046389200000005,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 14.182,
+            "cpu": 0,
+            "none": 19.91,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 12.058079899999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 14.182,
+            "cpu": 0,
+            "none": 22.922,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 15.070126200000013,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 14.182,
+            "cpu": 0,
+            "none": 25.934,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 18.081515499999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 14.182,
+            "cpu": 0,
+            "none": 28.945,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 21.0963906,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 14.182,
+            "cpu": 0,
+            "none": 31.962,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 24.113463499999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 8,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 14.182,
+            "cpu": 0,
+            "none": 34.977,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 27.128890900000012,
+          "width": 1280,
+          "height": 720,
+          "fps": 9,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 14.182,
+            "cpu": 0,
+            "none": 37.992,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 30.148025500000003,
+          "width": 960,
+          "height": 540,
+          "fps": 15,
+          "source_fps": 30,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 16.606,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 33.16132359999999,
+          "width": 640,
+          "height": 360,
+          "fps": 14,
+          "source_fps": 29,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 19.617,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 36.173306200000006,
+          "width": 640,
+          "height": 360,
+          "fps": 28,
+          "source_fps": 29,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 22.629,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 39.1867307,
+          "width": 480,
+          "height": 270,
+          "fps": 25,
+          "source_fps": 29,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 25.642,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 42.20403680000002,
+          "width": 480,
+          "height": 270,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 28.66,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 45.2200302,
+          "width": 480,
+          "height": 270,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 31.676,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 48.23589260000001,
+          "width": 480,
+          "height": 270,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 34.692,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 51.24798080000001,
+          "width": 480,
+          "height": 270,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 37.706,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 54.266581500000015,
+          "width": 480,
+          "height": 270,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 40.722,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 57.28284019999999,
+          "width": 480,
+          "height": 270,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 43.738,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 60.29552510000001,
+          "width": 640,
+          "height": 360,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 46.751,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 63.30989760000001,
+          "width": 960,
+          "height": 540,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 49.766,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 66.3272663,
+          "width": 960,
+          "height": 540,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "bandwidth",
+          "limitation_seconds": {
+            "bandwidth": 52.783,
+            "cpu": 0,
+            "none": 38.59,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 69.33906440000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 39.985,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 72.35197199999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 42.998,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 75.3646198,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 46.01,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 78.3760499,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 49.022,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 81.3873257,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 52.033,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 84.4014753,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 55.047,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 87.41856130000002,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 58.064,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 90.43868870000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 61.087,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 93.45415140000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 64.102,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 96.46863160000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 67.114,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 99.4804464,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 70.126,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 102.4928262,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 73.138,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 105.50530440000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 76.151,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 108.5169866,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 79.163,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 111.53165860000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 82.177,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 114.5422547,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 85.188,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 117.56127529999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 28,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 88.208,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 120.5764524,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 91.222,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 123.59634810000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 94.242,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 126.60752310000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 97.253,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 129.6204932,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 100.266,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 132.63203130000002,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 103.278,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 135.6548392,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 106.301,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 138.67011090000003,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 109.316,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 141.6826374,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 112.328,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 144.69341100000003,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 115.339,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 147.71681549999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 28,
+          "source_fps": 28,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 118.345,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-framerate",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        }
+      ]
+    },
+    {
+      "stage": "resolution",
+      "actions": [
+        {
+          "stage": "resolution",
+          "seconds": 21.088492799999948,
+          "action": "limit",
+          "pc": 3,
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "maxBitrate": 50000,
+            "contentHint": "motion"
+          }
+        },
+        {
+          "stage": "resolution",
+          "seconds": 51.231800899999975,
+          "action": "restore",
+          "pc": 3,
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "maxBitrate": 4000000,
+            "contentHint": "motion"
+          }
+        }
+      ],
+      "observed_seconds": 147.5976508,
+      "sampled_sizes": [
+        "1280x720"
+      ],
+      "additional_freezes": 3,
+      "additional_freeze_seconds": 0.827,
+      "recovery_after_30s": {
+        "sampled_sizes": [
+          "1280x720"
+        ],
+        "displayed_fps": 29.24579186330098,
+        "additional_freezes": 0,
+        "additional_freeze_seconds": 0
+      },
+      "received": [
+        {
+          "seconds": 2.199999988079071e-06,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 5251,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 5250
+        },
+        {
+          "seconds": 3.0135218999999926,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 5339,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 5338
+        },
+        {
+          "seconds": 6.027714099999983,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 5427,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 5426
+        },
+        {
+          "seconds": 9.040187799999956,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 5515,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 5514
+        },
+        {
+          "seconds": 12.05182699999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 5603,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 5602
+        },
+        {
+          "seconds": 15.066574999999954,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 5692,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 5691
+        },
+        {
+          "seconds": 18.07870299999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 5779,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 5778
+        },
+        {
+          "seconds": 21.09053719999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 5866,
+          "freezes": 3,
+          "freeze_seconds": 1.171,
+          "displayed_frames": 5865
+        },
+        {
+          "seconds": 24.104537399999973,
+          "width": 1280,
+          "height": 720,
+          "fps": 7,
+          "frames": 5888,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 5887
+        },
+        {
+          "seconds": 27.11734819999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 12,
+          "frames": 5917,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 5916
+        },
+        {
+          "seconds": 30.12928649999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 12,
+          "frames": 5948,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 5947
+        },
+        {
+          "seconds": 33.14266559999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 8,
+          "frames": 5975,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 5974
+        },
+        {
+          "seconds": 36.15379739999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 11,
+          "frames": 6006,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6005
+        },
+        {
+          "seconds": 39.164950399999974,
+          "width": 1280,
+          "height": 720,
+          "fps": 9,
+          "frames": 6036,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6035
+        },
+        {
+          "seconds": 42.17724499999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 13,
+          "frames": 6070,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6069
+        },
+        {
+          "seconds": 45.189026299999966,
+          "width": 1280,
+          "height": 720,
+          "fps": 10,
+          "frames": 6102,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6101
+        },
+        {
+          "seconds": 48.20068589999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 12,
+          "frames": 6133,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6132
+        },
+        {
+          "seconds": 51.212939199999965,
+          "width": 1280,
+          "height": 720,
+          "fps": 10,
+          "frames": 6163,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6162
+        },
+        {
+          "seconds": 54.22440099999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 6240,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6239
+        },
+        {
+          "seconds": 57.23870359999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 6328,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6327
+        },
+        {
+          "seconds": 60.25039409999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 6417,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6416
+        },
+        {
+          "seconds": 63.26195419999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 6503,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6502
+        },
+        {
+          "seconds": 66.27421909999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 6592,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6591
+        },
+        {
+          "seconds": 69.28532049999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 6680,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6679
+        },
+        {
+          "seconds": 72.2971519,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 6768,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6767
+        },
+        {
+          "seconds": 75.30875559999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 6856,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6855
+        },
+        {
+          "seconds": 78.32011849999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 6943,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 6942
+        },
+        {
+          "seconds": 81.33170919999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7031,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7030
+        },
+        {
+          "seconds": 84.34319029999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7119,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7118
+        },
+        {
+          "seconds": 87.35472939999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7207,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7206
+        },
+        {
+          "seconds": 90.36742499999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7295,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7294
+        },
+        {
+          "seconds": 93.38065889999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7383,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7382
+        },
+        {
+          "seconds": 96.39252239999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7471,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7470
+        },
+        {
+          "seconds": 99.4045991,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7559,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7558
+        },
+        {
+          "seconds": 102.41684690000001,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7647,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7646
+        },
+        {
+          "seconds": 105.42789119999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7735,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7734
+        },
+        {
+          "seconds": 108.43961619999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7823,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7822
+        },
+        {
+          "seconds": 111.45108559999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 7911,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7910
+        },
+        {
+          "seconds": 114.46289569999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 7999,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 7998
+        },
+        {
+          "seconds": 117.47470789999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 8087,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8086
+        },
+        {
+          "seconds": 120.48662829999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 8176,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8175
+        },
+        {
+          "seconds": 123.49821999999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 8263,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8263
+        },
+        {
+          "seconds": 126.51233759999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 8352,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8351
+        },
+        {
+          "seconds": 129.52497440000002,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 8440,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8439
+        },
+        {
+          "seconds": 132.5361187,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 8528,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8527
+        },
+        {
+          "seconds": 135.54808019999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 8616,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8615
+        },
+        {
+          "seconds": 138.56053789999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 8704,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8703
+        },
+        {
+          "seconds": 141.5733408,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 8792,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8791
+        },
+        {
+          "seconds": 144.5848699,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "frames": 8881,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8880
+        },
+        {
+          "seconds": 147.59765299999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "frames": 8969,
+          "freezes": 6,
+          "freeze_seconds": 1.998,
+          "displayed_frames": 8968
+        }
+      ],
+      "sent": [
+        {
+          "seconds": 3.7999999476596713e-06,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 133.924,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 3.0138192999999736,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 136.935,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 6.0234635999999595,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 139.945,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 9.033130199999956,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 142.955,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 12.043563699999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 145.965,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 15.054640599999985,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 148.976,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 18.07035029999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 151.992,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 21.088492799999948,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 155.012,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 24.10820279999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 8,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 158.031,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 27.123093399999956,
+          "width": 1280,
+          "height": 720,
+          "fps": 12,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 161.046,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 30.135366899999966,
+          "width": 1280,
+          "height": 720,
+          "fps": 12,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 164.057,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 33.15568669999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 9,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 167.078,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 36.16712719999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 11,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 170.089,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 39.18630369999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 9,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 173.108,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 42.19831409999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 13,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 176.122,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 45.2112709,
+          "width": 1280,
+          "height": 720,
+          "fps": 10,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 179.133,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 48.22150389999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 11,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 182.143,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 50000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 50000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 51.231800899999975,
+          "width": 1280,
+          "height": 720,
+          "fps": 11,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 185.155,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 54.24394499999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 188.165,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 57.2536825,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 191.175,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 60.26364399999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 194.185,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 63.274245499999964,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 197.196,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 66.2840133,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 200.206,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 69.29578389999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 203.218,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 72.31070889999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 28,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 206.232,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 75.3271446,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 209.249,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 78.34347269999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 212.265,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 81.35395409999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 215.275,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 84.36325299999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 218.285,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 87.37861489999999,
+          "width": 1280,
+          "height": 720,
+          "fps": 28,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 221.3,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 90.3950354,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 224.317,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 93.40693289999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 227.329,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 96.41802429999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 230.34,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 99.42790699999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 233.349,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 102.43853379999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 236.36,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 105.45024219999998,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 239.372,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 108.46401739999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 242.391,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 111.48006029999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 245.402,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 114.49375149999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 248.415,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 117.5048395,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 251.426,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 120.5226027,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 254.444,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 123.53579799999996,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 257.457,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 126.5550636,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 260.476,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 129.57267979999997,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 263.495,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 132.58402479999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 266.506,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 135.5957656,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 269.517,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 138.60647569999995,
+          "width": 1280,
+          "height": 720,
+          "fps": 30,
+          "source_fps": 30,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 272.529,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 141.6188479,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 275.541,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 144.6328589,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 278.555,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        },
+        {
+          "seconds": 147.6466421,
+          "width": 1280,
+          "height": 720,
+          "fps": 29,
+          "source_fps": 29,
+          "limitation": "none",
+          "limitation_seconds": {
+            "bandwidth": 54.4,
+            "cpu": 0,
+            "none": 281.568,
+            "other": 0
+          },
+          "encoder": "OpenH264",
+          "parameters": {
+            "degradationPreference": "maintain-resolution",
+            "encodings": [
+              {
+                "active": true,
+                "maxBitrate": 4000000,
+                "maxFramerate": 30,
+                "scaleResolutionDownBy": 1
+              }
+            ],
+            "contentHint": "motion"
+          },
+          "target_bitrate": 4000000,
+          "available_bitrate": 5521500
+        }
+      ]
+    }
+  ],
+  "run": {
+    "url": "https://github.com/BersaneV/Harmony/actions/runs/43683509958",
+    "head_sha": "0c5f55cdf3ca97f8533b6ce8f115f5a6b4045e61",
+    "conclusion": "failure",
+    "measurements_complete": true,
+    "failure": "Sender attempted unnecessary preference restoration after receivers began leaving; WebView evaluation failed. Seven receivers completed DIAGNOSTIC. Not a capacity PASS."
+  },
+  "product": {
+    "version": "0.4.1",
+    "installer_sha256": "509e30e8781876caa64ec8b36fc37ddb76bf868924717fd44ca6c109b7ab42bf",
+    "main_sha256": "9d4f95648030425dc97138a22c9fc2a42c251ff1f8e21da7c9e0246da84e9516"
+  },
+  "downloaded_log_sha256": "9611dac5e7ee92f8e9e1a18982eb905f204832d784aa3d370ea11f30cf57eab0",
+  "limitations": [
+    "Intentional 50 kb/s encoder cap is not a bandwidth measurement of the network",
+    "Sequential comparison in the same P5 connection with the same native source; not a randomized statistical study",
+    "Both stages showed freezes while heavily capped; does not promise 720p30 at 50 kb/s",
+    "Historical initial trigger of run 43673049591 remains unisolated",
+    "This diagnostic manually changes native parameters; the final normal EXE test does not"
+  ]
+}

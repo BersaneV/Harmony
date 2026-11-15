@@ -1,5 +1,5 @@
 import{readFile,writeFile,mkdir}from'node:fs/promises';import{dirname}from'node:path';import{summarize,quantile}from'./metrics.mjs';
-const [path,destination,version="0.4.1"]=process.argv.slice(2);if(!path||!destination)throw Error('Usage: report.mjs <downloaded-run-log> <output.json>');
+const [path,destination,version="0.4.1"]=process.argv.slice(2);if(!path||!destination)throw Error('Usage: report.mjs <downloaded-run-log> <output.json> [0.4.N]');
 if(!/^0\.4\.[0-9]{1,3}$/.test(version))throw Error('Unsupported report release');
 const release=JSON.parse(await readFile(new URL(`./releases/${version}.json`,import.meta.url),'utf8'));
 const text=await readFile(path,'utf8'),clients=new Map(),attests=new Map(),samples=[],images=new Map();
@@ -8,6 +8,10 @@ for(const line of text.split(/\r?\n/))for(const [prefix,kind]of[['HARMONY_EXE_WA
  if(kind==='sample')samples.push(value);else if(kind==='report')clients.set(value.index,value);else if(kind==='attest')attests.set(value.index,value);else{if(!images.has(value.index))images.set(value.index,[]);images.get(value.index).push(value);}
 }
 const identity=[...attests.values()],network={virtual_machines:identity.length,distinct_vm_hashes:new Set(identity.map(a=>a.vm_identity_hash)).size,distinct_public_egress_hashes:new Set(identity.map(a=>a.egress_ip_hash)).size,distinct_main_binary_hashes:new Set(identity.map(a=>a.attestation?.main_sha256)).size,all_expected_main_hash:identity.length===8&&identity.every(a=>a.attestation?.main_sha256===release.main_sha256)};
+const nativeUdp=Array.from({length:8},(_,index)=>({index,address_hashes:[...new Set(samples.filter(s=>s.index===index&&s.phase==='screen'&&s.segment==='steady').flatMap(s=>s.sample.peers.filter(p=>p.local_candidate?.type==='srflx'&&p.local_candidate.protocol==='udp').map(p=>p.local_candidate.address_hash)).filter(Boolean))]}));
+network.selected_public_udp_addresses_by_client=nativeUdp;
+network.distinct_selected_public_udp_address_hashes=new Set(nativeUdp.flatMap(v=>v.address_hashes)).size;
+network.disjoint_selected_public_udp_addresses=nativeUdp.every(v=>v.address_hashes.length>0)&&nativeUdp.every(a=>nativeUdp.every(b=>a.index===b.index||!a.address_hashes.some(h=>b.address_hashes.includes(h))));
 network.status=network.virtual_machines===8&&network.distinct_vm_hashes===8&&network.distinct_public_egress_hashes===8&&network.all_expected_main_hash?'PASS':'FAIL';
 const phases=[];
 for(const phase of['voice','screen']){
