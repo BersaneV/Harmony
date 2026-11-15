@@ -1,6 +1,7 @@
-#requires -Version 7.0
+#requires -Version 5.1
 param([Parameter(Mandatory=$true)][string]$Title)
-if (-not $IsWindows -or $env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne 'BersaneV/Harmony' -or $Title -notmatch '^HarmonyWAN-[a-zA-Z0-9-]+$') { throw 'Owned test window required' }
+if ($env:OS -ne 'Windows_NT' -or $env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne 'BersaneV/Harmony' -or $Title -notmatch '^HarmonyWAN-[a-zA-Z0-9-]+$') { throw 'Owned test window required' }
+$ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms,System.Drawing
 Add-Type -ReferencedAssemblies System.Windows.Forms,System.Drawing -TypeDefinition @'
 using System; using System.Drawing; using System.Windows.Forms; using System.Threading; using System.Runtime.InteropServices;

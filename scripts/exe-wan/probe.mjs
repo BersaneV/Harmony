@@ -15,7 +15,7 @@ let app,fixture,cdp;const result={kind:'exe_probe',status:'RUNNING',scope:'Publi
 try{
  const desktop=spawnSync('powershell.exe',['-NoProfile','-File',resolve('scripts/exe-wan/desktop.ps1')],{encoding:'utf8',timeout:20000});result.desktop={status:desktop.status,output:desktop.stdout,error:desktop.status===0?null:'Display mode change unavailable; source HWND must still measure exactly 1280x720'};
  powershell(['-ExePath',exe,'-Profile',profile]);
- fixture=spawn('pwsh',['-NoProfile','-File',resolve('scripts/exe-wan/window.ps1'),'-Title',title],{stdio:['ignore','pipe','pipe']});let fixtureOutput='';fixture.stdout.on('data',b=>fixtureOutput=(fixtureOutput+b).slice(-500));let fixtureError='';fixture.stderr.on('data',b=>fixtureError=(fixtureError+b).slice(-3000));
+ fixture=spawn('powershell.exe',['-NoProfile','-File',resolve('scripts/exe-wan/window.ps1'),'-Title',title],{stdio:['ignore','pipe','pipe']});let fixtureOutput='';fixture.stdout.on('data',b=>fixtureOutput=(fixtureOutput+b).slice(-500));let fixtureError='';fixture.stderr.on('data',b=>fixtureError=(fixtureError+b).slice(-3000));
  app=spawn(exe,[],{env:{...process.env,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:flags.join(' '),WEBVIEW2_USER_DATA_FOLDER:profile},stdio:'ignore'});
  let target;await until(async()=>{try{const targets=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();target=targets.find(t=>['http://tauri.localhost','https://tauri.localhost'].includes(new URL(t.url).origin));return !!target?.webSocketDebuggerUrl}catch{return false}},'owned EXE WebView CDP',60000);
  cdp=new CDP(target.webSocketDebuggerUrl);await cdp.send('Runtime.enable');await cdp.send('Emulation.setFocusEmulationEnabled',{enabled:true});

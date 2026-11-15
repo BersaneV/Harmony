@@ -11,7 +11,7 @@ export async function session(index){
  const close=()=>{cdp?.close();for(const child of[app,fixture])if(child?.pid&&child.exitCode===null)spawnSync('taskkill',['/PID',String(child.pid),'/T','/F'],{stdio:'ignore'});policyCall(true);};
  try{
   const desktop=spawnSync('powershell.exe',['-NoProfile','-File',resolve('scripts/exe-wan/desktop.ps1')],{encoding:'utf8',timeout:20000});
-  policyCall();if(index===0){fixture=spawn('pwsh',['-NoProfile','-File',resolve('scripts/exe-wan/window.ps1'),'-Title',title],{stdio:['ignore','ignore','pipe']});fixture.stderr.on('data',()=>{});}
+  policyCall();if(index===0){fixture=spawn('powershell.exe',['-NoProfile','-File',resolve('scripts/exe-wan/window.ps1'),'-Title',title],{stdio:['ignore','ignore','pipe']});fixture.stderr.on('data',()=>{});}
   app=spawn(exe,[],{env:{...process.env,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:flags.join(' '),WEBVIEW2_USER_DATA_FOLDER:profile},stdio:'ignore'});
   let target;await until(async()=>{try{target=(await(await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t=>['http://tauri.localhost','https://tauri.localhost'].includes(new URL(t.url).origin));return !!target?.webSocketDebuggerUrl}catch{return false}},'owned EXE WebView',60000);
   cdp=new CDP(target.webSocketDebuggerUrl);await cdp.send('Runtime.enable');await cdp.send('Emulation.setFocusEmulationEnabled',{enabled:true});const cmd=await cdp.send('Browser.getBrowserCommandLine');for(const flag of flags)assert.ok(hasFlag(cmd.arguments,flag),'Required test flag absent');const actual=cmd.arguments.find(a=>a.startsWith('--user-data-dir='))?.slice(16).replace(/^"|"$/g,'').toLowerCase();assert.ok([profile,join(profile,'EBWebView')].some(p=>p.toLowerCase()===actual),'Private profile required');
