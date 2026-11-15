@@ -14,11 +14,15 @@ using System; using System.Drawing; using System.Windows.Forms; using System.Thr
 public class HarmonyCanvas : Form {
  int frames, pending; readonly System.Diagnostics.Stopwatch clock=System.Diagnostics.Stopwatch.StartNew(); readonly int canvasWidth,canvasHeight;
  readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
- System.Threading.Timer highRateTimer;
+ volatile bool stopped;
  [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd,int command);
  [DllImport("user32.dll")] static extern bool UpdateWindow(IntPtr hwnd);
  [DllImport("winmm.dll")] static extern uint timeBeginPeriod(uint period);
  [DllImport("winmm.dll")] static extern uint timeEndPeriod(uint period);
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr CreateWaitableTimerEx(IntPtr attributes,string name,uint flags,uint access);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool SetWaitableTimer(IntPtr timer,ref long due,int period,IntPtr callback,IntPtr state,bool resume);
+ [DllImport("kernel32.dll")] static extern uint WaitForSingleObject(IntPtr handle,uint timeout);
+ [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
  public HarmonyCanvas(string title,int width,int height,int fps) {
   canvasWidth=width;canvasHeight=height;
   Text=title; FormBorderStyle=FormBorderStyle.None; AutoScaleMode=AutoScaleMode.None;
@@ -27,11 +31,19 @@ public class HarmonyCanvas : Form {
   BackColor=Color.FromArgb(18,27,44); DoubleBuffered=true;
   SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
   timer.Interval=15; timer.Tick+=(s,e)=>{frames++;Invalidate();if(frames%300==0)Console.WriteLine("TICK "+frames+" ELAPSED_MS "+clock.ElapsedMilliseconds);};
-  FormClosed+=(s,e)=>{timer.Stop();if(highRateTimer!=null)highRateTimer.Dispose();};
-  Shown+=(s,e)=>{ShowWindow(Handle,5);ShowWindow(Handle,5);UpdateWindow(Handle);if(fps==30)timer.Start();else highRateTimer=new System.Threading.Timer(_=>{
-   if(IsDisposed||!IsHandleCreated||Interlocked.Exchange(ref pending,1)!=0)return;
-   try{BeginInvoke((Action)(()=>{try{frames++;Invalidate();Update();if(frames%300==0)Console.WriteLine("TICK "+frames+" ELAPSED_MS "+clock.ElapsedMilliseconds);}finally{Interlocked.Exchange(ref pending,0);}}));}catch(InvalidOperationException){Interlocked.Exchange(ref pending,0);}
-  },null,0,Math.Max(1,1000/(fps*2)));
+  FormClosed+=(s,e)=>{stopped=true;timer.Stop();};
+  Shown+=(s,e)=>{ShowWindow(Handle,5);ShowWindow(Handle,5);UpdateWindow(Handle);if(fps==30)timer.Start();else {
+   var producer=new Thread(()=>{
+    var handle=CreateWaitableTimerEx(IntPtr.Zero,null,2,0x1F0003);
+    if(handle==IntPtr.Zero)throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+    try{long due=-80000;if(!SetWaitableTimer(handle,ref due,8,IntPtr.Zero,IntPtr.Zero,false))throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+     while(!stopped){if(WaitForSingleObject(handle,1000)!=0)continue;
+      if(IsDisposed||!IsHandleCreated||Interlocked.Exchange(ref pending,1)!=0)continue;
+      try{BeginInvoke((Action)(()=>{try{frames++;Invalidate();Update();if(frames%300==0)Console.WriteLine("TICK "+frames+" ELAPSED_MS "+clock.ElapsedMilliseconds);}finally{Interlocked.Exchange(ref pending,0);}}));}catch(InvalidOperationException){Interlocked.Exchange(ref pending,0);}
+     }
+    }finally{CloseHandle(handle);}
+   });producer.IsBackground=true;producer.Start();
+  }
   Console.WriteLine("WINDOW "+Handle.ToInt64()+" "+width+"x"+height+" TARGET "+fps);};
  }
  protected override void OnPaint(PaintEventArgs e) {
