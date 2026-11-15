@@ -2,6 +2,11 @@ name: Probe the published Windows EXE
 on:
   workflow_dispatch:
     inputs:
+      image:
+        description: Standard public Windows runner only
+        type: choice
+        options: ['windows-2022', 'windows-2025']
+        default: 'windows-2022'
       runtime_upgrade:
         description: Diagnostic only; update the disposable VM using the signed Microsoft Evergreen installer
         type: boolean
@@ -20,8 +25,8 @@ permissions:
   contents: read
 jobs:
   probe:
-    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
-    runs-on: windows-2022
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["windows-2022","windows-2025"]'), inputs.image)
+    runs-on: ${{ inputs.image }}
     timeout-minutes: 15
     env:
       HARMONY_EXE_RELEASE: ${{ inputs.release }}

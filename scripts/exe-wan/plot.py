@@ -63,6 +63,12 @@ for x, value, (index, stream) in zip(positions, fps, video):
     fps_axis.text(x, value + .5, label, ha='center', fontsize=9)
 fps_axis.legend(loc='lower right', fontsize=8)
 fps_axis.grid(axis='y', alpha=.2)
+freeze_axis = fps_axis.twinx()
+freezes = [stream['freeze_seconds'] if stream['freeze_seconds'] is not None else np.nan for _, stream in video]
+freeze_axis.plot(positions, freezes, 'o', color='#9f1239', label='Tempo congelado')
+freeze_axis.set_ylabel('Segundos congelados no período medido', color='#9f1239')
+freeze_axis.set_ylim(0, max(1, max((v for v in freezes if np.isfinite(v)), default=0) * 1.2))
+freeze_axis.legend(loc='upper right', fontsize=8)
 
 audio_axis = fig.add_subplot(grid[1, 1])
 audio = []
@@ -83,7 +89,7 @@ for x, value in enumerate(audio):
 
 version = report.get('product', {}).get('version', '0.4.1')
 voice_ok = all(c['voice_status'] == 'PASS' for c in phases['screen']['clients'])
-result = ('voz passou' if voice_ok else 'voz falhou') + (', tela passou' if not failed else ', tela falhou em ' + ', '.join(f'P{i+1}' for i in sorted(failed)))
+result = ('voz 8/8' if voice_ok else 'voz reprovada') + f', vídeo {len(video)-len(failed)}/7'
 fig.suptitle(f"Harmony {version} · {request['id']} · oito EXEs Windows · {result}", fontsize=18, weight='bold')
 fig.supxlabel('RTT: amostras do último valor ICE a cada ~3 s. Áudio gerado e janela de teste; ambiente de nuvem, sem medição de acústica física.', fontsize=9)
 destination.parent.mkdir(parents=True, exist_ok=True)
