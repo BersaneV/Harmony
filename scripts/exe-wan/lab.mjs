@@ -8,8 +8,8 @@ export function guard(env=process.env,platform=process.platform,windows=true){
  assert.ok((env.HARMONY_EXE_WAN_SEED||'').length>=40,'Private test seed required');
 }
 export const cohort=()=>process.env.HARMONY_COHORT||`${process.env.GITHUB_RUN_ID}_${process.env.GITHUB_RUN_ATTEMPT}`;
-export function identity(index){assert.ok(Number.isInteger(index)&&index>=0&&index<8);return{username:`xw_${cohort()}_${index}`,password:createHmac('sha256',process.env.HARMONY_EXE_WAN_SEED).update(`${cohort()}:${index}`).digest('hex')};}
-export function opaque(value){return createHmac('sha256',process.env.HARMONY_EXE_WAN_SEED).update(cohort()+':'+value).digest('hex').slice(0,32);}
+export function identity(index){assert.ok(Number.isInteger(index)&&index>=0&&index<8);return{username:`xw_${cohort()}_${index}`,password:createHmac('sha256',process.env.HARMONY_EXE_WAN_SEED.trim()).update(`${cohort()}:${index}`).digest('hex')};}
+export function opaque(value){return createHmac('sha256',process.env.HARMONY_EXE_WAN_SEED.trim()).update(cohort()+':'+value).digest('hex').slice(0,32);}
 export function mask(value){if(value)console.log('::add-mask::'+value);}
 export async function api(path,token,body){
  assert.ok(path.startsWith('/')&&!path.includes('://'));
