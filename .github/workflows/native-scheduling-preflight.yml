@@ -24,8 +24,10 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $false
           $script = 'scripts/exe-wan/scheduling-preflight.ps1'
           $failureCode = 'script_fingerprint_unverified'
+          $observedSourceSha256 = $null
           try {
             $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $script).Hash.ToLowerInvariant()
+            if ($hash -cmatch '^[0-9a-f]{64}$') { $observedSourceSha256 = $hash }
             if ($hash -ne 'c5aa66a02362a0374c74842de2502a034467759cc31b1a1727d356d35a833249') { throw 'unreviewed_script' }
             $failureCode = 'powershell_ast_invalid'
             $tokens = $null
@@ -33,9 +35,10 @@ jobs:
             [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script), [ref]$tokens, [ref]$parseErrors)
             if ($parseErrors.Count -ne 0) { throw 'parser_not_verified' }
           } catch {
-            @{ kind='SYNTHETIC_DECODER_CHECK'; status='NOT_VERIFIED'; stage='script_parser_or_fingerprint'; failure_code=$failureCode; last_native_tool='none'; capacity_approval=$false } | ConvertTo-Json -Compress
+            @{ kind='SYNTHETIC_DECODER_CHECK'; status='NOT_VERIFIED'; stage='script_parser_or_fingerprint'; failure_code=$failureCode; observed_source_sha256=$observedSourceSha256; last_native_tool='none'; capacity_approval=$false } | ConvertTo-Json -Compress
             exit 2
           }
+          @{ kind='SYNTHETIC_PREFLIGHT_SOURCE'; source_sha256=$observedSourceSha256; capacity_approval=$false } | ConvertTo-Json -Compress
           & $script -SelfTest
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $script
