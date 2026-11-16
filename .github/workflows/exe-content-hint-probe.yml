@@ -1,0 +1,80 @@
+name: Diagnose contentHint on one published Windows EXE
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Diagnostic A/B/A only; unchanged60 FPS and8/16 Mb/s request
+        type: choice
+        options: ["1080p60", "1440p60"]
+        default: "1440p60"
+      image:
+        description: Standard public disposable Windows VM only
+        type: choice
+        options: ["windows-2022", "windows-2025"]
+        default: "windows-2022"
+permissions:
+  contents: read
+concurrency:
+  group: exe-content-hint-diagnostic-${{ inputs.profile }}-${{ inputs.image }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      cohort: ${{ steps.fixture.outputs.cohort }}
+      guild: ${{ steps.fixture.outputs.guild }}
+      guild_name: ${{ steps.fixture.outputs.guild_name }}
+      voice: ${{ steps.fixture.outputs.voice }}
+      control: ${{ steps.fixture.outputs.control }}
+      users: ${{ steps.fixture.outputs.users }}
+      screen_sfu_enabled: ${{ steps.fixture.outputs.screen_sfu_enabled }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: "26.13.0" }
+      - name: Require the real published047 manifest before creating the owned fixture
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFile} from 'node:fs/promises';
+          const release=JSON.parse(await readFile('scripts/exe-wan/releases/0.4.7.json','utf8'));
+          assert.equal(release.version,'0.4.7');
+          assert.equal(release.installer_url,'https://github.com/BersaneV/Harmony/releases/download/v0.4.7/Harmony_0.4.7_x64-setup.exe');
+          assert.match(release.installer_sha256,/^[a-f0-9]{64}$/);
+          assert.match(release.main_sha256,/^[a-f0-9]{64}$/);
+          JS
+      - name: Validate supported-API ownership, reset accounting and normal fixture guards
+        run: node --test scripts/exe-wan/content-hint-probe.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/host-cpu.test.mjs scripts/exe-wan/fixture-contract.test.mjs scripts/exe-wan/profiles.test.mjs
+      - name: Prepare ordinary private accounts; only owner logs in, seven remain offline
+        id: fixture
+        env:
+          HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+        run: node scripts/exe-wan/prepare.mjs
+  diagnostic:
+    needs: prepare
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["1080p60","1440p60"]'), inputs.profile) && contains(fromJSON('["windows-2022","windows-2025"]'), inputs.image)
+    runs-on: ${{ inputs.image }}
+    timeout-minutes: 15
+    env:
+      HARMONY_EXE_RELEASE: "0.4.7"
+      HARMONY_EXE_PROFILE: ${{ inputs.profile }}
+      HARMONY_CONTENT_HINT_PUBLIC_REPOSITORY: ${{ github.event.repository.private == false }}
+      HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+      HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
+      HARMONY_GUILD_ID: ${{ needs.prepare.outputs.guild }}
+      HARMONY_GUILD_NAME: ${{ needs.prepare.outputs.guild_name }}
+      HARMONY_VOICE_ID: ${{ needs.prepare.outputs.voice }}
+      HARMONY_CONTROL_ID: ${{ needs.prepare.outputs.control }}
+      HARMONY_COHORT_USERS: ${{ needs.prepare.outputs.users }}
+      HARMONY_SCREEN_SFU_ENABLED: ${{ needs.prepare.outputs.screen_sfu_enabled }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: "26.13.0" }
+      - name: Verify and install the immutable public047 installer and EXE
+        shell: pwsh
+        run: ./scripts/exe-wan/install.ps1
+      - name: Publish through normal UI, require real SDK frames, compare motion detail motion
+        run: node scripts/exe-wan/content-hint-probe.mjs
