@@ -30,12 +30,12 @@ try{
  const who=identity(0);mask(who.password);
  await app.fill('input[type="url"]',origin);await app.fill('input[autocomplete="username"]',who.username);await app.fill('input[type="password"]',who.password);await app.click('Entrar no Harmony');
  await app.labelled('Abrir '+process.env.HARMONY_GUILD_NAME);await app.click('Sala de voz');
- await until(()=>app.cdp.evaluate(`document.querySelector('.call-header')?.textContent.includes('Chamada direta')`),'compiled normal call joined',60000);
+ await until(()=>app.cdp.evaluate(`document.querySelector('.call-header small')?.textContent.trim().startsWith('Em chamada ·')`),'compiled normal call joined',60000);
  await app.labelled('Ligar microfone');
  await until(()=>app.cdp.evaluate(`__exeWan.microphones.some(t=>t.readyState==='live')`),'compiled UI microphone track');
  result.fake_audio=await app.cdp.evaluate('__exeWan.measureMicrophone()');assert.ok(result.fake_audio.rms>0.03,'Generated compiled microphone must carry energy');
  await app.click('Compartilhar tela');await app.select('Resolução',request.height);await app.select('Quadros por segundo',request.fps);
- await app.select('Bitrate por espectador','manual');await app.fill('input[aria-label="Bitrate em megabits por segundo"]',String(request.bitrate_mbps));await app.select('Conteúdo','motion');
+ await app.select('Bitrate por','manual');await app.fill('input[aria-label="Bitrate em megabits por segundo"]',String(request.bitrate_mbps));await app.select('Conteúdo','motion');
  await app.cdp.evaluate(`(()=>{const e=document.querySelector('.check-field input[type="checkbox"]');if(e?.checked)e.click();return true})()`,true);
  result.capture_selection=await app.chooseScreen();result.owned_window_handle=result.capture_selection.owned_window_handle;
  result.capture=await app.measureCapture(result.capture_selection.captures[0].index);
