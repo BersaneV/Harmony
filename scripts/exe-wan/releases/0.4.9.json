@@ -1,0 +1,6 @@
+{
+  "version": "0.4.9",
+  "installer_url": "https://github.com/BersaneV/Harmony/releases/download/v0.4.9/Harmony_0.4.9_x64-setup.exe",
+  "installer_sha256": "cf42a6924ccd1c390e33bbf440b6d77381f15f57fd06c09d5c1a29035b23f7ca",
+  "main_sha256": "6a1517c44ed45c996ac8d32c08767ea7306e897a4cb73d703d9286b68c86c2cc"
+}

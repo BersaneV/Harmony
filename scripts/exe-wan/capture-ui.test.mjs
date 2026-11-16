@@ -17,7 +17,7 @@ test('legacy releases retain their original browser and 60 FPS capture paths',()
  assert.equal(captureMode('0.4.5',getProfile('720p30')),'browser');
  assert.equal(captureMode('0.4.6',profile),'native');
  assert.equal(captureMode('0.4.6',getProfile('720p30')),'browser');
- assert.throws(()=>captureMode('0.4.9',profile),/Unsupported pinned/);
+ assert.throws(()=>captureMode('0.5.0',profile),/Unsupported pinned/);
 });
 test('capture identity rejects another HWND, backend, missing live track and reduced dimensions',()=>{
  assertOwnedCapture(native(),42,profile,'native');
@@ -86,10 +86,12 @@ test('pinned 047 uses the existing consented WGC path and layered fixture for al
  }
  assert.equal(captureMode('0.4.7',{...getProfile('720p30'),fps:0}),'browser');
 });
-test('unpublished 049 is refused for every named request, including fixture selection',()=>{
+test('unpublished 050 is refused for every named request, including fixture selection',()=>{
  for(const id of ['720p30','1080p60','1440p60']){
-  assert.throws(()=>captureMode('0.4.9',getProfile(id)),/Unsupported pinned/);
-  assert.throws(()=>fixtureScript('0.4.9',getProfile(id)),/Unsupported pinned/);
+  assert.throws(()=>captureMode('0.5.0',getProfile(id)),/Unsupported pinned/);
+  assert.throws(()=>fixtureScript('0.5.0',getProfile(id)),/Unsupported pinned/);
+  assert.throws(()=>captureMode('0.4.10',getProfile(id)),/Unsupported pinned/);
+  assert.throws(()=>fixtureScript('0.4.10',getProfile(id)),/Unsupported pinned/);
  }
 });
 
@@ -107,4 +109,16 @@ test('047 and 048 preserve all explicit native FPS while legacy releases keep on
  const p=getProfile('1440p60');
  for(const version of ['0.4.7','0.4.8'])for(const fps of [15,24,30,60])assert.equal(captureMode(version,{...p,fps}),'native');
  for(const version of ['0.4.3','0.4.4','0.4.5','0.4.6'])for(const fps of [0,15,24,30,60])assert.equal(captureMode(version,{...p,fps}),fps===60?'native':'browser');
+});
+
+
+test('pinned 049 retains the consented WGC path for the three unchanged requests',()=>{
+ for(const id of ['720p30','1080p60','1440p60']){
+  const p=getProfile(id);
+  assert.equal(captureMode('0.4.9',p),'native');
+  assert.equal(fixtureScript('0.4.9',p),'window-layered.ps1');
+  assert.equal(fixtureReady(`WINDOW 42 ${p.width}x${p.height} TARGET ${p.fps} SOURCE native-layered-dib LIFETIME_SECONDS 600\r\n`,p,'native'),true);
+ }
+ assert.equal(captureMode('0.4.9',{...getProfile('720p30'),fps:0}),'browser');
+ for(const fps of [15,24,30,60])assert.equal(captureMode('0.4.9',{...getProfile('1440p60'),fps}),'native');
 });
