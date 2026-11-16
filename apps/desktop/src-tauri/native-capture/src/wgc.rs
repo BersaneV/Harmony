@@ -221,7 +221,13 @@ impl Wgc {
         let mut frame = match self.pool.TryGetNextFrame() {
             Ok(f) => f,
             Err(e) if e.code().0 == 0x80004003u32 as i32 => return Ok(false),
-            Err(_) => return Err("A captura do Windows foi encerrada.".into()),
+            Err(e) => {
+                eprintln!(
+                    "harmony_native_capture stage=next_frame hresult={:08X}",
+                    e.code().0 as u32
+                );
+                return Err("A captura do Windows foi encerrada.".into());
+            }
         };
         while let Ok(newer) = self.pool.TryGetNextFrame() {
             let _ = frame.Close();

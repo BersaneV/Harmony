@@ -69,11 +69,11 @@ pub async fn native_capture_available(window: WebviewWindow) -> Result<bool, Str
     owned(&window)?;
     #[cfg(windows)]
     {
-        return Ok(tauri::async_runtime::spawn_blocking(
-            harmony_native_capture::Capture::supported,
+        Ok(
+            tauri::async_runtime::spawn_blocking(harmony_native_capture::Capture::supported)
+                .await
+                .unwrap_or(false),
         )
-        .await
-        .unwrap_or(false));
     }
     #[cfg(not(windows))]
     {
