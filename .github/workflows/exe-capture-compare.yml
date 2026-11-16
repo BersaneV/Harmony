@@ -1,0 +1,204 @@
+name: Compare published native capture on one Windows VM
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Diagnostic only; unchanged native capture quality gates
+        type: choice
+        options: ["1080p60", "1440p60"]
+        default: "1080p60"
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["1080p60","1440p60"]'), inputs.profile)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      cohort: ${{ steps.fixture.outputs.cohort }}
+      guild: ${{ steps.fixture.outputs.guild }}
+      guild_name: ${{ steps.fixture.outputs.guild_name }}
+      voice: ${{ steps.fixture.outputs.voice }}
+      control: ${{ steps.fixture.outputs.control }}
+      users: ${{ steps.fixture.outputs.users }}
+      screen_sfu_enabled: ${{ steps.fixture.outputs.screen_sfu_enabled }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: "26.13.0" }
+      - name: Require both real public manifests and unchanged fixture guards
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFile} from 'node:fs/promises';
+          for (const version of ['0.4.4','0.4.6']) {
+            const release=JSON.parse(await readFile(`scripts/exe-wan/releases/${version}.json`,'utf8'));
+            assert.equal(release.version,version);
+            assert.equal(release.installer_url,`https://github.com/BersaneV/Harmony/releases/download/v${version}/Harmony_${version}_x64-setup.exe`);
+            for (const key of ['installer_sha256','main_sha256']) assert.match(release[key],/^[a-f0-9]{64}$/);
+          }
+          JS
+          node --test scripts/exe-wan/profiles.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/fixture-contract.test.mjs scripts/exe-wan/observe.test.mjs scripts/exe-wan/browser-events.test.mjs scripts/exe-wan/cdp.test.mjs scripts/exe-wan/host-cpu.test.mjs scripts/exe-wan/auth.test.mjs scripts/exe-wan/routes.test.mjs scripts/exe-wan/probe-native.test.mjs scripts/exe-wan/browser-capture-diagnostic.test.mjs
+      - name: Create the existing private ordinary-account fixture
+        id: fixture
+        env:
+          HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+        run: node scripts/exe-wan/prepare.mjs
+  compare:
+    needs: prepare
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && needs.prepare.result == 'success' && contains(fromJSON('["1080p60","1440p60"]'), inputs.profile)
+    runs-on: windows-2022
+    timeout-minutes: 25
+    env:
+      HARMONY_EXE_PROFILE: ${{ inputs.profile }}
+      HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+      HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
+      HARMONY_GUILD_ID: ${{ needs.prepare.outputs.guild }}
+      HARMONY_GUILD_NAME: ${{ needs.prepare.outputs.guild_name }}
+      HARMONY_VOICE_ID: ${{ needs.prepare.outputs.voice }}
+      HARMONY_CONTROL_ID: ${{ needs.prepare.outputs.control }}
+      HARMONY_COHORT_USERS: ${{ needs.prepare.outputs.users }}
+      HARMONY_SCREEN_SFU_ENABLED: ${{ needs.prepare.outputs.screen_sfu_enabled }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: "26.13.0" }
+      - name: Install, measure and verify removal of 044 then 046 then 044
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $false
+          Set-StrictMode -Version Latest
+          if (-not $IsWindows -or $env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne 'BersaneV/Harmony' -or $env:GITHUB_REF -ne 'refs/heads/main' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or -not $env:RUNNER_TEMP) { throw 'Owned public hosted Windows runner required' }
+          if ($env:HARMONY_EXE_PROFILE -notin @('1080p60','1440p60')) { throw 'Only fixed native 60 FPS profiles are allowed' }
+          $uninstallKeys = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Harmony','HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Harmony','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Harmony')
+          $sourceFiles = @('.github/workflows/exe-capture-compare.yml','scripts/exe-wan/releases/0.4.4.json','scripts/exe-wan/releases/0.4.6.json','scripts/exe-wan/probe-native.mjs','scripts/exe-wan/session.mjs','scripts/exe-wan/observe.mjs','scripts/exe-wan/capture-ui.mjs','scripts/exe-wan/window-layered.ps1','scripts/exe-wan/window.ps1','scripts/exe-wan/picker.ps1','scripts/exe-wan/desktop.ps1','scripts/exe-wan/speech.ps1','scripts/exe-wan/native-consent.ps1','scripts/exe-wan/webview-policy.ps1','scripts/exe-wan/cdp.mjs','scripts/exe-wan/browser-events.mjs','scripts/exe-wan/browser-capture-diagnostic.mjs','scripts/exe-wan/lab.mjs','scripts/exe-wan/auth.mjs','scripts/exe-wan/profiles.mjs','scripts/exe-wan/fixture-contract.mjs','scripts/exe-wan/install.ps1')
+          function Emit([string]$Kind, $Value) { Write-Output ($Kind + ' ' + ($Value | ConvertTo-Json -Depth 100 -Compress)) }
+          function Field($Object, [string]$Name) { if ($null -ne $Object -and $Object -is [Collections.IDictionary] -and $Object.Contains($Name)) { return $Object[$Name] }; return $null }
+          function Qa-Hashes {
+            $hashes = [ordered]@{}
+            foreach ($file in $sourceFiles) { $hashes[$file] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() }
+            return $hashes
+          }
+          function Machine-Context {
+            $processors = @(Get-CimInstance Win32_Processor | ForEach-Object { [ordered]@{model=$_.Name;manufacturer=$_.Manufacturer;cores=$_.NumberOfCores;logical_processors=$_.NumberOfLogicalProcessors;max_clock_mhz=$_.MaxClockSpeed} })
+            $os = Get-CimInstance Win32_OperatingSystem
+            return [ordered]@{cpu=$processors;logical_processors=($processors | Measure-Object -Property logical_processors -Sum).Sum;windows=[ordered]@{caption=$os.Caption;version=$os.Version;build=$os.BuildNumber;architecture=$os.OSArchitecture}}
+          }
+          function Assert-No-Install {
+            foreach ($key in $uninstallKeys) { if (Test-Path -LiteralPath $key) { throw 'Existing or remaining Harmony uninstall registration refused' } }
+            if (@(Get-Process -Name 'harmony-desktop' -ErrorAction SilentlyContinue).Count) { throw 'Existing or remaining Harmony process refused' }
+          }
+          function Owned-Processes([string]$Root, [string]$Exe) {
+            $title = 'HarmonyWAN-' + $env:GITHUB_RUN_ID
+            return @(Get-CimInstance Win32_Process | Where-Object {
+              ($_.ExecutablePath -and $_.ExecutablePath -ieq $Exe) -or
+              ($_.Name -ieq 'msedgewebview2.exe' -and $_.CommandLine -and $_.CommandLine.IndexOf($Root,[StringComparison]::OrdinalIgnoreCase) -ge 0) -or
+              ($_.Name -in @('powershell.exe','pwsh.exe') -and $_.CommandLine -and $_.CommandLine.Contains($title) -and $_.CommandLine.Contains('window-layered.ps1'))
+            })
+          }
+          function Remove-Owned-Install([string]$Root, [string]$Exe) {
+            $temporary = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+            $fullRoot = [IO.Path]::GetFullPath($Root)
+            $install = [IO.Path]::GetFullPath((Join-Path $fullRoot 'installed'))
+            if (-not $fullRoot.StartsWith($temporary + 'harmony-exe-wan-',[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Exe)) -ine $install) { throw 'Uninstall target is not the exclusive installed fixture root' }
+            $uninstaller = Join-Path $install 'uninstall.exe'
+            foreach ($path in @($fullRoot,$install,$uninstaller)) { if (-not (Test-Path -LiteralPath $path) -or ((Get-Item -LiteralPath $path).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Uninstall target missing or reparse point refused' } }
+            foreach ($process in @(Owned-Processes $fullRoot $Exe)) { & taskkill /PID $process.ProcessId /T /F *> $null }
+            $deadline = [DateTime]::UtcNow.AddSeconds(15)
+            while (@(Owned-Processes $fullRoot $Exe).Count -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 200 }
+            if (@(Owned-Processes $fullRoot $Exe).Count) { throw 'Owned processes remain before uninstall' }
+            # As in the existing install smoke test, _?= is last and prevents a
+            # detached uninstaller copy; no registry deletion substitutes removal.
+            $info = [Diagnostics.ProcessStartInfo]::new()
+            $info.FileName = $uninstaller
+            $info.Arguments = '/S _?=' + $install
+            $info.UseShellExecute = $false
+            $info.CreateNoWindow = $true
+            $info.WorkingDirectory = $install
+            $remover = [Diagnostics.Process]::Start($info)
+            try {
+              if (-not $remover.WaitForExit(300000)) { $remover.Kill($true); throw 'Uninstaller timeout' }
+              if ($remover.ExitCode -ne 0) { throw 'Uninstaller returned failure' }
+            } finally { $remover.Dispose() }
+            if (Test-Path -LiteralPath $Exe) { throw 'Installed main executable remains after uninstall' }
+            Assert-No-Install
+            if (@(Owned-Processes $fullRoot $Exe).Count) { throw 'Owned WebView or source process remains after uninstall' }
+            # session.close owns policy removal. Inspect only; never force-remove
+            # a remaining override to make the next session pass.
+            foreach ($setting in @('AdditionalBrowserArguments','UserDataFolder')) {
+              $key = 'HKLM:\Software\Policies\Microsoft\Edge\WebView2\' + $setting
+              foreach ($name in @([IO.Path]::GetFileName($Exe),$Exe,'org.harmony.desktop')) {
+                if ($null -ne (Get-ItemProperty -LiteralPath $key -Name $name -ErrorAction SilentlyContinue)) { throw 'Scoped WebView policy cleanup incomplete' }
+              }
+            }
+          }
+          $qaHashes = Qa-Hashes
+          $qaJson = $qaHashes | ConvertTo-Json -Compress
+          $machine = Machine-Context
+          if ($machine.logical_processors -ne 4) { throw 'The comparison requires the standard four-logical-processor VM' }
+          Assert-No-Install
+          Emit 'HARMONY_EXE_CAPTURE_COMPARE_CONTEXT' ([ordered]@{kind='DIAGNOSTIC';capacity_approval=$false;commit=$env:GITHUB_SHA;profile=$env:HARMONY_EXE_PROFILE;machine=$machine;qa_sha256=$qaHashes;order=@('044-a1','046-b','044-a2')})
+          $phases = @(@{label='044-a1';version='0.4.4'},@{label='046-b';version='0.4.6'},@{label='044-a2';version='0.4.4'})
+          $results = [Collections.Generic.List[object]]::new()
+          $qualityFailed = $false
+          foreach ($phase in $phases) {
+            Assert-No-Install
+            if ((Qa-Hashes | ConvertTo-Json -Compress) -cne $qaJson) { throw 'QA source changed between comparison phases' }
+            $env:HARMONY_EXE_RELEASE = $phase.version
+            $phaseMachine = Machine-Context
+            Emit 'HARMONY_EXE_CAPTURE_COMPARE_BEGIN' ([ordered]@{phase=$phase.label;version=$phase.version;kind='DIAGNOSTIC';capacity_approval=$false;profile=$env:HARMONY_EXE_PROFILE;machine=$phaseMachine})
+            $root = $null; $exe = $null; $probe = $null; $probeExit = $null; $cleanup = $false
+            try {
+              # GITHUB_ENV is exclusive to this step. Read only the two path
+              # assignments written by the unchanged, real install.ps1.
+              $before = if (Test-Path -LiteralPath $env:GITHUB_ENV) { @(Get-Content -LiteralPath $env:GITHUB_ENV).Count } else { 0 }
+              $installOutput = @(& ./scripts/exe-wan/install.ps1)
+              $newEnvironment = @(Get-Content -LiteralPath $env:GITHUB_ENV | Select-Object -Skip $before)
+              $rootLine = @($newEnvironment | Where-Object { $_.StartsWith('HARMONY_EXE_ROOT=') })
+              $exeLine = @($newEnvironment | Where-Object { $_.StartsWith('HARMONY_EXE_PATH=') })
+              if ($rootLine.Count -ne 1 -or $exeLine.Count -ne 1) { throw 'Installer did not provide exactly one owned root and executable through GITHUB_ENV' }
+              $root = $rootLine[0].Substring('HARMONY_EXE_ROOT='.Length)
+              $exe = $exeLine[0].Substring('HARMONY_EXE_PATH='.Length)
+              $env:HARMONY_EXE_ROOT = $root; $env:HARMONY_EXE_PATH = $exe
+              $manifest = Get-Content -LiteralPath ('scripts/exe-wan/releases/' + $phase.version + '.json') -Raw | ConvertFrom-Json
+              if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant() -cne $manifest.main_sha256) { throw 'Actual installed executable differs from public manifest' }
+              Emit 'HARMONY_EXE_CAPTURE_COMPARE_INSTALLED' ([ordered]@{phase=$phase.label;version=$phase.version;main_sha256=$manifest.main_sha256;installer_sha256=$manifest.installer_sha256})
+              $log = Join-Path $root 'compare-probe.log'
+              & node scripts/exe-wan/probe-native.mjs 2>&1 | Tee-Object -FilePath $log
+              $probeExit = $LASTEXITCODE
+              $records = @(Get-Content -LiteralPath $log | Where-Object { $_.StartsWith('HARMONY_EXE_PROBE ') })
+              if ($records.Count -ne 1) { throw 'Exactly one original probe JSON record is required' }
+              $probe = $records[0].Substring('HARMONY_EXE_PROBE '.Length) | ConvertFrom-Json -AsHashtable
+              if ($probe['kind'] -cne 'exe_probe' -or $probe['status'] -notin @('PASS','FAIL')) { throw 'Original probe status is unavailable' }
+              if (($probe['status'] -eq 'PASS' -and $probeExit -ne 0) -or ($probe['status'] -eq 'FAIL' -and $probeExit -ne 1)) { throw 'Probe status and process exit disagree' }
+              if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant() -cne $manifest.main_sha256) { throw 'Published executable changed during the probe' }
+              if ($probe['status'] -eq 'FAIL') { $qualityFailed = $true }
+            } catch {
+              Emit 'HARMONY_EXE_CAPTURE_COMPARE_BLOCKED' ([ordered]@{phase=$phase.label;stage='install_or_probe';next_phase_blocked=$true;kind='DIAGNOSTIC';capacity_approval=$false})
+              throw
+            } finally {
+              if ($root -and $exe) {
+                try { Remove-Owned-Install $root $exe } catch {
+                  Emit 'HARMONY_EXE_CAPTURE_COMPARE_BLOCKED' ([ordered]@{phase=$phase.label;stage='cleanup';next_phase_blocked=$true;kind='DIAGNOSTIC';capacity_approval=$false})
+                  throw
+                }
+                $cleanup = $true
+                Emit 'HARMONY_EXE_CAPTURE_COMPARE_REMOVED' ([ordered]@{phase=$phase.label;uninstalled=$true;owned_processes=0;remaining_uninstall_keys=0;scoped_policy_values=0})
+              }
+            }
+            if (-not $cleanup -or $null -eq $probe) { throw 'Incomplete phase blocks the next installation' }
+            $attest = Field $probe 'attestation'; $capture = Field $probe 'capture'; $settings = Field $capture 'settings'
+            $browser = Field $attest 'browser'
+            $conditions = [ordered]@{profile=(Field $probe 'requested_profile');machine=$phaseMachine;server=(Field $probe 'server');runtime=[ordered]@{product=(Field $browser 'product');js_version=(Field $browser 'jsVersion')};capture_mode=(Field $attest 'capture_mode');fixture_script=(Field $attest 'fixture_script');gpu_mode=(Field $attest 'gpu_mode');flags_verified=(Field $attest 'flags_verified');focus_emulation=(Field $attest 'focus_emulation');width=(Field $settings 'width');height=(Field $settings 'height');pixel_width=(Field $capture 'pixel_width');pixel_height=(Field $capture 'pixel_height')}
+            $expected = if ($env:HARMONY_EXE_PROFILE -ceq '1080p60') { @(1920,1080) } else { @(2560,1440) }
+            $observed = $conditions.runtime.product -and $conditions.runtime.js_version -and $conditions.capture_mode -ceq 'native' -and $conditions.fixture_script -ceq 'window-layered.ps1' -and $conditions.flags_verified -eq $true -and $conditions.focus_emulation -eq $true -and $conditions.gpu_mode -ceq 'default_browser_graphics' -and $conditions.width -eq $expected[0] -and $conditions.height -eq $expected[1] -and $conditions.pixel_width -eq $expected[0] -and $conditions.pixel_height -eq $expected[1] -and $phaseMachine.logical_processors -eq 4
+            $row = [ordered]@{phase=$phase.label;version=$phase.version;kind='DIAGNOSTIC';capacity_approval=$false;probe_status=$probe['status'];probe_exit=$probeExit;error=(Field $probe 'error');cleanup_verified=$cleanup;conditions_observed=[bool]$observed;conditions=$conditions;source_raw_fps=(Field $capture 'processor_source_fps');source_distinct_fps=(Field $capture 'distinct_marker_fps');observation_ms=(Field $capture 'observation_ms');marker_copy_calls=(Field $capture 'marker_copy_calls_delta');marker_copy_total_ms=(Field $capture 'marker_copy_total_ms_delta')}
+            $results.Add($row)
+            Emit 'HARMONY_EXE_CAPTURE_COMPARE_RESULT' $row
+          }
+          $conditionsEqual = $results.Count -eq 3 -and @($results | Where-Object { -not $_.conditions_observed }).Count -eq 0 -and @(($results | ForEach-Object { $_.conditions | ConvertTo-Json -Depth 12 -Compress }) | Select-Object -Unique).Count -eq 1
+          Emit 'HARMONY_EXE_CAPTURE_COMPARE_COMPLETE' ([ordered]@{kind='DIAGNOSTIC';capacity_approval=$false;phases=$results.Count;order=@($results | ForEach-Object phase);same_vm=$true;qa_unchanged=((Qa-Hashes | ConvertTo-Json -Compress) -ceq $qaJson);conditions_equal=$conditionsEqual;probe_statuses=@($results | ForEach-Object probe_status);scope='Three serial published-EXE preview probes on one VM; no encoder or eight-client capacity approval'})
+          # Preserve normal quality FAILs as FAIL after collecting all three legs.
+          if ($qualityFailed -or -not $conditionsEqual) { exit 1 }
+          exit 0
