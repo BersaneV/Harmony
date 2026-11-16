@@ -1,0 +1,294 @@
+{
+  "schema": 1,
+  "scope": "Derived from the same61 steady owner samples per actual043 EXE WAN run. No changes to application APIs or counters. Counts delimit the local production loop, including waiting for JS ACK; they do not isolate capture versus copy versus scheduling.",
+  "runs": [
+    {
+      "file": ".local/native60-20261115/1080-r2.log",
+      "sha256": "4097b04fbf63acbb4a6ce9dde25a80a5b17e15e22761b038db975f859b72e943",
+      "steady_samples": 61,
+      "steady_seconds": 182.03,
+      "first_at_ms": 300124.30000000005,
+      "last_at_ms": 482154.30000000005,
+      "rates": {
+        "producer_snapshot_fps": {
+          "count": 61,
+          "min": 47.62931870342108,
+          "p10": 48.46646659577374,
+          "p50": 50.2178568791079,
+          "p90": 52.15624752134815,
+          "max": 53.24818357133792,
+          "mean": 50.22690654256267
+        },
+        "processor_fps": 49.70059880239521,
+        "distinct_marker_fps": 46.49233642806131,
+        "media_source_counter_fps": 49.70059880239521,
+        "media_source_snapshot_fps": {
+          "count": 61,
+          "min": 47,
+          "p10": 48,
+          "p50": 50,
+          "p90": 52,
+          "max": 53,
+          "mean": 50.08196721311475
+        },
+        "encoded_fps": 49.69510520243916
+      },
+      "counter_deltas": {
+        "processor": 9047,
+        "media_source": 9047,
+        "encoded": 9046,
+        "frames_sent": 9046
+      },
+      "encode_ms_per_frame": 13.493809418527526,
+      "encode_seconds_over_wall_seconds": 0.6705762786353897,
+      "marker_copy_ms_per_frame": 0.1476732618548357,
+      "marker_copy_total_ms_delta": 1336.0000000006985,
+      "marker_copy_fraction_of_wall": 0.007339449541288241,
+      "marker_copy_errors": 0,
+      "quality_limitation_reasons": [
+        "none"
+      ],
+      "quality_limitation_durations_delta": {
+        "bandwidth": 0,
+        "cpu": 0,
+        "none": 182.034,
+        "other": 0
+      },
+      "sender_parameters": {
+        "contentHint": "motion",
+        "encodings": [
+          {
+            "active": true,
+            "maxBitrate": 8000000,
+            "maxFramerate": 60
+          }
+        ],
+        "degradationPreference": "maintain-resolution"
+      },
+      "per_interval_summaries": {
+        "processor_fps": {
+          "count": 60,
+          "min": 48.130810311860905,
+          "p10": 48.637812612967515,
+          "p50": 49.72994335397143,
+          "p90": 50.71962586042339,
+          "max": 51.48684775075243,
+          "mean": 49.700693788578604
+        },
+        "distinct_fps": {
+          "count": 60,
+          "min": 44.03693844687599,
+          "p10": 44.809067246549056,
+          "p50": 46.76282684581476,
+          "p90": 47.50750552604701,
+          "max": 48.51645268820902,
+          "mean": 46.492692479058526
+        },
+        "media_source_counter_fps": {
+          "count": 60,
+          "min": 48.130810311860905,
+          "p10": 48.637812612967515,
+          "p50": 49.736495388669304,
+          "p90": 50.53173921659213,
+          "max": 51.731523279187066,
+          "mean": 49.70070919934564
+        },
+        "encoded_fps": {
+          "count": 60,
+          "min": 48.12605069716921,
+          "p10": 48.637812612967515,
+          "p50": 49.734857218142075,
+          "p90": 50.74971164936563,
+          "max": 51.731523279187066,
+          "mean": 49.695199209060604
+        },
+        "encode_ms_per_frame": {
+          "count": 60,
+          "min": 12.754966887417325,
+          "p10": 12.96026490066221,
+          "p50": 13.493506493506512,
+          "p90": 13.818791946308707,
+          "max": 14.537414965986398,
+          "mean": 13.496325539475134
+        },
+        "marker_copy_ms_per_frame": {
+          "count": 60,
+          "min": 0.12416107382550336,
+          "p10": 0.13355263157772193,
+          "p50": 0.1473333333308498,
+          "p90": 0.16333333332867672,
+          "max": 0.1773333333308498,
+          "mean": 0.14764486894790751
+        }
+      },
+      "fixture_after_30s": {
+        "paint_fps": 59.92894139805659,
+        "paint_count_delta": 12600.0,
+        "elapsed_seconds": 210.249,
+        "skipped_delta": 15.0,
+        "sampled_draw_ms": {
+          "count": 43,
+          "min": 1.888,
+          "p10": 2.357,
+          "p50": 3.172,
+          "p90": 5.118,
+          "max": 7.675,
+          "mean": 3.5728139534883723
+        },
+        "sampled_update_ms": {
+          "count": 43,
+          "min": 0.647,
+          "p10": 0.675,
+          "p50": 0.872,
+          "p90": 1.866,
+          "max": 4.313,
+          "mean": 1.1286511627906977
+        }
+      }
+    },
+    {
+      "file": ".local/native60-20261115/1440-r1.log",
+      "sha256": "686dcd8a8602a99906f7675959c2b42be36aba1b669a9aca76fdc684b575101e",
+      "steady_samples": 61,
+      "steady_seconds": 181.43680000000003,
+      "first_at_ms": 308977.19999999995,
+      "last_at_ms": 490414,
+      "rates": {
+        "producer_snapshot_fps": {
+          "count": 61,
+          "min": 42.298916606702214,
+          "p10": 45.736734780927506,
+          "p50": 47.95829546626254,
+          "p90": 49.977285323820325,
+          "max": 50.66802311256647,
+          "mean": 47.74803825421558
+        },
+        "processor_fps": 47.56477186546499,
+        "distinct_marker_fps": 44.69324855817562,
+        "media_source_counter_fps": 47.57028342651545,
+        "media_source_snapshot_fps": {
+          "count": 61,
+          "min": 43,
+          "p10": 46,
+          "p50": 48,
+          "p90": 51,
+          "max": 53,
+          "mean": 48.22950819672131
+        },
+        "encoded_fps": 47.57028342651545
+      },
+      "counter_deltas": {
+        "processor": 8630,
+        "media_source": 8631,
+        "encoded": 8631,
+        "frames_sent": 8631
+      },
+      "encode_ms_per_frame": 14.476190476190478,
+      "encode_seconds_over_wall_seconds": 0.6886364838886047,
+      "marker_copy_ms_per_frame": 0.14268829663910582,
+      "marker_copy_total_ms_delta": 1231.399999995483,
+      "marker_copy_fraction_of_wall": 0.006786936277510862,
+      "marker_copy_errors": 0,
+      "quality_limitation_reasons": [
+        "none"
+      ],
+      "quality_limitation_durations_delta": {
+        "bandwidth": 0,
+        "cpu": 0,
+        "none": 181.44,
+        "other": 0
+      },
+      "sender_parameters": {
+        "contentHint": "motion",
+        "encodings": [
+          {
+            "active": true,
+            "maxBitrate": 16000000,
+            "maxFramerate": 60
+          }
+        ],
+        "degradationPreference": "maintain-resolution"
+      },
+      "per_interval_summaries": {
+        "processor_fps": {
+          "count": 60,
+          "min": 39.69041476483399,
+          "p10": 45.683262711863705,
+          "p50": 47.650562541363335,
+          "p90": 49.26597010977346,
+          "max": 50.665606993839866,
+          "mean": 47.56471032510727
+        },
+        "distinct_fps": {
+          "count": 60,
+          "min": 38.036647482965904,
+          "p10": 42.37288135593155,
+          "p50": 44.672402382528134,
+          "p90": 46.70265973303158,
+          "max": 47.93071532460738,
+          "mean": 44.692968130971984
+        },
+        "media_source_counter_fps": {
+          "count": 60,
+          "min": 40.0211682212076,
+          "p10": 45.656057698670374,
+          "p50": 47.587574355584934,
+          "p90": 49.30672755551105,
+          "max": 51.23628189871823,
+          "mean": 47.57024603025
+        },
+        "encoded_fps": {
+          "count": 60,
+          "min": 39.69041476483399,
+          "p10": 45.85491373338101,
+          "p50": 47.587574355584934,
+          "p90": 49.53110553427515,
+          "max": 50.905725241307145,
+          "mean": 47.570237357615014
+        },
+        "encode_ms_per_frame": {
+          "count": 60,
+          "min": 13.190789473684367,
+          "p10": 13.513157894736855,
+          "p50": 14.165517241379323,
+          "p90": 17.0281690140845,
+          "max": 17.810218978102228,
+          "mean": 14.500767741944578
+        },
+        "marker_copy_ms_per_frame": {
+          "count": 60,
+          "min": 0.11712328766230239,
+          "p10": 0.1281690140776205,
+          "p50": 0.14113475177073787,
+          "p90": 0.1580419580442375,
+          "max": 0.16986301369655699,
+          "mean": 0.14271220871876875
+        }
+      },
+      "fixture_after_30s": {
+        "paint_fps": 59.71337579617835,
+        "paint_count_delta": 12300.0,
+        "elapsed_seconds": 205.984,
+        "skipped_delta": 59.0,
+        "sampled_draw_ms": {
+          "count": 42,
+          "min": 2.517,
+          "p10": 3.219,
+          "p50": 4.36,
+          "p90": 5.949,
+          "max": 9.011,
+          "mean": 4.797166666666667
+        },
+        "sampled_update_ms": {
+          "count": 42,
+          "min": 1.322,
+          "p10": 1.402,
+          "p50": 1.827,
+          "p90": 2.791,
+          "max": 3.45,
+          "mean": 1.9736190476190476
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "status": "PASS",
+  "checks": [
+    "Eight real Chromium engines retain their original P2P voice tracks",
+    "All fifty-six incoming P2P microphone paths receive and decode generated audio",
+    "Eight screen-only SDK rooms connect using production HTTP and RTC gateway",
+    "After confirmed SFU ACK only screen senders retire; original voice remains P2P",
+    "Seven SFU viewers count the single measured publisher upload exactly once",
+    "All seven decoded SDK screens expose real RTP dimensions/FPS/bitrate and their own ICE RTT with source SID/generation",
+    "One capped recipient falls back independently without moving the other six",
+    "Mixed screen upload sums the single SDK publisher plus one real P2P sender and their applied caps",
+    "SFU loss removes its telemetry and the applied video ceiling follows seven real P2P senders",
+    "SFU loss preserves all eight original P2P microphones and connected calls",
+    "No unhandled browser errors during hybrid switching"
+  ],
+  "scope": "Eight isolated real Chromium engines, real Harmony/SQLite/LiveKit, generated sources; transport, lifecycle and effective RTP telemetry",
+  "not_run": [
+    "Physical capture",
+    "Windows WebView2",
+    "1080p60/1440p60 performance",
+    "External networks/NAT"
+  ],
+  "git_head": "66e778fcc4d9e71c7ad3acba54bc5450e8b64329",
+  "source_hashes": {
+    "apps/desktop/src/lib/call.ts": "0c1c304693b85da4fba6c50c99695beb4a75dcf624c43165e233acb959b4f420",
+    "apps/desktop/src/lib/screen-relay.ts": "819e2547a57e359b0fbeed039962f92df2eddcf887c8905c4c71029804fa95b2",
+    "apps/desktop/src/lib/capture-track.ts": "b425c8d7b5e67d00febf50ca92f898f8d35e0dcca99ec0c347e8ce4a724d83f0",
+    "apps/desktop/src/components/P2PCallPanel.tsx": "1e61ae43da4e7a82a70395b5e689e9d513fc6753da667f2f464c34c7a4b5d693",
+    "scripts/test_call_screen_sfu.mjs": "2c0a74b4e2a38a89d250e830ce1792fa2a6b21e801333313b5540e73678e7970"
+  },
+  "server_binary_sha256": "92d19bc00e0f3c7f99e5b28863ae3ab48bc070a4f726db7d1fad37642da4cba5",
+  "independent_review": "Final reviewed call.ts0c1c3046, capture-trackb425c8d7, panel1e61ae43, runner2c0a74b4; no confirmedP1/P2 remaining. Local Chrome/SQLite/LiveKit only; no Windows/WAN/FPS approval.",
+  "original_result_sha256": "9cea29e87efd92c2225cac5d1385caa71644b419a719ec97b9438d5dcd6ae31e",
+  "tests": {
+    "desktop": {
+      "passed": 233
+    },
+    "dom_frame_adapter": {
+      "passed": 12
+    },
+    "eight_chromium": {
+      "passed": 11,
+      "microphone_paths": 56,
+      "screen_receivers": 7,
+      "resolution": "640x360",
+      "requested_fps": 15,
+      "fallback_caps_bps": [
+        2000000,
+        4000000,
+        14000000
+      ]
+    }
+  },
+  "preserved_intermediate_failure": {
+    "path": ".local/qa-call-screen-sfu/run-Ne3UZt/result.json",
+    "status": "FAIL",
+    "observed": "Receivers alreadyP2P while owner still1SDK+7P2P/16Mb/s during async retirement. Original runner repeatPASS without product changes; final runner also waits owner retirement within same20s and unchanged final assertions. Exact cause not established by that snapshot alone."
+  }
+}

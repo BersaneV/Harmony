@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "version": "0.4.4",
+  "source_commit": "664435a324cef911b6a1a8d459591a11cc8e88af",
+  "ci": {
+    "url": "https://github.com/BersaneV/Harmony/actions/runs/43808917526",
+    "status": "SUCCESS",
+    "server": "PASS",
+    "windows": "PASS",
+    "install_remove": "PASS",
+    "trusted_main_signing": "PASS"
+  },
+  "installer": {
+    "url": "https://github.com/BersaneV/Harmony/releases/download/v0.4.4/Harmony_0.4.4_x64-setup.exe",
+    "bytes": 4131150,
+    "sha256": "6e1c29cd60e5dae91bfb6a0d4a0664c5ab67b0192e993a06f001e7330c9a53fa"
+  },
+  "installed_exe": {
+    "bytes": 15438848,
+    "sha256": "a232f9d287964c61f0badf90a8adc5f175ca4fd6f5a215ebf139446548cd0945"
+  },
+  "signature": {
+    "type": "Tauri updater minisign; not Windows Authenticode",
+    "real_artifact_and_negative_tests": 17,
+    "status": "PASS"
+  },
+  "public_download": {
+    "status": "PASS",
+    "verified_at": "2026-11-16T05:53:54.896Z",
+    "http": 200,
+    "same_bytes_and_digest": true
+  },
+  "publication": {
+    "prerelease": true,
+    "automatic_feed": "0.4.2",
+    "backend": "0.4.3",
+    "linux_bundle": "UNCHANGED043"
+  },
+  "performance_scope_at_package_verification": "NOT_RUN: real044 eight-EXE 1080p60/1440p60/720p30 campaign pending; package verification does not approve FPS"
+}

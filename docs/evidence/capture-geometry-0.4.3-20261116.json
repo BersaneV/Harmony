@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "status": "FAIL",
+  "scope": "One real pinned0.4.3 Windows EXE, owned1280x720 window; no capacity approval",
+  "run": "https://github.com/BersaneV/Harmony/actions/runs/43803276588",
+  "qa_head": "66e778fcc4d9e71c7ad3acba54bc5450e8b64329",
+  "product_source_commit": "98988802c6cf0975ca38ead5da0dae0f33cef5e6",
+  "installed_exe_sha256": "a4c9970dc648378e6b6d29359b7ea1a9d46e447999b2911c1770f6da52870928",
+  "requested_profile": {
+    "id": "720p30",
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "bitrate_mbps": 4,
+    "min_displayed_fps": 24,
+    "min_source_fps": 24
+  },
+  "physical_window": "PHYSICAL_WINDOW 1280x720 DWM 1280x720",
+  "same_owned_hwnd": true,
+  "initial_settings": {
+    "width": 960,
+    "height": 720,
+    "aspectRatio": 1.3333333333333333,
+    "frameRate": 30,
+    "displaySurface": "window"
+  },
+  "final_settings": {
+    "width": 960,
+    "height": 540,
+    "aspectRatio": 1.7777777777777777,
+    "frameRate": 30,
+    "displaySurface": "window"
+  },
+  "observed_error": "Expected values to be strictly equal:\n\n960 !== 1280\n",
+  "source_control_cause": "P2PCallPanel derived width.max=720*(960/720)=960 before the first real window frame. The true16:9 source was then downscaled to960x540. The call engine repeated this calculation; both paths corrected in664435a.",
+  "regression_classification": "Inherited derivation also present in0.4.2; not proven to be introduced by0.4.3 native capture",
+  "next_validation": "NOT_RUN: actual0.4.4 EXE and eight-peer720p30",
+  "followup": {
+    "version": "0.4.4",
+    "run": "https://github.com/BersaneV/Harmony/actions/runs/43814338824",
+    "status": "FAIL",
+    "observed": "Preview still960x540 despite removing derived early width. The original cause explains the explicit old clamp but not all browser default/constraint negotiation. No complete fix established."
+  }
+}

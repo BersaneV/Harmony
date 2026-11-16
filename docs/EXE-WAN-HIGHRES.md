@@ -1,5 +1,7 @@
 # Harmony — oito EXEs em 1080p60 e 1440p60 com voz
 
+Este documento preserva a campanha do EXE 0.4.2. A otimização posterior da captura e da codificação, com resultados próprios, está em [EXE-WAN-0.4.3.md](EXE-WAN-0.4.3.md). As medições abaixo não foram substituídas.
+
 **Resultado: FAIL nos dois perfis de 60 FPS. Voz aprovada em 8/8 nas duas rodadas finais; vídeo aprovado em 0/7 pelo critério de FPS.** A resolução integral foi preservada, mas o desempenho solicitado não foi atingido. As correções desta campanha são da bancada de teste; o produto distribuído continua na 0.4.2. A meta de 60 FPS permanece pendente.
 
 | Rodada final com voz e tela | 1080p60 solicitado | 1440p60 solicitado |
