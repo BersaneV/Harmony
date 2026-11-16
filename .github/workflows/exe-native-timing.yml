@@ -1,0 +1,75 @@
+name: Diagnose native timing in the immutable Windows EXE
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Diagnostic only; unchanged performance60 profile, never capacity approval
+        type: choice
+        options: ["1080p60", "1440p60"]
+        default: "1080p60"
+permissions:
+  contents: read
+concurrency:
+  group: exe-native-timing-diagnostic-${{ inputs.profile }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      cohort: ${{ steps.fixture.outputs.cohort }}
+      guild: ${{ steps.fixture.outputs.guild }}
+      guild_name: ${{ steps.fixture.outputs.guild_name }}
+      voice: ${{ steps.fixture.outputs.voice }}
+      control: ${{ steps.fixture.outputs.control }}
+      users: ${{ steps.fixture.outputs.users }}
+      screen_sfu_enabled: ${{ steps.fixture.outputs.screen_sfu_enabled }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: "26.13.0" }
+      - name: Require the immutable published 0.4.6 manifest before creating accounts
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFile} from 'node:fs/promises';
+          const release=JSON.parse(await readFile('scripts/exe-wan/releases/0.4.6.json','utf8'));
+          assert.equal(release.version,'0.4.6');
+          assert.equal(release.installer_url,'https://github.com/BersaneV/Harmony/releases/download/v0.4.6/Harmony_0.4.6_x64-setup.exe');
+          assert.match(release.installer_sha256,/^[a-f0-9]{64}$/);
+          assert.match(release.main_sha256,/^[a-f0-9]{64}$/);
+          JS
+      - name: Validate timing passivity and the unchanged capture boundaries
+        run: node --test scripts/exe-wan/timing-diagnostic.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/fixture-contract.test.mjs scripts/exe-wan/profiles.test.mjs
+      - name: Create eight ordinary private fixture accounts; only the owner will run
+        id: fixture
+        env:
+          HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+        run: node scripts/exe-wan/prepare.mjs
+  diagnostic:
+    needs: prepare
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["1080p60","1440p60"]'), inputs.profile)
+    runs-on: windows-2022
+    timeout-minutes: 12
+    env:
+      HARMONY_EXE_RELEASE: "0.4.6"
+      HARMONY_EXE_PROFILE: ${{ inputs.profile }}
+      HARMONY_TIMING_PUBLIC_REPOSITORY: ${{ github.event.repository.private == false }}
+      HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+      HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
+      HARMONY_GUILD_ID: ${{ needs.prepare.outputs.guild }}
+      HARMONY_GUILD_NAME: ${{ needs.prepare.outputs.guild_name }}
+      HARMONY_VOICE_ID: ${{ needs.prepare.outputs.voice }}
+      HARMONY_CONTROL_ID: ${{ needs.prepare.outputs.control }}
+      HARMONY_COHORT_USERS: ${{ needs.prepare.outputs.users }}
+      HARMONY_SCREEN_SFU_ENABLED: ${{ needs.prepare.outputs.screen_sfu_enabled }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: "26.13.0" }
+      - name: Verify and install the immutable published 0.4.6 package
+        shell: pwsh
+        run: ./scripts/exe-wan/install.ps1
+      - name: Measure control, temporary wrappers and restored control; DIAGNOSTIC only
+        run: node scripts/exe-wan/timing-diagnostic.mjs
