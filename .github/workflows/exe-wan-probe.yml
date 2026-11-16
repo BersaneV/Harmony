@@ -54,7 +54,7 @@ jobs:
           assert.match(release.main_sha256,/^[a-f0-9]{64}$/);
           JS
       - name: Validate direct-call fixture and capture guards
-        run: node --test scripts/exe-wan/observe.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/fixture-contract.test.mjs scripts/exe-wan/routes.test.mjs scripts/exe-wan/metrics.test.mjs scripts/exe-wan/auth.test.mjs scripts/exe-wan/profiles.test.mjs
+        run: node --test scripts/exe-wan/browser-events.test.mjs scripts/exe-wan/observe.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/fixture-contract.test.mjs scripts/exe-wan/routes.test.mjs scripts/exe-wan/metrics.test.mjs scripts/exe-wan/auth.test.mjs scripts/exe-wan/profiles.test.mjs
       - name: Create the private ordinary-account fixture for the compiled UI
         id: fixture
         env:

@@ -15,6 +15,10 @@ public class HarmonyCanvas : Form {
  int frames, pending; readonly System.Diagnostics.Stopwatch clock=System.Diagnostics.Stopwatch.StartNew(); readonly int canvasWidth,canvasHeight;
  readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
  volatile bool stopped;
+ [StructLayout(LayoutKind.Sequential)] struct NativeRect { public int Left,Top,Right,Bottom; }
+ [DllImport("user32.dll",SetLastError=true)] static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+ [DllImport("user32.dll",SetLastError=true)] static extern bool GetWindowRect(IntPtr hwnd,out NativeRect rect);
+ [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr hwnd,uint attribute,out NativeRect rect,int size);
  [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd,int command);
  [DllImport("user32.dll")] static extern bool UpdateWindow(IntPtr hwnd);
  [DllImport("winmm.dll")] static extern uint timeBeginPeriod(uint period);
@@ -44,6 +48,10 @@ public class HarmonyCanvas : Form {
     }finally{CloseHandle(handle);}
    });producer.IsBackground=true;producer.Start();
   }
+  NativeRect actual,dwm;
+  if(!GetWindowRect(Handle,out actual)||DwmGetWindowAttribute(Handle,9,out dwm,Marshal.SizeOf(typeof(NativeRect)))<0)throw new InvalidOperationException("Physical fixture geometry unavailable");
+  if(actual.Right-actual.Left!=width||actual.Bottom-actual.Top!=height||dwm.Right-dwm.Left!=width||dwm.Bottom-dwm.Top!=height)throw new InvalidOperationException("Physical fixture dimensions differ from the requested source");
+  Console.WriteLine("PHYSICAL_WINDOW "+(actual.Right-actual.Left)+"x"+(actual.Bottom-actual.Top)+" DWM "+(dwm.Right-dwm.Left)+"x"+(dwm.Bottom-dwm.Top));
   Console.WriteLine("WINDOW "+Handle.ToInt64()+" "+width+"x"+height+" TARGET "+fps);};
  }
  protected override void OnPaint(PaintEventArgs e) {
@@ -59,7 +67,7 @@ public class HarmonyCanvas : Form {
   using(var p=new SolidBrush(Color.FromArgb(frames%256,255-frames%256,127)))g.FillRectangle(p,0,0,32,32);
  }
  public static void Run(string title,int width,int height,int fps) {
-  var thread=new Thread(()=>{timeBeginPeriod(1);try{Application.Run(new HarmonyCanvas(title,width,height,fps));}finally{timeEndPeriod(1);}});
+  var thread=new Thread(()=>{var dpi=SetThreadDpiAwarenessContext(new IntPtr(-4));if(dpi==IntPtr.Zero)throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());timeBeginPeriod(1);try{Application.Run(new HarmonyCanvas(title,width,height,fps));}finally{timeEndPeriod(1);SetThreadDpiAwarenessContext(dpi);}});
   thread.SetApartmentState(ApartmentState.STA);thread.Start();thread.Join();
  }
 }

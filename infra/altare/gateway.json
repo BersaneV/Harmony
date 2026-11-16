@@ -42,7 +42,7 @@
                   "handler": "reverse_proxy",
                   "upstreams": [
                     {
-                      "dial": "100.80.6.45:25094"
+                      "dial": "se-kna01.altare.global:25094"
                     }
                   ]
                 }
@@ -54,7 +54,7 @@
                   "handler": "reverse_proxy",
                   "upstreams": [
                     {
-                      "dial": "100.80.6.45:25094"
+                      "dial": "se-kna01.altare.global:25094"
                     }
                   ]
                 }

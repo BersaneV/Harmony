@@ -27,7 +27,7 @@ for phase in ('voice', 'screen'):
 fig = plt.figure(figsize=(13.5, 9), facecolor='#f8fafc', layout='constrained')
 grid = fig.add_gridspec(2, 2, height_ratios=[1.1, .85])
 maximum = max((np.nanmax(m) for m in matrices if np.isfinite(m).any()), default=100)
-for column, (matrix, title) in enumerate(zip(matrices, ['Voz · RTT p95 por par', 'Voz + tela · RTT p95 por par'])):
+for column, (matrix, title) in enumerate(zip(matrices, ['Voz · RTT p95 por par', 'Voz durante a tela · RTT p95 por par'])):
     axis = fig.add_subplot(grid[0, column])
     cmap = plt.get_cmap('YlGnBu').copy()
     cmap.set_bad('#e2e8f0')
@@ -90,7 +90,7 @@ for x, value in enumerate(audio):
 
 version = report.get('product', {}).get('version', '0.4.1')
 voice_ok = all(c['voice_status'] == 'PASS' for c in phases['screen']['clients'])
-result = ('voz 8/8' if voice_ok else 'voz reprovada') + f', vídeo {len(video)-len(failed)}/7'
+result = ('voz 8/8' if voice_ok else 'voz reprovada') + f', vídeo aprovado {len(video)-len(failed)}/7'
 fig.suptitle(f"Harmony {version} · {request['id']} · oito EXEs Windows · {result}", fontsize=18, weight='bold')
 fig.supxlabel('RTT: amostras do último valor ICE a cada ~3 s. Áudio gerado e janela de teste; ambiente de nuvem, sem medição de acústica física.', fontsize=9)
 destination.parent.mkdir(parents=True, exist_ok=True)

@@ -1,4 +1,19 @@
-# Instância externa gratuita — 14/11/2026
+# Instância externa gratuita
+
+Atualização operacional de 16/11/2026: API, frontend e worker passaram para a candidata **0.4.3**, fonte `98988802c6cf0975ca38ead5da0dae0f33cef5e6`. O canal automático Windows continua na **0.4.2**. O [instalador candidato 0.4.3](https://github.com/BersaneV/Harmony/releases/tag/v0.4.3) está separado para validação; ainda não aprova1080p60/1440p60 com oito pessoas.
+
+A mesma alocação gratuita executa agora o LiveKit opcional para distribuir a tela com uma codificação no emissor. Microfones e câmera continuam P2P. A API do LiveKit escuta somente em `127.0.0.1:7880`; a sinalização pública usa as rotas `/rtc` validadas pela API Harmony, e a mídia usa UDP25094. O EXE conseguiu estabelecer ICE/DTLS com essa porta externa; capacidade e qualidade com oito participantes dependem dos resultados da campanha.
+
+O gateway apresentou `no route to host` e timeout para o endereço mesh anterior mesmo após reinício. O upstream fixo foi trocado para `se-kna01.altare.global:25094`, a porta pública do mesmo nó. HTTPS público, health e identidade043 voltaram a responder200; token inválido em `/rtc/validate` recebe401 e as rotas internas/Twirp recebem404. O trecho Caddy→API usa HTTP nessa configuração; não é prova de transporte privado criptografado entre processos. O usuário acessa somente a origem HTTPS habitual. Nenhum recurso ou serviço pago foi criado.
+
+Antes do corte foram preservados configuração e carregador anteriores, snapshot manual concluído, banco SQLite/WAL/SHM em repouso e seus hashes. A cópia do banco passou `integrity_check` com zero violações de FK. O rollback operacional conserva os dados atuais e restaura apenas configuração/carregador041; não restaura um banco antigo por cima de novas mensagens. Os dois snapshots manuais ocupam2/3slots gratuitos.
+
+Pacote Linux043: **54.485.624bytes**, SHA-256 `21109caefa5a8ef33c73bcd35822ba475ed9498a7eb6e2587fb9238432f0c080`, gerado pelo [build43790763400](https://github.com/BersaneV/Harmony/actions/runs/43790763400) após o [CI completo43787003540](https://github.com/BersaneV/Harmony/actions/runs/43787003540). O guard externo confirmou versão043, LandlockABI6 e os negativos de filesystem. Recursos, cota de anexos e contas foram preservados. O aviso do LiveKit sobre buffer UDP do kernel de425.984bytes permanece uma limitação do nó compartilhado, sem alteração privilegiada no host.
+
+## Registro original de 14/11/2026
+
+As seções abaixo preservam a implantação041 e suas provas históricas; os trechos de versão, rota de mídia e upstream foram substituídos pela atualização acima.
+
 
 O cliente Windows atual é a [prévia 0.4.2](https://github.com/BersaneV/Harmony/releases/tag/v0.4.2), validada em [oito EXEs externos](EXE-WAN-0.4.2.md). O serviço hospedado descrito neste registro continua na 0.4.1, compatível com esse cliente, sem migração ou alteração da infraestrutura.
 

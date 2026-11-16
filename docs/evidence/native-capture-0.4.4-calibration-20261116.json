@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "scope": "Native capture adapter alone,10seconds per calibration; no installed app, no encoder and no WAN capacity approval",
+  "change": "Full-size staging rows copy directly to reusable Vec, avoiding intermediate DIB and a whole-frame copy; resize path unchanged",
+  "product_component_hashes": {
+    "apps/desktop/src-tauri/native-capture/src/wgc.rs": "97285f5564dd76482137f6e630be731e8ec673c6c87645b8cef0c20f519ed92b",
+    "apps/desktop/src-tauri/native-capture/src/win.rs": "118891be39de84175dfa7f217e999f8d7d03f4364ab7890b82656dce2ae87218"
+  },
+  "windows_unit_tests": {
+    "passed": 6,
+    "new_tests": 3,
+    "scope": "bytes/order/padding/reused buffer, reject invalid layout before mutation, identical DIB/direct destination bytes"
+  },
+  "runs": [
+    {
+      "run": "43801371719",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43801371719",
+      "image": "windows-2022",
+      "source_fixture": "Owned native layered DIB at requested physical size, configured for60updates/s",
+      "source_commit": "c2903a15a2b9a8f27deebe848e256786a69b4c28",
+      "result": {
+        "status": "PASS",
+        "backend": "native-wgc",
+        "owned_window_handle": 66136,
+        "width": 1920,
+        "height": 1080,
+        "capture_fps": 57.49025712612484,
+        "distinct_marker_fps": 56.19047739979506,
+        "frames": 575,
+        "colored_pixels_of_14400": 14336,
+        "capture_ms_p50": 3.8295999999999997,
+        "capture_ms_p95": 4.9205000000000005
+      }
+    },
+    {
+      "run": "43801374562",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43801374562",
+      "image": "windows-2022",
+      "source_fixture": "Owned native layered DIB at requested physical size, configured for60updates/s",
+      "source_commit": "c2903a15a2b9a8f27deebe848e256786a69b4c28",
+      "result": {
+        "status": "FAIL",
+        "backend": "native-wgc",
+        "owned_window_handle": 196816,
+        "width": 2560,
+        "height": 1440,
+        "capture_fps": 57.01954257445033,
+        "distinct_marker_fps": 53.82405157202929,
+        "frames": 571,
+        "colored_pixels_of_14400": 14341,
+        "capture_ms_p50": 8.455499999999999,
+        "capture_ms_p95": 10.580499999999999
+      }
+    },
+    {
+      "run": "43802230453",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43802230453",
+      "image": "windows-2022",
+      "source_fixture": "Owned native layered DIB at requested physical size, configured for60updates/s",
+      "source_commit": "c2903a15a2b9a8f27deebe848e256786a69b4c28",
+      "result": {
+        "status": "PASS",
+        "backend": "native-wgc",
+        "owned_window_handle": 328150,
+        "width": 2560,
+        "height": 1440,
+        "capture_fps": 56.76761067205495,
+        "distinct_marker_fps": 54.368979235207554,
+        "frames": 568,
+        "colored_pixels_of_14400": 14341,
+        "capture_ms_p50": 8.5405,
+        "capture_ms_p95": 10.7825
+      }
+    }
+  ],
+  "limitations": [
+    "The first1440calibration FAIL is preserved; the repeat PASS does not prove everyVM can sustain the target",
+    "Different GitHub VMs are not a controlled A/B hardware benchmark",
+    "No inference of FPS gain from removing a copy alone",
+    "Installed044EXE with8peers remains pending"
+  ]
+}
