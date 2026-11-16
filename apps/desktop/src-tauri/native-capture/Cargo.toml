@@ -7,10 +7,15 @@ license = "Apache-2.0"
 [features]
 default = []
 capture-diagnostics = []
+capture-frame-ready-experiment = ["capture-diagnostics"]
 
 [[example]]
 name = "wgc_diagnostics"
 required-features = ["capture-diagnostics"]
+
+[[example]]
+name = "frame_ready_probe"
+required-features = ["capture-frame-ready-experiment"]
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"] }

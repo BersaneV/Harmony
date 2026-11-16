@@ -61,6 +61,8 @@ pub struct Wgc {
     frame_token: i64,
     #[cfg(feature = "capture-diagnostics")]
     diagnostics: std::rc::Rc<crate::diagnostics::Recorder>,
+    #[cfg(feature = "capture-frame-ready-experiment")]
+    frame_signal: Arc<frame_ready::Signal>,
     pub title: String,
     // Rust drops fields in declaration order, after Drop; release COM before RoUninitialize.
     _apartment: Apartment,
@@ -148,6 +150,10 @@ impl Wgc {
                 size,
             )?;
             let session = pool.CreateCaptureSession(&item)?;
+            #[cfg(feature = "capture-frame-ready-experiment")]
+            let frame_signal = Arc::new(frame_ready::Signal::new());
+            #[cfg(feature = "capture-frame-ready-experiment")]
+            let close_signal = frame_signal.clone();
             let closed = Arc::new(AtomicBool::new(false));
             let closing = closed.clone();
             let closed_token = item.Closed(&TypedEventHandler::<
@@ -155,10 +161,14 @@ impl Wgc {
                 windows::core::IInspectable,
             >::new(move |_, _| {
                 closing.store(true, Ordering::Release);
+                #[cfg(feature = "capture-frame-ready-experiment")]
+                close_signal.signal();
                 Ok(())
             }))?;
             let ready = Arc::new(AtomicBool::new(false));
             let arrived = ready.clone();
+            #[cfg(feature = "capture-frame-ready-experiment")]
+            let arrival_signal = frame_signal.clone();
             #[cfg(feature = "capture-diagnostics")]
             let diagnostics = std::rc::Rc::new(crate::diagnostics::Recorder::new());
             #[cfg(feature = "capture-diagnostics")]
@@ -172,6 +182,8 @@ impl Wgc {
                 #[cfg(feature = "capture-diagnostics")]
                 notices.notify();
                 arrived.store(true, Ordering::Release);
+                #[cfg(feature = "capture-frame-ready-experiment")]
+                arrival_signal.signal();
                 Ok(())
             }))?;
             Self::set_interval(&session, profile.fps);
@@ -192,6 +204,8 @@ impl Wgc {
                 frame_token,
                 #[cfg(feature = "capture-diagnostics")]
                 diagnostics,
+                #[cfg(feature = "capture-frame-ready-experiment")]
+                frame_signal,
                 title,
                 _apartment: apartment,
             })
@@ -231,6 +245,19 @@ impl Wgc {
     }
     pub fn is_closed(&self) -> bool {
         self.closed.load(Ordering::Acquire)
+    }
+    #[cfg(feature = "capture-frame-ready-experiment")]
+    pub(super) fn wait_frame_ready(
+        &self,
+        timeout: std::time::Duration,
+        cancelled: impl Fn() -> bool,
+    ) -> super::FrameReadyWait {
+        self.frame_signal
+            .wait(&self.ready, &self.closed, timeout, cancelled)
+    }
+    #[cfg(feature = "capture-frame-ready-experiment")]
+    pub(super) fn frame_ready_counters(&self) -> super::FrameReadyCounters {
+        self.frame_signal.snapshot()
     }
     #[cfg(feature = "capture-diagnostics")]
     pub(super) fn diagnostics(&self) -> std::rc::Rc<crate::diagnostics::Recorder> {
@@ -415,5 +442,299 @@ impl Drop for Wgc {
         let _ = self.pool.RemoveFrameArrived(self.frame_token);
         let _ = self.session.Close();
         let _ = self.pool.Close();
+    }
+}
+
+#[cfg(feature = "capture-frame-ready-experiment")]
+mod frame_ready {
+    use super::super::{FrameReadyCounters, FrameReadyWait};
+    use std::{
+        os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle},
+        sync::atomic::{AtomicBool, AtomicU64, Ordering},
+        time::{Duration, Instant},
+    };
+    use windows_sys::Win32::{
+        Foundation::{GetLastError, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT},
+        System::Threading::{CreateEventW, ResetEvent, SetEvent, WaitForSingleObject},
+    };
+
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Point {
+        BeforeReset,
+        AfterReset,
+        BeforeWait,
+    }
+
+    // OwnedHandle closes exactly once, after WGC and all callback Arc owners
+    // are gone. No handle may close while a native wait borrows this Signal.
+    pub(super) struct Signal {
+        handle: Option<OwnedHandle>,
+        creation_error: u32,
+        calls: AtomicU64,
+        errors: AtomicU64,
+        total_ns: AtomicU64,
+        max_ns: AtomicU64,
+    }
+    impl Signal {
+        pub(super) fn new() -> Self {
+            // Unnamed manual-reset event, initially nonsignaled and not inherited.
+            let handle = unsafe { CreateEventW(std::ptr::null(), 1, 0, std::ptr::null()) };
+            if handle.is_null() {
+                return Self::unavailable(unsafe { GetLastError() });
+            }
+            Self {
+                handle: Some(unsafe { OwnedHandle::from_raw_handle(handle) }),
+                ..Self::unavailable(0)
+            }
+        }
+        fn unavailable(error: u32) -> Self {
+            Self {
+                handle: None,
+                creation_error: error,
+                calls: AtomicU64::new(0),
+                errors: AtomicU64::new(0),
+                total_ns: AtomicU64::new(0),
+                max_ns: AtomicU64::new(0),
+            }
+        }
+        pub(super) fn signal(&self) {
+            let start = Instant::now();
+            let ok = self
+                .handle
+                .as_ref()
+                .is_some_and(|handle| unsafe { SetEvent(handle.as_raw_handle()) } != 0);
+            let ns = u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX);
+            self.total_ns.fetch_add(ns, Ordering::Relaxed);
+            self.max_ns.fetch_max(ns, Ordering::Relaxed);
+            self.errors.fetch_add(u64::from(!ok), Ordering::Relaxed);
+            self.calls.fetch_add(1, Ordering::Release);
+        }
+        pub(super) fn snapshot(&self) -> FrameReadyCounters {
+            FrameReadyCounters {
+                available: self.handle.is_some(),
+                creation_error: self.creation_error,
+                signal_calls: self.calls.load(Ordering::Acquire),
+                signal_errors: self.errors.load(Ordering::Acquire),
+                signal_wall_ns: self.total_ns.load(Ordering::Acquire),
+                signal_max_wall_ns: self.max_ns.load(Ordering::Acquire),
+            }
+        }
+        pub(super) fn wait(
+            &self,
+            ready: &AtomicBool,
+            closed: &AtomicBool,
+            timeout: Duration,
+            cancelled: impl Fn() -> bool,
+        ) -> FrameReadyWait {
+            self.wait_inner(ready, closed, timeout, cancelled, |_| {})
+        }
+        fn wait_inner(
+            &self,
+            ready: &AtomicBool,
+            closed: &AtomicBool,
+            timeout: Duration,
+            cancelled: impl Fn() -> bool,
+            mut hook: impl FnMut(Point),
+        ) -> FrameReadyWait {
+            let start = Instant::now();
+            let timeout_ms = u32::from(!timeout.is_zero()); // Clamp every positive request to at most one millisecond.
+            let finish = |status, kernel_wait, kernel_wall_ns, error| {
+                let total = u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX);
+                FrameReadyWait {
+                    status,
+                    kernel_wait,
+                    timeout_ms,
+                    error,
+                    setup_wall_ns: total.saturating_sub(kernel_wall_ns),
+                    kernel_wall_ns,
+                }
+            };
+            if closed.load(Ordering::Acquire) {
+                return finish(4, false, 0, 0);
+            }
+            if cancelled() {
+                return finish(10, false, 0, 0);
+            }
+            if ready.load(Ordering::Acquire) {
+                return finish(0, false, 0, 0);
+            }
+            let Some(handle) = &self.handle else {
+                return finish(5, false, 0, self.creation_error);
+            };
+            hook(Point::BeforeReset);
+            if unsafe { ResetEvent(handle.as_raw_handle()) } == 0 {
+                return finish(6, false, 0, unsafe { GetLastError() });
+            }
+            hook(Point::AfterReset);
+            // The callback may set the latch immediately before ResetEvent.
+            // Rechecking after reset prevents that signal from being lost.
+            if closed.load(Ordering::Acquire) {
+                return finish(4, false, 0, 0);
+            }
+            if cancelled() {
+                return finish(10, false, 0, 0);
+            }
+            if ready.load(Ordering::Acquire) {
+                return finish(1, false, 0, 0);
+            }
+            hook(Point::BeforeWait);
+            let wait_start = Instant::now();
+            let outcome = unsafe { WaitForSingleObject(handle.as_raw_handle(), timeout_ms) };
+            let error = if outcome == WAIT_FAILED {
+                unsafe { GetLastError() }
+            } else {
+                0
+            };
+            let ns = u64::try_from(wait_start.elapsed().as_nanos()).unwrap_or(u64::MAX);
+            if closed.load(Ordering::Acquire) {
+                return finish(4, true, ns, 0);
+            }
+            if cancelled() {
+                return finish(10, true, ns, 0);
+            }
+            match outcome {
+                WAIT_OBJECT_0 => finish(
+                    if ready.load(Ordering::Acquire) { 2 } else { 8 },
+                    true,
+                    ns,
+                    0,
+                ),
+                WAIT_TIMEOUT => finish(
+                    if ready.load(Ordering::Acquire) { 9 } else { 3 },
+                    true,
+                    ns,
+                    0,
+                ),
+                _ => finish(7, true, ns, error),
+            }
+        }
+    }
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use std::sync::Arc;
+        #[test]
+        fn arrival_before_reset_is_preserved_by_latch_recheck() {
+            let s = Signal::new();
+            assert!(s.snapshot().available);
+            let ready = AtomicBool::new(false);
+            let closed = AtomicBool::new(false);
+            let r = s.wait_inner(
+                &ready,
+                &closed,
+                Duration::from_secs(9),
+                || false,
+                |point| {
+                    if point == Point::BeforeReset {
+                        ready.store(true, Ordering::Release);
+                        s.signal();
+                    }
+                },
+            );
+            assert_eq!(r.status, 1);
+            assert!(!r.kernel_wait);
+            assert_eq!(r.timeout_ms, 1);
+            assert!(ready.load(Ordering::Acquire));
+        }
+        #[test]
+        fn arrival_after_recheck_and_close_after_reset_both_wake_without_consumption() {
+            let s = Signal::new();
+            assert!(s.snapshot().available);
+            let ready = AtomicBool::new(false);
+            let closed = AtomicBool::new(false);
+            let r = s.wait_inner(
+                &ready,
+                &closed,
+                Duration::from_millis(1),
+                || false,
+                |point| {
+                    if point == Point::BeforeWait {
+                        ready.store(true, Ordering::Release);
+                        s.signal();
+                    }
+                },
+            );
+            assert_eq!(r.status, 2);
+            assert!(r.kernel_wait);
+            assert!(ready.load(Ordering::Acquire));
+            ready.store(false, Ordering::Release);
+            let r = s.wait_inner(
+                &ready,
+                &closed,
+                Duration::from_millis(1),
+                || false,
+                |point| {
+                    if point == Point::AfterReset {
+                        closed.store(true, Ordering::Release);
+                        s.signal();
+                    }
+                },
+            );
+            assert_eq!(r.status, 4);
+            assert!(!r.kernel_wait);
+            closed.store(false, Ordering::Release);
+            let r = s.wait_inner(
+                &ready,
+                &closed,
+                Duration::from_millis(1),
+                || false,
+                |point| {
+                    if point == Point::BeforeWait {
+                        closed.store(true, Ordering::Release);
+                        s.signal();
+                    }
+                },
+            );
+            assert_eq!(r.status, 4);
+            assert!(r.kernel_wait);
+        }
+        #[test]
+        fn cancellation_and_timeout_arguments_are_bounded_without_spin() {
+            let s = Signal::new();
+            let ready = AtomicBool::new(false);
+            let closed = AtomicBool::new(false);
+            let cancel = AtomicBool::new(false);
+            let r = s.wait_inner(
+                &ready,
+                &closed,
+                Duration::from_secs(30),
+                || cancel.load(Ordering::Acquire),
+                |point| {
+                    if point == Point::AfterReset {
+                        cancel.store(true, Ordering::Release);
+                    }
+                },
+            );
+            assert_eq!(r.status, 10);
+            assert!(!r.kernel_wait);
+            assert_eq!(r.timeout_ms, 1);
+            cancel.store(false, Ordering::Release);
+            let r = s.wait(&ready, &closed, Duration::ZERO, || false);
+            assert_eq!(r.status, 3);
+            assert!(r.kernel_wait);
+            assert_eq!(r.timeout_ms, 0);
+        }
+        #[test]
+        fn unavailable_event_is_explicit_and_arc_owns_handle_through_callbacks() {
+            let s = Signal::unavailable(5);
+            let ready = AtomicBool::new(false);
+            let closed = AtomicBool::new(false);
+            let r = s.wait(&ready, &closed, Duration::from_secs(1), || false);
+            assert_eq!(r.status, 5);
+            assert_eq!(r.error, 5);
+            assert!(!r.kernel_wait);
+            let owner = Arc::new(Signal::new());
+            assert!(owner.snapshot().available);
+            let weak = Arc::downgrade(&owner);
+            let callback = owner.clone();
+            drop(owner);
+            assert!(weak.upgrade().is_some());
+            let worker = std::thread::spawn(move || {
+                callback.signal();
+                assert_eq!(callback.snapshot().signal_errors, 0);
+            });
+            worker.join().unwrap();
+            assert!(weak.upgrade().is_none());
+        }
     }
 }

@@ -1,0 +1,128 @@
+name: Native Windows frame-ready wait experiment
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        type: choice
+        options: ["windows-2022", "windows-2025"]
+        default: "windows-2022"
+      height:
+        type: choice
+        options: ["1080", "1440"]
+        default: "1440"
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["windows-2022","windows-2025"]'), inputs.image) && contains(fromJSON('["1080","1440"]'), inputs.height)
+    runs-on: ${{ inputs.image }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with: { toolchain: "1.99.1", components: "clippy" }
+      - name: Check the real Windows core and diagnostic
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          cargo fmt --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --all-targets --locked --target-dir "$env:RUNNER_TEMP/harmony-native-frame-ready-target"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo clippy --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --all-targets --locked --target-dir "$env:RUNNER_TEMP/harmony-native-frame-ready-target" -- -D warnings
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --features capture-frame-ready-experiment --all-targets --locked --target-dir "$env:RUNNER_TEMP/harmony-native-frame-ready-target"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo clippy --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --features capture-frame-ready-experiment --all-targets --locked --target-dir "$env:RUNNER_TEMP/harmony-native-frame-ready-target" -- -D warnings
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --release --features capture-frame-ready-experiment --example frame_ready_probe --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --locked --target-dir "$env:RUNNER_TEMP/harmony-native-frame-ready-target"
+          exit $LASTEXITCODE
+      - name: Measure poll-event-event-poll on the same consented native window
+        shell: pwsh
+        env:
+          HARMONY_CAPTURE_HEIGHT: ${{ inputs.height }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $PSNativeCommandUseErrorActionPreference=$false
+          if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne 'BersaneV/Harmony' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:GITHUB_REF -ne 'refs/heads/main' -or $env:GITHUB_RUN_ID -notmatch '^[0-9]+$' -or $env:HARMONY_CAPTURE_HEIGHT -notin @('1080','1440')) { throw 'Owned public-main diagnostic required' }
+          $env:HARMONY_OWNED_WINDOW="HarmonyWAN-$env:GITHUB_RUN_ID"
+          $height=[int]$env:HARMONY_CAPTURE_HEIGHT
+          $width=[int]($height*16/9)
+          $sourceLog="$env:RUNNER_TEMP/native-frame-ready-source.log"
+          $sourceError="$env:RUNNER_TEMP/native-frame-ready-source-error.log"
+          $probeLog="$env:RUNNER_TEMP/native-frame-ready-probe.log"
+          $probeError="$env:RUNNER_TEMP/native-frame-ready-probe-error.log"
+          $window=$null
+          $probe=$null
+          $probeResult=1
+          try {
+            $cpu=@(Get-CimInstance Win32_Processor | ForEach-Object { $name=([string]$_.Name).Trim();[ordered]@{model=$name.Substring(0,[Math]::Min(160,$name.Length));guest_reported_cores=$_.NumberOfCores;logical_processors=$_.NumberOfLogicalProcessors} })
+            $gpu=@(Get-CimInstance Win32_VideoController | ForEach-Object { $name=([string]$_.Name).Trim();$driver=([string]$_.DriverVersion).Trim();[ordered]@{name=$name.Substring(0,[Math]::Min(160,$name.Length));driver_version=$driver.Substring(0,[Math]::Min(80,$driver.Length))} })
+            [ordered]@{kind='DIAGNOSTIC';capacity_approval=$false;commit=$env:GITHUB_SHA;height=$height;fps=60;cpu=$cpu;video_controllers=$gpu;scope='Guest-reported CPU/GPU names and driver versions only; no device IDs or inference of GPU execution'} | ConvertTo-Json -Compress -Depth 4
+            $window=Start-Process powershell.exe -ArgumentList @('-NoProfile','-File',"$PWD/scripts/exe-wan/window-layered.ps1",'-Title',$env:HARMONY_OWNED_WINDOW,'-Width',"$width",'-Height',"$height",'-Fps','60','-DurationSeconds','240') -PassThru -RedirectStandardOutput $sourceLog -RedirectStandardError $sourceError
+            $readyDeadline=[DateTime]::UtcNow.AddSeconds(30)
+            $ready=$null
+            while ([DateTime]::UtcNow -lt $readyDeadline) {
+              $window.Refresh()
+              if ($window.HasExited) { throw 'Owned source exited before its geometry was ready' }
+              if (Test-Path $sourceLog) {
+                $sourceText=Get-Content -Raw $sourceLog
+                if ($null -ne $sourceText) {
+                  $ready=[regex]::Match($sourceText,"(?m)^WINDOW ([0-9]+) ${width}x${height} TARGET 60 SOURCE native-layered-dib(?: |\r?$)")
+                  if ($ready.Success) { break }
+                }
+              }
+              Start-Sleep -Milliseconds 100
+            }
+            if ($null -eq $ready -or -not $ready.Success) { throw 'Owned source did not attest exact physical geometry' }
+            $env:HARMONY_OWNED_HWND=$ready.Groups[1].Value
+            $env:HARMONY_OWNED_PID="$($window.Id)"
+            $probe=Start-Process "$env:RUNNER_TEMP/harmony-native-frame-ready-target/release/examples/frame_ready_probe.exe" -PassThru -RedirectStandardOutput $probeLog -RedirectStandardError $probeError
+            $consentOutput=& powershell.exe -NoProfile -File scripts/exe-wan/native-consent.ps1 -Title $env:HARMONY_OWNED_WINDOW 2>&1
+            if ($LASTEXITCODE -ne 0) { throw 'Owned native confirmation failed' }
+            $probeDeadline=[DateTime]::UtcNow.AddSeconds(180)
+            while (-not $probe.WaitForExit(250)) {
+              $window.Refresh()
+              if ($window.HasExited) { throw 'Owned source exited during the diagnostic' }
+              if ([DateTime]::UtcNow -ge $probeDeadline) { throw 'Four-phase frame-ready experiment timed out' }
+            }
+            $probeResult=$probe.ExitCode
+            $records=@(Get-Content $probeLog | Where-Object { $_ -match '^HARMONY_FRAME_READY_(CONTEXT|PHASE|COMPLETE) ' } | ForEach-Object { ($_ -replace '^HARMONY_FRAME_READY_[A-Z]+ ','') | ConvertFrom-Json })
+            $phases=@($records | Where-Object { $null -ne $_.phase })
+            $complete=@($records | Where-Object { $_.completion -eq 'COMPLETE' })
+            $contexts=@($records | Where-Object { $null -ne $_.order })
+            if ($phases.Count -ne 4 -or $complete.Count -ne 1 -or $contexts.Count -ne 1 -or @($records | Where-Object { $_.capacity_approval -ne $false }).Count -ne 0) { throw 'Missing or invalid diagnostic completion records' }
+            if (($phases.policy -join ',') -cne 'poll,event,event,poll' -or ($phases.phase -join ',') -cne '0,1,2,3') { throw 'Unexpected diagnostic phase order' }
+            if (@($phases | Where-Object { $_.core.enabled -ne $true -or $_.instrumentation_enabled -ne $true -or $_.core.d3d_driver_type -notin @(1,2) -or $_.elapsed_seconds -lt 10 }).Count -ne 0) { throw 'Missing real core measurement context' }
+            if (@($phases | Where-Object { $_.quality_status -notin @('PASS','FAIL') }).Count -ne 0) { throw 'Missing original phase quality status' }
+            $qualityPassed=@($phases | Where-Object { $_.quality_status -ne 'PASS' }).Count -eq 0
+            $expectedQuality=if($qualityPassed){'PASS'}else{'FAIL'}
+            $eventPhases=@($phases | Where-Object { $_.policy -ceq 'event' })
+            $experimentVerified=$eventPhases.Count -eq 2 -and @($eventPhases | Where-Object { $_.experiment_status -cne 'VERIFIED' -or $_.event_exercised -ne $true -or $_.event_waits.positive_kernel_waits -le 0 -or $_.event_waits.maximum_timeout_argument_ms -ne 1 -or $_.event_waits.fallback_poll_waits -ne 0 -or $_.event_waits.fallback_all_phase_including_settle -ne 0 -or $_.signal_stats.available -ne $true -or $_.signal_stats.errors_delta -ne 0 -or $_.signal_stats.errors_all_phase_including_settle -ne 0 }).Count -eq 0
+            $expectedVerification=if($experimentVerified){'VERIFIED'}else{'NOT_VERIFIED'}
+            if ($complete[0].experiment_verified -ne $experimentVerified -or $complete[0].experiment_status -cne $expectedVerification) { throw 'Event verification contradicts actual positive waits or fallback' }
+            $expectedSuccess=$qualityPassed -and $experimentVerified
+            if ($probeResult -notin @(0,1) -or (($probeResult -eq 0) -ne $expectedSuccess) -or ($complete[0].quality_status -cne $expectedQuality)) { throw 'Probe exit code contradicts original quality gates' }
+          } finally {
+            $cleanupFailed=$false
+            foreach ($process in @($probe,$window)) {
+              if ($null -ne $process) {
+                try {
+                  $process.Refresh()
+                  if (-not $process.HasExited) {
+                    taskkill /PID $process.Id /T /F | Out-Null
+                    if (-not $process.WaitForExit(10000)) { $cleanupFailed=$true }
+                  }
+                } catch { $cleanupFailed=$true }
+              }
+            }
+            foreach ($path in @($probeLog,$probeError)) {
+              try { if (Test-Path $path) { Get-Content $path | Where-Object { $_ -match '^(HARMONY_FRAME_READY_|harmony_native_capture stage=)' } } } catch { $cleanupFailed=$true }
+            }
+            try {
+              if (Test-Path $sourceLog) { Get-Content $sourceLog | Where-Object { $_ -match '^(PAINT [0-9]+ ELAPSED_MS |LAYERED_SOURCE_SUMMARY )' } }
+              if ((Test-Path $sourceError) -and (Get-Item $sourceError).Length -gt 0) { $cleanupFailed=$true }
+            } catch { $cleanupFailed=$true }
+            if ($cleanupFailed) { throw 'Owned diagnostic process cleanup or log collection failed' }
+          }
+          exit $probeResult

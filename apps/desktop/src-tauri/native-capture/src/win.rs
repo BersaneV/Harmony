@@ -273,6 +273,27 @@ pub struct Capture {
     profile: Profile,
     wgc: wgc::Wgc,
 }
+/// Feature-only experiment result; no frame or permission is acquired by waiting.
+#[cfg(feature = "capture-frame-ready-experiment")]
+#[derive(Clone, Copy, Debug)]
+pub struct FrameReadyWait {
+    pub status: u8,
+    pub kernel_wait: bool,
+    pub timeout_ms: u32,
+    pub error: u32,
+    pub setup_wall_ns: u64,
+    pub kernel_wall_ns: u64,
+}
+#[cfg(feature = "capture-frame-ready-experiment")]
+#[derive(Clone, Copy, Debug)]
+pub struct FrameReadyCounters {
+    pub available: bool,
+    pub creation_error: u32,
+    pub signal_calls: u64,
+    pub signal_errors: u64,
+    pub signal_wall_ns: u64,
+    pub signal_max_wall_ns: u64,
+}
 impl Capture {
     pub fn new(
         source: Source,
@@ -301,6 +322,18 @@ impl Capture {
     }
     pub fn is_closed(&self) -> bool {
         self.wgc.is_closed()
+    }
+    #[cfg(feature = "capture-frame-ready-experiment")]
+    pub fn wait_frame_ready(
+        &self,
+        timeout: std::time::Duration,
+        cancelled: impl Fn() -> bool,
+    ) -> FrameReadyWait {
+        self.wgc.wait_frame_ready(timeout, cancelled)
+    }
+    #[cfg(feature = "capture-frame-ready-experiment")]
+    pub fn frame_ready_counters(&self) -> FrameReadyCounters {
+        self.wgc.frame_ready_counters()
     }
     #[cfg(feature = "capture-diagnostics")]
     pub fn set_diagnostics_enabled(&mut self, enabled: bool) {
