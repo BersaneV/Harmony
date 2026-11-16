@@ -15,7 +15,7 @@ import type {
 import type { Session } from "./types";
 import * as browserApi from "./api";
 import type { StreamProfile } from "./stream";
-import { registerCaptureTrack } from "./capture-track";
+import { registerCaptureTrack, getCaptureSettings } from "./capture-track";
 
 vi.mock("./api", () => ({
   api: vi.fn(),
@@ -99,6 +99,7 @@ class Track extends EventTarget {
   onunmute = null;
   onended = null;
   settings: MediaTrackSettings;
+  constraints: MediaTrackConstraints = {};
   onConstraints?: (constraints: MediaTrackConstraints) => void | Promise<void>;
   constructor(public kind: string) {
     super();
@@ -114,8 +115,12 @@ class Track extends EventTarget {
   getSettings() {
     return this.settings;
   }
+  getConstraints() {
+    return this.constraints;
+  }
   async applyConstraints(constraints: MediaTrackConstraints) {
     await this.onConstraints?.(constraints);
+    this.constraints = structuredClone(constraints);
     for (const key of ["width", "height", "frameRate"] as const) {
       const value = constraints[key];
       if (value && typeof value === "object" && value.max)
@@ -394,6 +399,11 @@ function setup(
     sockets: Socket[] = [];
   let relay: FakeRelay | undefined;
   const environment: CallEnvironment = {
+    // Explicit fake frame port: Node never guesses browser readiness.
+    resolveCaptureSettings: async (track) => {
+      const settings = getCaptureSettings(track);
+      return { width: settings.width!, height: settings.height! };
+    },
     getServer: () => "https://harmony.test",
     getSession: () => auth,
     onSession: (listener) => {
@@ -986,6 +996,7 @@ describe("optional screen relay integrated with real P2P engine", () => {
     const socket = await test.connect([capable("a"), capable("b")]);
     await description(socket, "b");
     const screen = new Track("video");
+    screen.getConstraints = () => ({}); // Browser did not confirm the imposed envelope.
     await test.call.setTrack("screen", screen.media());
     const ref = test.relay.ref!;
     expect(test.relay.setScreen).toHaveBeenLastCalledWith(
@@ -1750,6 +1761,291 @@ const description = async (
 };
 const codecOf = (sender: Sender) => sender.parameters.encodings[0]?.codec;
 
+describe("quadros reais antes do envelope de captura", () => {
+  it("não espera quadros ao publicar microfone ou câmera", async () => {
+    const test = setup(),
+      socket = await test.connect();
+    await description(socket);
+    const resolve = vi.fn(async () => {
+      throw new Error("Not a screen");
+    });
+    test.environment.resolveCaptureSettings = resolve;
+    const microphone = new Track("audio"),
+      camera = new Track("video");
+    await test.call.setTrack("microphone", microphone.media());
+    await test.call.setTrack("camera", camera.media());
+    expect(resolve).not.toHaveBeenCalled();
+    expect(test.peers[0].slots[0].sender.track).toBe(microphone);
+    expect(test.peers[0].slots[1].sender.track).toBe(camera);
+  });
+  it("aguarda um quadro real antes de impor width.max e não usa os settings transitórios", async () => {
+    const test = setup({ codecs: videoCodecs }),
+      socket = await test.connect();
+    await description(socket);
+    await test.call.setScreenProfile(screenProfile);
+    const track = new Track("video");
+    track.settings = { width: 960, height: 720 };
+    const constrained = vi.fn();
+    track.onConstraints = constrained;
+    let frame!: (value: { width: number; height: number }) => void;
+    test.environment.resolveCaptureSettings = () =>
+      new Promise((resolve) => {
+        frame = resolve;
+      });
+    const publishing = test.call.setTrack("screen", track.media());
+    await flush();
+    expect(constrained).not.toHaveBeenCalled();
+    expect(test.peers[0].slots[2].sender.track).toBeNull();
+    frame({ width: 1280, height: 720 });
+    await publishing;
+    expect(constrained).toHaveBeenCalledWith({
+      width: { max: 1280 },
+      height: { max: 720 },
+      frameRate: { max: 30 },
+    });
+    expect(codecOf(test.peers[0].slots[2].sender)?.mimeType).toBe("video/H264");
+  });
+  it("não seleciona H264 para um envelope ultrawide mesmo quando getSettings continua em960x720", async () => {
+    const test = setup({ codecs: videoCodecs }),
+      socket = await test.connect();
+    await description(socket);
+    await test.call.setScreenProfile(screenProfile);
+    const track = new Track("video");
+    track.settings = { width: 960, height: 720 };
+    track.applyConstraints = async (constraints) => {
+      track.constraints = structuredClone(constraints);
+    };
+    test.environment.resolveCaptureSettings = async () => ({
+      width: 3440,
+      height: 1440,
+    });
+    await test.call.setTrack("screen", track.media());
+    expect(track.constraints.width).toEqual({ max: 1720 });
+    expect(codecOf(test.peers[0].slots[2].sender)?.mimeType).toBe("video/VP8");
+  });
+  it("reobserva o aspecto após resize e muda para VP8 antes de ampliar o width fence", async () => {
+    const test = setup({ codecs: videoCodecs }),
+      socket = await test.connect();
+    await description(socket);
+    await test.call.setScreenProfile(screenProfile);
+    const track = new Track("video");
+    track.settings = { width: 960, height: 720 };
+    const atApply: (string | undefined)[] = [];
+    track.applyConstraints = async (constraints) => {
+      atApply.push(codecOf(test.peers[0].slots[2].sender)?.mimeType);
+      track.constraints = structuredClone(constraints);
+    };
+    const geometry = vi.fn(async () => ({ width: 1280, height: 720 }));
+    test.environment.resolveCaptureSettings = geometry;
+    await test.call.setTrack("screen", track.media());
+    expect(track.constraints.width).toEqual({ max: 1280 });
+    expect(codecOf(test.peers[0].slots[2].sender)?.mimeType).toBe("video/H264");
+    geometry.mockResolvedValue({ width: 1280, height: 540 }); // Current 21:9 frame, still under the previous width cap.
+    await test.call.setScreenProfile({ ...screenProfile, bitrate: 3 });
+    expect(geometry).toHaveBeenCalledTimes(2);
+    expect(track.constraints.width).toEqual({ max: 1707 });
+    expect(atApply[1]).toBe("video/VP8");
+    expect(codecOf(test.peers[0].slots[2].sender)?.mimeType).toBe("video/VP8");
+  });
+  it.each(["close", "revoke", "replace"])(
+    "cancela a espera de quadro em%s sem aplicar caps ou publicar resultado tardio",
+    async (cause) => {
+      const test = setup(),
+        socket = await test.connect();
+      await description(socket);
+      const track = new Track("video"),
+        next = new Track("video"),
+        mic = new Track("audio");
+      await test.call.setTrack("microphone", mic.media());
+      const constrained = vi.fn();
+      track.onConstraints = constrained;
+      let signal!: AbortSignal,
+        frame!: (value: { width: number; height: number }) => void;
+      test.environment.resolveCaptureSettings = (source, options) => {
+        if (source === next.media())
+          return Promise.resolve({ width: 1280, height: 720 });
+        signal = options.signal!;
+        return new Promise((resolve, reject) => {
+          frame = resolve;
+          signal.addEventListener(
+            "abort",
+            () => reject(new DOMException("cancelled", "AbortError")),
+            { once: true },
+          );
+        });
+      };
+      const publishing = test.call.setTrack("screen", track.media());
+      const rejected = expect(publishing).rejects.toThrow();
+      await flush();
+      if (cause === "close") test.call.close();
+      else if (cause === "revoke")
+        socket.receive({
+          type: "roster",
+          participants: [roster("a", false), roster("b")],
+        });
+      else await test.call.setTrack("screen", next.media());
+      await rejected;
+      expect(signal.aborted).toBe(true);
+      frame({ width: 3840, height: 2160 });
+      await flush();
+      expect(constrained).not.toHaveBeenCalled();
+      expect(track.readyState).toBe("ended");
+      if (cause === "replace") {
+        expect(test.call.snapshot.localTracks.screen).toBe(next);
+        expect(test.peers[0].slots[2].sender.track).toBe(next);
+        expect(mic.readyState).toBe("live");
+      } else expect(test.call.snapshot.localTracks.screen).toBeUndefined();
+    },
+  );
+  it("rejeita metadados de quadro incompletos em vez de inventar16:9", async () => {
+    const test = setup(),
+      socket = await test.connect();
+    await description(socket);
+    const track = new Track("video");
+    track.settings = { height: 720 };
+    await expect(test.call.setTrack("screen", track.media())).rejects.toThrow(
+      "dimensões",
+    );
+    expect(track.readyState).toBe("ended");
+    expect(test.peers[0].slots[2].sender.track).toBeNull();
+  });
+  it("restaura a publicação compartilhada anterior quando a nova fonte falha antes do primeiro quadro", async () => {
+    const test = setup({ screenSfu: true }),
+      socket = await test.connect([capable("a"), capable("b")]);
+    await description(socket);
+    const previous = boundedScreen(),
+      next = new Track("video"),
+      audio = new Track("audio");
+    await test.call.setTrack("screen", previous.media());
+    await test.call.setTrack("screen_audio", audio.media());
+    expect(test.relay.screen).toBe(previous);
+    expect(test.call.snapshot.localTracks.screen_audio).toBe(audio);
+    expect(audio.readyState).toBe("live");
+    expect(test.relay.audio).toBe(audio);
+    const previousRef = test.relay.ref;
+    let fail!: (error: Error) => void;
+    test.environment.resolveCaptureSettings = () =>
+      new Promise((_resolve, reject) => {
+        fail = reject;
+      });
+    const replacing = test.call.setTrack("screen", next.media());
+    const rejected = expect(replacing).rejects.toThrow("No new frame");
+    await flush();
+    const observed = {
+      video: test.relay.screen,
+      audio: test.relay.audio,
+      ref: test.relay.ref,
+    };
+    fail(new Error("No new frame"));
+    await rejected;
+    expect(observed).toEqual({ video: previous, audio, ref: previousRef });
+    expect(next.readyState).toBe("ended");
+    expect(previous.readyState).toBe("live");
+    expect(test.call.snapshot.localTracks.screen).toBe(previous);
+    expect(test.relay.screen).toBe(previous);
+    expect(test.call.snapshot.localTracks.screen_audio).toBe(audio);
+    expect(audio.readyState).toBe("live");
+    expect(test.relay.audio).toBe(audio);
+    expect(test.relay.ref).toEqual(previousRef);
+    const valid = new Track("video");
+    test.environment.resolveCaptureSettings = async () => ({
+      width: 1280,
+      height: 720,
+    });
+    await test.call.setTrack("screen", valid.media());
+    expect(previous.readyState).toBe("ended");
+    expect(audio.readyState).toBe("ended");
+    expect(test.call.snapshot.localTracks.screen_audio).toBeUndefined();
+    expect(test.relay.screen).toBe(valid);
+    expect(test.relay.audio).toBeUndefined();
+  });
+  it("preserva vídeo e áudio antigos se a nova fonte termina enquanto o SDK retira a publicação", async () => {
+    const test = setup({ screenSfu: true }),
+      socket = await test.connect([capable("a"), capable("b")]);
+    await description(socket);
+    const old = boundedScreen(),
+      audio = new Track("audio"),
+      next = new Track("video");
+    await test.call.setTrack("screen", old.media());
+    await test.call.setTrack("screen_audio", audio.media());
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    test.relay.beforeScreen = async (track) => {
+      if (!track) await held;
+    };
+    const changing = test.call.setTrack("screen", next.media());
+    const rejected = expect(changing).rejects.toThrow("fonte");
+    await flush();
+    next.end();
+    release();
+    await rejected;
+    expect(old.readyState).toBe("live");
+    expect(audio.readyState).toBe("live");
+    expect(test.call.snapshot.localTracks.screen).toBe(old);
+    expect(test.call.snapshot.localTracks.screen_audio).toBe(audio);
+    expect(test.relay.screen).toBe(old);
+    expect(test.relay.audio).toBe(audio);
+  });
+  it("mantém o uplink anterior enquanto só observa geometria para outro perfil e preserva-o se a observação falha", async () => {
+    const test = setup({ screenSfu: true }),
+      socket = await test.connect([capable("a"), capable("b")]);
+    await description(socket);
+    const track = boundedScreen();
+    await test.call.setTrack("screen", track.media());
+    const previous = test.relay.ref;
+    let fail!: (error: Error) => void;
+    test.environment.resolveCaptureSettings = () =>
+      new Promise((_resolve, reject) => {
+        fail = reject;
+      });
+    const changing = test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+    });
+    const rejected = expect(changing).rejects.toThrow("No frame");
+    await flush();
+    const observed = { track: test.relay.screen, ref: test.relay.ref };
+    fail(new Error("No frame"));
+    await rejected;
+    expect(observed.track).toBe(track);
+    expect(observed.ref).toEqual(previous);
+    expect(test.relay.screen).toBe(track);
+    expect(test.relay.ref).toEqual(previous);
+    expect(test.call.snapshot.localTracks.screen).toBe(track);
+  });
+  it("fecha imediatamente enquanto uma mudança de perfil aguarda geometria, sem aplicar limites tardios", async () => {
+    const test = setup(),
+      socket = await test.connect();
+    await description(socket);
+    const track = new Track("video");
+    await test.call.setTrack("screen", track.media());
+    const previous = structuredClone(track.constraints),
+      controller = { signal: undefined as AbortSignal | undefined };
+    test.environment.resolveCaptureSettings = (_track, options) =>
+      new Promise((_resolve, reject) => {
+        controller.signal = options.signal;
+        options.signal!.addEventListener(
+          "abort",
+          () => reject(new DOMException("cancelled", "AbortError")),
+          { once: true },
+        );
+      });
+    const changing = test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+    });
+    const rejected = expect(changing).rejects.toThrow();
+    await flush();
+    test.call.close();
+    await rejected;
+    expect(controller.signal?.aborted).toBe(true);
+    expect(track.readyState).toBe("ended");
+    expect(track.constraints).toEqual(previous);
+  });
+});
+
 describe("captura nativa no engine real", () => {
   it("mantém caps e escala por destinatário com settings nativos e oito espectadores com voz", async () => {
     const test = setup({ codecs: videoCodecs });
@@ -1836,7 +2132,7 @@ describe("captura nativa no engine real", () => {
     expect(release).toHaveBeenCalledOnce();
   });
 
-  it("preserva a elegibilidade H264 de720p30 com geometria da porta", async () => {
+  it("mantém VP8 quando o controle nativo não comprova largura máxima futura", async () => {
     const test = setup({ codecs: videoCodecs }),
       socket = await test.connect();
     await description(socket);
@@ -1852,7 +2148,7 @@ describe("captura nativa no engine real", () => {
       release: () => track.stop(),
     });
     await test.call.setTrack("screen", track.media());
-    expect(codecOf(test.peers[0].slots[2].sender)?.mimeType).toBe("video/H264");
+    expect(codecOf(test.peers[0].slots[2].sender)?.mimeType).toBe("video/VP8");
   });
 });
 
@@ -1948,12 +2244,6 @@ describe("screen codec selection per negotiated sender", () => {
       name: "16 Mb/s",
       profile: { bitrate: 16 },
       geometry: { width: 1280, height: 720 },
-      expected: "video/VP8",
-    },
-    {
-      name: "unknown width",
-      profile: {},
-      geometry: { height: 720 },
       expected: "video/VP8",
     },
     {

@@ -585,8 +585,10 @@ export default function P2PCallPanel({
           surfaceSwitching: string;
         } = {
           video: {
-            ...(profile.height ? { height: { ideal: profile.height } } : {}),
-            frameRate: { ideal: profile.fps || 30 },
+            ...(profile.height
+              ? { height: { ideal: profile.height, max: profile.height } }
+              : {}),
+            frameRate: { ideal: profile.fps || 30, max: profile.fps || 30 },
           },
           audio: profile.audio,
           selfBrowserSurface: "exclude",
@@ -598,16 +600,13 @@ export default function P2PCallPanel({
       }
       const video = stream.getVideoTracks()[0];
       if (!video) throw new Error("A captura não forneceu vídeo.");
-      const settings = getCaptureSettings(video);
-      const ratio = (settings.width || 16) / (settings.height || 9);
+      // Initial browser dimensions may describe the desktop before the first
+      // window frame. Let the source preserve its natural aspect ratio.
       await applyCaptureConstraints(video, {
         ...(profile.height
-          ? {
-              height: { max: profile.height },
-              width: { max: Math.round(profile.height * ratio) },
-            }
+          ? { height: { ideal: profile.height, max: profile.height } }
           : {}),
-        frameRate: { max: profile.fps || 30 },
+        frameRate: { ideal: profile.fps || 30, max: profile.fps || 30 },
       });
       video.contentHint = profile.content === "text" ? "detail" : "motion";
       if (

@@ -570,7 +570,11 @@ try {
               s.participants.find((p) => p.user === owner.user.id)
                 ?.screenTransport === "p2p",
           ) &&
-        all[0].p2p.every((p) => p.screen !== null && p.mic === all[0].mic)
+        all[0].p2p.every((p) => p.screen !== null && p.mic === all[0].mic) &&
+        all[0].relayRef === null &&
+        all[0].screenUpload.connections.sfu === 0 &&
+        all[0].screenUpload.connections.p2p === 7 &&
+        all[0].screenUpload.maxBitrate === 14_000_000
       );
     },
     "Real SFU loss restores P2P screen and audio for all recipients",

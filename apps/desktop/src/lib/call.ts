@@ -13,7 +13,12 @@ import {
   applyCaptureConstraints,
   getCaptureSettings,
   getCaptureBound,
+  resolveCaptureSettings,
   releaseCaptureTrack,
+} from "./capture-track";
+import type {
+  CaptureFrameSettings,
+  CaptureSettingsOptions,
 } from "./capture-track";
 import type {
   ScreenRelay,
@@ -101,6 +106,10 @@ export interface CallEnvironment {
   refreshSession: () => Promise<Session>;
   socket: (url: string) => WebSocket;
   peer: (configuration: RTCConfiguration) => RTCPeerConnection;
+  resolveCaptureSettings: (
+    track: MediaStreamTrack,
+    options: CaptureSettingsOptions,
+  ) => Promise<CaptureFrameSettings>;
   getCallConfig?: (
     channel: string,
     signal?: AbortSignal,
@@ -126,6 +135,7 @@ const browserEnvironment: CallEnvironment = {
   refreshSession,
   socket: (url) => new WebSocket(url),
   peer: (configuration) => new RTCPeerConnection(configuration),
+  resolveCaptureSettings,
   getCallConfig: (channel, signal) =>
     api(`/api/channels/${channel}/call`, { signal }),
   getScreenToken: (channel, peer) =>
@@ -404,7 +414,8 @@ export class P2PCall {
   private local: CallTracks = {};
   private pendingTracks = new Set<MediaStreamTrack>();
   private ended = new Map<MediaStreamTrack, () => void>();
-  private screenGeometry = new WeakMap<MediaStreamTrack, boolean>();
+  private captureSettingsWait?: AbortController;
+  private screenRevision = 0;
   private screenTransition?: {
     run: number;
     track: MediaStreamTrack;
@@ -1620,12 +1631,16 @@ export class P2PCall {
     desired: RTCRtpEncodingParameters,
     codecs: RTCRtpCodecParameters[],
     projected: boolean,
+    geometry?: CaptureFrameSettings,
   ): RTCRtpCodecParameters | undefined {
     const settings = getCaptureSettings(track);
+    const envelope = getCaptureBound(track);
     const width = finite(settings.width),
       height = finite(settings.height);
     if (
-      this.screenGeometry.get(track) !== true ||
+      !envelope?.max_width ||
+      envelope.max_width > 1280 ||
+      envelope.max_height > 720 ||
       !width ||
       !height ||
       width <= 0 ||
@@ -1640,11 +1655,18 @@ export class P2PCall {
       return;
     // Use the imposed width envelope, not just the current (possibly smaller)
     // window. A later resize must still fit Constrained Baseline level 3.1.
-    const boundWidth = Math.round((profile.height * width) / height);
+    const boundWidth =
+      projected && geometry
+        ? Math.round((profile.height * geometry.width) / geometry.height)
+        : envelope.max_width;
+    if (projected && !geometry) return;
     if (
       boundWidth < 1 ||
       boundWidth > 1280 ||
-      (!projected && (width > boundWidth || height > profile.height))
+      (!projected &&
+        (width > boundWidth ||
+          height > profile.height ||
+          envelope.max_height > profile.height))
     )
       return;
     const blocks = Math.ceil(boundWidth / 16) * Math.ceil(profile.height / 16);
@@ -1685,6 +1707,7 @@ export class P2PCall {
     track: MediaStreamTrack,
     profile: StreamProfile,
     projected = false,
+    geometry?: CaptureFrameSettings,
   ): Promise<boolean> {
     const run = this.generation,
       epoch = this.publicationEpoch;
@@ -1723,6 +1746,7 @@ export class P2PCall {
             this.encoding("screen", peer, profile),
             parameters.codecs,
             projected,
+            geometry,
           )
         : undefined;
     // If SDP reset an active H264 sender, do not attempt a hot switch back from
@@ -1817,20 +1841,42 @@ export class P2PCall {
   ) {
     if (sender.track !== track) await sender.replaceTrack(track);
   }
-  private async constrain(track: MediaStreamTrack, profile: StreamProfile) {
-    const settings = getCaptureSettings(track);
-    const geometryKnown =
-      this.screenGeometry.get(track) !== false &&
-      typeof settings.width === "number" &&
-      Number.isFinite(settings.width) &&
-      settings.width > 0 &&
-      typeof settings.height === "number" &&
-      Number.isFinite(settings.height) &&
-      settings.height > 0;
-    const ratio =
-      settings.width && settings.height
-        ? settings.width / settings.height
-        : 16 / 9;
+  private async captureSettings(
+    track: MediaStreamTrack,
+    allowed: () => boolean,
+  ): Promise<CaptureFrameSettings> {
+    if (!allowed()) throw new Error("A fonte ou a permissão da captura mudou.");
+    const controller = new AbortController();
+    this.captureSettingsWait?.abort();
+    this.captureSettingsWait = controller;
+    try {
+      const geometry = await this.environment.resolveCaptureSettings(track, {
+        signal: controller.signal,
+        timeoutMs: 3000,
+      });
+      if (controller.signal.aborted || !allowed())
+        throw new Error("A fonte ou a permissão da captura mudou.");
+      if (
+        !Number.isSafeInteger(geometry.width) ||
+        geometry.width <= 0 ||
+        !Number.isSafeInteger(geometry.height) ||
+        geometry.height <= 0
+      )
+        throw new Error("A captura não confirmou as dimensões de um quadro.");
+      return { width: geometry.width, height: geometry.height };
+    } finally {
+      if (this.captureSettingsWait === controller)
+        this.captureSettingsWait = undefined;
+    }
+  }
+  private async constrain(
+    track: MediaStreamTrack,
+    profile: StreamProfile,
+    geometry: CaptureFrameSettings,
+    allowed: () => boolean,
+  ) {
+    if (!allowed()) throw new Error("A fonte ou a permissão da captura mudou.");
+    const ratio = geometry.width / geometry.height;
     await applyCaptureConstraints(track, {
       height: profile.height ? { max: profile.height } : undefined,
       width: profile.height
@@ -1838,7 +1884,7 @@ export class P2PCall {
         : undefined,
       frameRate: { max: profile.fps || 30 },
     });
-    this.screenGeometry.set(track, geometryKnown);
+    if (!allowed()) throw new Error("A fonte ou a permissão da captura mudou.");
     track.contentHint = profile.content === "text" ? "detail" : "motion";
   }
   private publishMedia() {
@@ -1855,6 +1901,9 @@ export class P2PCall {
   /** Transfers ownership: rejected or superseded tracks are stopped too. */
   setTrack(source: CallSource, track: MediaStreamTrack | null): Promise<void> {
     if (track) this.pendingTracks.add(track);
+    const revision =
+      source === "screen" ? ++this.screenRevision : this.screenRevision;
+    if (source === "screen") this.captureSettingsWait?.abort();
     const run = this.generation,
       epoch = this.publicationEpoch;
     const operation = this.mediaQueue
@@ -1879,22 +1928,41 @@ export class P2PCall {
           releaseCaptureTrack(track);
           throw new Error("Compartilhe uma tela antes de publicar seu áudio.");
         }
+        // Preparing an unpublished source cannot alter the current SDK video
+        // or its audio. Retire them only after the new frame/caps are ready.
+        if (source === "screen" && track && this.local.screen !== track) {
+          const allowed = () =>
+            this.mayPublish(run, epoch) &&
+            revision === this.screenRevision &&
+            track.readyState === "live";
+          try {
+            const geometry = await this.captureSettings(track, allowed);
+            await this.constrain(track, this.data.profile, geometry, allowed);
+          } catch (error) {
+            releaseCaptureTrack(track);
+            if (this.mayPublish(run, epoch) && revision === this.screenRevision)
+              await this.syncRelay();
+            throw error;
+          }
+        }
         if (
           (source === "screen" || source === "screen_audio") &&
           this.local[source] !== track
         )
           await this.syncRelay(true);
+        if (
+          source === "screen" &&
+          (!this.mayPublish(run, epoch) ||
+            revision !== this.screenRevision ||
+            (track && track.readyState !== "live"))
+        ) {
+          releaseCaptureTrack(track);
+          if (this.mayPublish(run, epoch) && revision === this.screenRevision)
+            await this.syncRelay();
+          throw new Error("A fonte ou a permissão da captura mudou.");
+        }
         if (source === "screen" && this.local.screen !== track)
           await this.replaceSource("screen_audio", null, run, epoch);
-        if (source === "screen" && track) {
-          try {
-            await this.constrain(track, this.data.profile);
-          } catch (error) {
-            releaseCaptureTrack(track);
-            await this.syncRelay();
-            throw error;
-          }
-        }
         await this.replaceSource(source, track, run, epoch);
         if (source === "screen" || source === "screen_audio")
           await this.syncRelay();
@@ -2019,13 +2087,22 @@ export class P2PCall {
         if (!this.mayPublish(run, epoch))
           throw new Error("A transmissão não está autorizada.");
         const track = this.local.screen;
+        const revision = this.screenRevision;
+        const allowed = () =>
+          this.mayPublish(run, epoch) &&
+          revision === this.screenRevision &&
+          this.local.screen === track &&
+          track?.readyState === "live";
         const transition = track
           ? { run, track, deferred: new Set<Peer>() }
           : undefined;
         if (transition) this.screenTransition = transition;
         try {
           if (track) {
+            const geometry = await this.captureSettings(track, allowed);
             await this.syncRelay(true);
+            if (!allowed())
+              throw new Error("Sua permissão de transmissão foi removida.");
             // A codec transition must finish before the capture can exceed H264's
             // envelope. This preflight changes no bitrate, FPS or scaling caps;
             // failure therefore leaves the previous capture/profile usable.
@@ -2037,6 +2114,7 @@ export class P2PCall {
                     track,
                     candidate,
                     true,
+                    geometry,
                   );
                   if (
                     !prepared &&
@@ -2050,9 +2128,9 @@ export class P2PCall {
                 }),
               ),
             );
-            if (!this.mayPublish(run, epoch))
+            if (!allowed())
               throw new Error("Sua permissão de transmissão foi removida.");
-            await this.constrain(track, candidate);
+            await this.constrain(track, candidate, geometry, allowed);
           }
           if (!this.mayPublish(run, epoch))
             throw new Error("Sua permissão de transmissão foi removida.");
@@ -2060,7 +2138,7 @@ export class P2PCall {
         } catch (error) {
           if (transition && this.screenTransition === transition) {
             this.screenTransition = undefined;
-            if (this.mayPublish(run, epoch) && this.local.screen === track) {
+            if (allowed()) {
               // A failed capture change keeps its previous profile. Only peers
               // deferred by this operation need to be attached during recovery.
               await Promise.all(
@@ -2260,6 +2338,8 @@ export class P2PCall {
     }
   }
   private stopLocal() {
+    this.captureSettingsWait?.abort();
+    this.captureSettingsWait = undefined;
     this.screenTransition = undefined;
     for (const track of this.pendingTracks) {
       track.enabled = false;
