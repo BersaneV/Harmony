@@ -86,6 +86,7 @@ export interface CallEnvironment {
   peer: (configuration: RTCConfiguration) => RTCPeerConnection;
   getCallConfig?: (
     channel: string,
+    signal?: AbortSignal,
   ) => Promise<{ screen_sfu_enabled?: boolean }>;
   getScreenToken?: (channel: string, peer: string) => Promise<ScreenRelayGrant>;
   relayFactory?: (
@@ -108,7 +109,8 @@ const browserEnvironment: CallEnvironment = {
   refreshSession,
   socket: (url) => new WebSocket(url),
   peer: (configuration) => new RTCPeerConnection(configuration),
-  getCallConfig: (channel) => api(`/api/channels/${channel}/call`),
+  getCallConfig: (channel, signal) =>
+    api(`/api/channels/${channel}/call`, { signal }),
   getScreenToken: (channel, peer) =>
     api(`/api/channels/${channel}/screen-token`, {
       method: "POST",
@@ -400,6 +402,8 @@ export class P2PCall {
   private sampleTimer?: ReturnType<typeof setInterval>;
   private refreshTimer?: ReturnType<typeof setTimeout>;
   private connectTimer?: ReturnType<typeof setTimeout>;
+  private capabilityTimer?: ReturnType<typeof setTimeout>;
+  private capabilityAbort?: AbortController;
   private lastPong = 0;
   private mediaQueue: Promise<unknown> = Promise.resolve();
   private samplingRun: number | null = null;
@@ -814,11 +818,14 @@ export class P2PCall {
       this.unsubscribeSession = undefined;
       return flight;
     }
-    this.connectTimer = setTimeout(
-      () => this.fail("O servidor não confirmou a entrada na chamada."),
-      15_000,
-    );
     const open = () => {
+      if (!this.live(run)) return;
+      // The optional HTTP lookup has its own 1.5 s budget. Preserve the full
+      // existing 15 s deadline from the WebSocket attempt, even before onopen.
+      this.connectTimer = setTimeout(
+        () => this.fail("O servidor não confirmou a entrada na chamada."),
+        15_000,
+      );
       try {
         const url = new URL("/api/calls", this.origin);
         url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
@@ -881,19 +888,31 @@ export class P2PCall {
       }
     };
     if (this.environment.getCallConfig) {
-      void this.environment
-        .getCallConfig(this.options.channelId)
-        .then((config) => {
-          if (this.live(run))
-            this.screenSfuAdvertised =
-              config.screen_sfu_enabled === true &&
-              !!this.environment.getScreenToken &&
-              !!this.environment.relayFactory;
-        })
-        .catch(() => {})
-        .then(() => {
-          if (this.live(run)) open();
-        });
+      const controller = new AbortController();
+      this.capabilityAbort = controller;
+      let settled = false;
+      const finishDiscovery = (enabled: boolean) => {
+        if (settled) return;
+        settled = true;
+        if (this.capabilityAbort === controller) this.clearCapability();
+        if (!this.live(run)) return;
+        this.screenSfuAdvertised =
+          enabled &&
+          !!this.environment.getScreenToken &&
+          !!this.environment.relayFactory;
+        open();
+      };
+      this.capabilityTimer = setTimeout(() => finishDiscovery(false), 1500);
+      try {
+        void this.environment
+          .getCallConfig(this.options.channelId, controller.signal)
+          .then((config) =>
+            finishDiscovery(config?.screen_sfu_enabled === true),
+          )
+          .catch(() => finishDiscovery(false));
+      } catch {
+        finishDiscovery(false);
+      }
     } else open();
     return flight;
   }
@@ -2116,10 +2135,18 @@ export class P2PCall {
   close(reason = "Você saiu da chamada.") {
     this.finish("closed", reason);
   }
+  private clearCapability() {
+    clearTimeout(this.capabilityTimer);
+    this.capabilityTimer = undefined;
+    const controller = this.capabilityAbort;
+    this.capabilityAbort = undefined;
+    controller?.abort();
+  }
   private finish(state: "closed" | "failed", reason: string) {
     // Also invalidate an in-flight manual reconnect when the UI unmounts.
     ++this.generation;
     ++this.publicationEpoch;
+    this.clearCapability();
     if (!["connecting", "connected"].includes(this.data.state)) return;
     clearTimeout(this.connectTimer);
     clearTimeout(this.refreshTimer);

@@ -616,6 +616,100 @@ describe("real call ownership and authority", () => {
 });
 
 describe("optional screen relay integrated with real P2P engine", () => {
+  it("opens healthy P2P after 1.5 s of optional discovery, aborts lookup and ignores late capability", async () => {
+    const test = setup({ screenSfu: true });
+    let resolve!: (value: { screen_sfu_enabled: boolean }) => void;
+    let signal: AbortSignal | undefined;
+    test.environment.getCallConfig = (_channel, requestedSignal) => {
+      signal = requestedSignal;
+      return new Promise((yes) => {
+        resolve = yes;
+      });
+    };
+    const pending = test.call.connect();
+    await vi.advanceTimersByTimeAsync(1499);
+    expect(test.sockets).toHaveLength(0);
+    expect(signal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(test.sockets).toHaveLength(1);
+    expect(signal?.aborted).toBe(true);
+    const socket = test.sockets[0];
+    socket.open();
+    expect(socket.sent[0]).not.toHaveProperty("screen_sfu");
+    socket.receive({
+      type: "ready",
+      peer_id: "a",
+      channel_id: "channel",
+      screen_sfu_enabled: true,
+      max_participants: 12,
+      max_video_bitrate: 8_000_000,
+      ice_servers: [],
+      participants: [roster("a"), capable("b")],
+    });
+    await pending;
+    resolve({ screen_sfu_enabled: true });
+    await flush();
+    expect(test.sockets).toHaveLength(1);
+    expect(test.environment.getScreenToken).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(13_500);
+    expect(test.call.snapshot.state).toBe("connected");
+    test.call.close();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("preserves the full 15 s WebSocket handshake budget after the bounded HTTP lookup", async () => {
+    const test = setup({ screenSfu: true });
+    test.environment.getCallConfig = () => new Promise(() => {});
+    const pending = test.call.connect();
+    const rejection = expect(pending).rejects.toThrow(
+      "não confirmou a entrada",
+    );
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(test.sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(test.call.snapshot.state).toBe("connecting");
+    await vi.advanceTimersByTimeAsync(1);
+    await rejection;
+    expect(test.call.snapshot.state).toBe("failed");
+    expect(test.sockets).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("cleans discovery timers and aborts on close without allowing a stale lookup to open a socket", async () => {
+    const test = setup({ screenSfu: true });
+    let resolve!: (value: { screen_sfu_enabled: boolean }) => void;
+    let signal: AbortSignal | undefined;
+    test.environment.getCallConfig = (_channel, requestedSignal) => {
+      signal = requestedSignal;
+      return new Promise((yes) => {
+        resolve = yes;
+      });
+    };
+    const pending = test.call.connect();
+    const rejection = expect(pending).rejects.toThrow("saiu");
+    test.call.close();
+    await rejection;
+    expect(signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    resolve({ screen_sfu_enabled: true });
+    await flush();
+    await vi.advanceTimersByTimeAsync(16_500);
+    expect(test.sockets).toHaveLength(0);
+    expect(test.call.snapshot.state).toBe("closed");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("settles fast capability once and releases its deadline instead of creating a second socket", async () => {
+    const test = setup({ screenSfu: true });
+    const socket = await test.connect([capable("a"), capable("b")]);
+    expect(socket.sent[0]).toMatchObject({ type: "auth", screen_sfu: true });
+    const count = vi.getTimerCount();
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(test.sockets).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(count);
+    test.call.close();
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it("keeps an early screen P2P while SDK connect is pending, then publishes it without reopening capture", async () => {
     const test = setup({ screenSfu: true });
     let connected!: () => void, relay!: FakeRelay;

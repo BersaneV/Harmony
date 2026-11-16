@@ -21,6 +21,8 @@ O SFU é opcional e exige `HARMONY_SCREEN_SFU_ENABLED=true` no servidor. Uma pub
 
 Tokens de tela permitem apenas `screen_share` e `screen_share_audio`, sem publicação de dados nem alteração de metadata. A identidade vem da sessão e do participante ativo no canal. O gateway aceita somente as quatro rotas RTC, encaminha para LiveKit em loopback e mantém a admissão coordenada por identidade até a resposta inicial do servidor. Moderação e reconciliação usam a mesma coordenação e conferem novamente a autorização após operações externas.
 
+A descoberta dessa capacidade tem orçamento próprio de 1,5 segundo: se o HTTP atrasar, a chamada tenta P2P. A requisição é abortada, respostas tardias são ignoradas e o WebSocket preserva seus 15 segundos de conexão. O teste de falha real abriu P2P em 1.507,2 ms enquanto a consulta estava deliberadamente pendente.
+
 ## Evidência disponível
 
 Na [calibração do núcleo nativo](evidence/native-capture-0.4.3-calibration-20261116.json), em Windows 2022 descartável, os dois perfis entregaram a imagem inteira e ultrapassaram o gate de 54 quadros novos/s. A janela gerada tem resolução nativa; conteúdo fora da área visível também é conferido. Foram 5 segundos de acomodação e 10 segundos de medida.
