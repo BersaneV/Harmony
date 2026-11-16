@@ -220,7 +220,10 @@ impl Wgc {
         }
         let mut frame = match self.pool.TryGetNextFrame() {
             Ok(f) => f,
-            Err(e) if e.code().0 == 0x80004003u32 as i32 => return Ok(false),
+            // windows-core 0.62 maps a successful nullable COM result to
+            // Error::empty() (code S_OK), not E_POINTER. A late FrameArrived
+            // callback after draining the pool must not terminate capture.
+            Err(e) if e.code().0 == 0 => return Ok(false),
             Err(e) => {
                 eprintln!(
                     "harmony_native_capture stage=next_frame hresult={:08X}",
