@@ -2,6 +2,55 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { stripTypeScriptTypes } from "node:module";
 import { describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import P2PCallPanel from "./P2PCallPanel";
+import {
+  applyCaptureContentHint,
+  registerCaptureTrack,
+} from "../lib/capture-track";
+
+const rendering = vi.hoisted(() => ({
+  cursor: 0,
+  values: {},
+  snapshot: {
+    state: "connected",
+    reason: "",
+    self: { can_publish: true },
+    participants: [],
+    localTracks: {},
+    maxVideoBitrate: 8e6,
+    maxParticipants: 8,
+    screenUpload: {
+      connections: { sfu: 0, p2p: 0 },
+      bitrate: null,
+      maxBitrate: null,
+      partial: false,
+      maxBitratePartial: false,
+    },
+  },
+}));
+vi.mock("react", async (original) => {
+  const actual = await original();
+  return {
+    ...actual,
+    useState(initial) {
+      const index = rendering.cursor++;
+      return actual.useState(
+        Object.hasOwn(rendering.values, index)
+          ? rendering.values[index]
+          : initial,
+      );
+    },
+  };
+});
+vi.mock("../lib/call", () => ({
+  P2PCall: class {
+    get snapshot() {
+      return rendering.snapshot;
+    }
+  },
+}));
 
 // Execute the actual component handler with media/UI boundaries controlled.
 // This covers async ownership; real EXE capture remains a separate QA gate.
@@ -20,10 +69,13 @@ function fixture({
   fps = 30,
   screenAudio = false,
   method = "auto",
+  optimize = true,
+  content = "motion",
 } = {}) {
   class Track extends EventTarget {
     kind = "video";
     readyState = "live";
+    contentHint = "";
     getSettings = vi.fn(() => ({ width: 960, height: 720 }));
     stop = vi.fn(() => {
       this.readyState = "ended";
@@ -48,7 +100,7 @@ function fixture({
     DOMException,
     allowed: { current: true },
     mounted: { current: true },
-    profile: { height, fps, bitrate: 4, audio: screenAudio, content: "motion" },
+    profile: { height, fps, bitrate: 4, audio: screenAudio, content },
     state: { maxVideoBitrate: 32e6 },
     validateProfile: vi.fn(),
     stopPreview: vi.fn(),
@@ -57,12 +109,22 @@ function fixture({
     nativeCaptureAbort: { current: null },
     nativeAvailable: native,
     captureMethod: method,
+    optimizeNativeScreen: optimize,
     nativeSelection: { current: null },
     nativeScreenSources: vi.fn(async () => [{ key: "owned", title: "Window" }]),
     setNativeSources: vi.fn(() => {
       queueMicrotask(() => context.nativeSelection.current?.("owned"));
     }),
-    createNativeScreenTrack: vi.fn(async () => video),
+    createNativeScreenTrack: vi.fn(async (_key, _profile, options) => {
+      const enabled = options.optimizeScreenPerformance ?? true;
+      registerCaptureTrack(video, {
+        settings: () => ({}),
+        applyConstraints: async () => {},
+        release: () => video.stop(),
+        contentHint: (requested) => (enabled ? "detail" : requested),
+      });
+      return video;
+    }),
     MediaStream: class {
       getVideoTracks = () => [video];
       getTracks = () => [video];
@@ -70,6 +132,7 @@ function fixture({
     navigator: { mediaDevices: { getDisplayMedia } },
     resolveCaptureSettings,
     applyCaptureConstraints,
+    applyCaptureContentHint,
     setPreview,
     releaseCaptureTrack: (track) => track.stop(),
   };
@@ -186,7 +249,10 @@ describe("automatic Windows capture path without screen audio", () => {
       expect(f.context.createNativeScreenTrack).toHaveBeenCalledExactlyOnceWith(
         "owned",
         f.context.profile,
-        { signal: f.context.nativeCaptureAbort.current.signal },
+        {
+          signal: f.context.nativeCaptureAbort.current.signal,
+          optimizeScreenPerformance: true,
+        },
       );
       expect(f.applyCaptureConstraints).toHaveBeenCalledExactlyOnceWith(
         f.video,
@@ -319,4 +385,140 @@ describe("automatic Windows capture path without screen audio", () => {
       expect(f.getDisplayMedia).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("local native screen optimization", () => {
+  it.each(
+    [true, false].flatMap((optimize) =>
+      ["motion", "text"].map((content) => ({ optimize, content })),
+    ),
+  )(
+    "uses the real registered policy for optimize=$optimize/content=$content before preview",
+    async ({ optimize, content }) => {
+      const f = fixture({ native: true, optimize, content });
+      await f.run();
+      expect(f.context.createNativeScreenTrack).toHaveBeenCalledWith(
+        "owned",
+        f.context.profile,
+        {
+          signal: f.context.nativeCaptureAbort.current.signal,
+          optimizeScreenPerformance: optimize,
+        },
+      );
+      expect(f.video.contentHint).toBe(
+        optimize || content === "text" ? "detail" : "motion",
+      );
+      expect(f.context.profile.content).toBe(content);
+      expect(f.context.profile).not.toHaveProperty("optimizeScreenPerformance");
+      expect(f.getDisplayMedia).not.toHaveBeenCalled();
+    },
+  );
+  it("snapshots the option before awaiting selection, so a late UI state cannot change the pending capture", async () => {
+    const f = fixture({ native: true });
+    let complete;
+    f.context.nativeScreenSources.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const pending = f.run();
+    f.context.optimizeNativeScreen = false;
+    complete([{ key: "owned", title: "Window" }]);
+    await pending;
+    expect(
+      f.context.createNativeScreenTrack.mock.calls[0][2]
+        .optimizeScreenPerformance,
+    ).toBe(true);
+    expect(f.video.contentHint).toBe("detail");
+  });
+  it.each(["motion", "text"])(
+    "keeps browser %s literal even when native optimization is enabled",
+    async (content) => {
+      const f = fixture({ native: true, method: "browser", content });
+      await f.run();
+      expect(f.video.contentHint).toBe(
+        content === "text" ? "detail" : "motion",
+      );
+      expect(f.context.createNativeScreenTrack).not.toHaveBeenCalled();
+    },
+  );
+});
+
+function renderCaptureOptions({
+  native = true,
+  fps = 30,
+  audio = false,
+  method = "auto",
+  busy = false,
+  preview = false,
+  optimize,
+} = {}) {
+  rendering.cursor = 0;
+  // Control hook state while rendering the real component and real form.
+  rendering.values = {
+    3: busy,
+    7: true,
+    10: { height: 720, fps, bitrate: 4, content: "motion", audio },
+    11: preview ? { getVideoTracks: () => [] } : null,
+    12: native,
+    13: method,
+    ...(optimize === undefined ? {} : { 14: optimize }),
+  };
+  return renderToStaticMarkup(
+    createElement(P2PCallPanel, {
+      channel: { id: "owned", name: "Owned", effective_permissions: "63" },
+      expanded: true,
+      onClose() {},
+      onExpand() {},
+      canModerate: false,
+    }),
+  );
+}
+describe("native optimization control in the actual capture form", () => {
+  it.each([15, 24, 30, 60])(
+    "shows default enabled optimization after the original audio checkbox at%iFPS",
+    (fps) => {
+      const html = renderCaptureOptions({ fps });
+      const checks = html.match(/<input\b[^>]*type="checkbox"[^>]*>/g);
+      expect(checks).toHaveLength(2);
+      expect(checks[0]).not.toContain("checked");
+      expect(checks[1]).toContain("checked");
+      expect(html.indexOf("Incluir áudio da tela")).toBeLessThan(
+        html.indexOf("Otimizar desempenho da tela"),
+      );
+      expect(html).toContain(
+        "Vale para a próxima captura: prioriza detalhes em vez de movimento.",
+      );
+      expect(html).toContain("Não altera o FPS ou bitrate solicitados.");
+    },
+  );
+  it.each([
+    { native: false },
+    { fps: 0 },
+    { audio: true },
+    { method: "browser" },
+  ])("hides the option outside the eligible native path: %j", (options) => {
+    const html = renderCaptureOptions(options);
+    expect(html).not.toContain("Otimizar desempenho da tela");
+    expect(html.match(/<input\b[^>]*type="checkbox"[^>]*>/g)).toHaveLength(1);
+  });
+  it.each([{ busy: true }, { preview: true }])(
+    "disables the new control for%j",
+    (options) => {
+      const html = renderCaptureOptions(options);
+      expect(html.match(/<input\b[^>]*type="checkbox"[^>]*>/g)?.[1]).toContain(
+        "disabled",
+      );
+    },
+  );
+  it("renders an explicit local opt-out without changing the Conteúdo choice", () => {
+    const html = renderCaptureOptions({ optimize: false });
+    expect(
+      html.match(/<input\b[^>]*type="checkbox"[^>]*>/g)?.[1],
+    ).not.toContain("checked");
+    expect(html).toContain(
+      '<option value="motion" selected="">Movimento e jogos</option>',
+    );
+  });
 });

@@ -11,6 +11,7 @@ import { classifyRoute } from "./p2p";
 import { tryScreenVp8L1T1 } from "./screen-encoder";
 import {
   applyCaptureConstraints,
+  applyCaptureContentHint,
   getCaptureSettings,
   getCaptureBound,
   resolveCaptureSettings,
@@ -1885,7 +1886,10 @@ export class P2PCall {
       frameRate: { max: profile.fps || 30 },
     });
     if (!allowed()) throw new Error("A fonte ou a permissão da captura mudou.");
-    track.contentHint = profile.content === "text" ? "detail" : "motion";
+    applyCaptureContentHint(
+      track,
+      profile.content === "text" ? "detail" : "motion",
+    );
   }
   private publishMedia() {
     const media = emptyMedia();

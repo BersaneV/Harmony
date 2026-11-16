@@ -8,6 +8,7 @@ import {
 } from "./native-screen";
 import {
   applyCaptureConstraints,
+  applyCaptureContentHint,
   getCaptureBound,
   getCaptureSettings,
   releaseCaptureTrack,
@@ -26,6 +27,7 @@ class Track extends EventTarget {
   kind = "video";
   readyState = "live";
   enabled = true;
+  contentHint = "";
   getSettings = () => ({});
   stop = vi.fn(() => {
     this.readyState = "ended";
@@ -115,6 +117,75 @@ async function flush() {
 }
 
 describe("adaptador nativo de captura", () => {
+  it("classifica a captura padrão antes do start e mantém a política de tela durante os pedidos de conteúdo", async () => {
+    const f = fixture(),
+      start = vi.mocked(f.env.start).getMockImplementation()!;
+    vi.mocked(f.env.start).mockImplementationOnce((...args) => {
+      expect(f.track.contentHint).toBe("detail");
+      return start(...args);
+    });
+    const pending = f.begin();
+    f.ready();
+    const track = await pending;
+    for (const requested of ["motion", "detail", "motion"] as const)
+      expect(applyCaptureContentHint(track, requested)).toBe("detail");
+    expect(f.env.start).toHaveBeenCalledExactlyOnceWith(
+      "key",
+      "client",
+      { height: 1440, fps: 60 },
+      expect.any(Function),
+    );
+    expect(f.env.profile).not.toHaveBeenCalled();
+    expect(f.env.ack).not.toHaveBeenCalled();
+    releaseCaptureTrack(track);
+  });
+  it.each([true, false])(
+    "copia a opção %s na criação sem deixar mutações posteriores alterarem a política",
+    async (optimize) => {
+      const f = fixture(),
+        options = { optimizeScreenPerformance: optimize };
+      const pending = createNativeScreenTrack(
+        "key",
+        { height: 1440, fps: 60 },
+        options,
+        f.env,
+      );
+      options.optimizeScreenPerformance = !optimize;
+      f.ready();
+      const track = await pending;
+      expect(track.contentHint).toBe(optimize ? "detail" : "");
+      for (const requested of ["motion", "detail", "motion"] as const) {
+        expect(applyCaptureContentHint(track, requested)).toBe(
+          optimize ? "detail" : requested,
+        );
+        expect(track.contentHint).toBe(optimize ? "detail" : requested);
+      }
+      expect(f.env.start).toHaveBeenCalledExactlyOnceWith(
+        "key",
+        "client",
+        { height: 1440, fps: 60 },
+        expect.any(Function),
+      );
+      expect(f.env.profile).not.toHaveBeenCalled();
+      releaseCaptureTrack(track);
+    },
+  );
+  it("libera recursos se a aplicação inicial do hint falhar antes do start", async () => {
+    const f = fixture();
+    Object.defineProperty(f.track, "contentHint", {
+      get: () => "",
+      set: () => {
+        throw new Error("hint failed");
+      },
+    });
+    const pending = f.begin();
+    f.ready();
+    await expect(pending).rejects.toThrow("hint failed");
+    expect(f.env.start).not.toHaveBeenCalled();
+    expect(f.writer.abort).toHaveBeenCalledOnce();
+    expect(f.track.stop).toHaveBeenCalledOnce();
+    expect(f.listening()).toBe(false);
+  });
   it("aceita quadro antes de start resolver e só ACK depois de consumir/copiar pixels", async () => {
     const f = fixture(),
       write = deferred();

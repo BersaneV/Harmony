@@ -1,10 +1,13 @@
 /** Capture controls belong to the source adapter, not to a browser-generated
  * track's settings. This port contains no desktop/framework dependencies. */
+export type CaptureContentHint = "motion" | "detail";
 export interface CaptureTrackControl {
   settings(): MediaTrackSettings;
   applyConstraints(constraints: MediaTrackConstraints): Promise<void>;
   /** Enforced maximum for subsequent frames, including source resize. */
   maxHeight?(): number | undefined;
+  /** Optional source-owned policy; absence preserves the caller's request. */
+  contentHint?(requested: CaptureContentHint): CaptureContentHint;
   release(): void;
 }
 export interface CaptureFrameSettings {
@@ -125,6 +128,18 @@ export function getCaptureSettings(
   track: MediaStreamTrack,
 ): MediaTrackSettings {
   return { ...(controls.get(track)?.settings() ?? track.getSettings()) };
+}
+/** Only an explicitly registered adapter may resolve a different hint. Labels,
+ * track IDs and desktop globals do not establish the capture's origin. */
+export function applyCaptureContentHint(
+  track: MediaStreamTrack,
+  requested: CaptureContentHint,
+): CaptureContentHint {
+  if (track.kind !== "video")
+    throw new Error("O hint de captura só se aplica a vídeo.");
+  const hint = controls.get(track)?.contentHint?.(requested) ?? requested;
+  if (track.contentHint !== hint) track.contentHint = hint;
+  return hint;
 }
 export function getCaptureBound(
   track: MediaStreamTrack,

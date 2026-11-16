@@ -1,5 +1,7 @@
 //! One reusable Rust frame and one acknowledged SharedBuffer lease. Pixels and
 //! WebView APIs stay in the adapter; all times share the producer's clock origin.
+//! Captures use nominal deadlines: real intervals may be shorter than a period
+//! after a late wake, but missed slots never form a replay queue.
 use crate::{byte_len, Profile};
 use std::{
     sync::atomic::{AtomicU64, Ordering},
@@ -141,6 +143,7 @@ pub struct ReadySend {
 pub struct FramePipeline {
     prepared: Option<Prepared>,
     last_capture: Option<Duration>,
+    capture_deadline: Option<(ProfileEpoch, Duration)>,
     last_reservation: Option<Duration>,
     sequence: u64,
     send_due: Option<Duration>,
@@ -151,6 +154,14 @@ pub struct FramePipeline {
     fps: Option<f64>,
 }
 impl FramePipeline {
+    fn capture_due(&self, epoch: ProfileEpoch) -> Option<Duration> {
+        self.capture_deadline
+            .filter(|(revision, _)| *revision == epoch)
+            .map(|(_, due)| due)
+            // A new revision starts from the last real capture, never from
+            // another revision's nominal debt or an immediate extra credit.
+            .or_else(|| self.last_capture.map(|at| at + epoch.settings().period()))
+    }
     fn observe_sent(&mut self, lease: &FrameLease) {
         self.observe_confirmed_send(lease.actual_sent_at(self.sequence));
     }
@@ -198,7 +209,7 @@ impl FramePipeline {
             // A blocking GPU read must never delay an unpublished frame's due
             // send. It may overlap the lightweight callback only once queued.
             && (self.sequence == 0 || self.send_queued)
-            && self.last_capture.is_none_or(|at| now >= at + epoch.settings().period())
+            && self.capture_due(epoch).is_none_or(|due| now >= due)
     }
     /// Empty pool polls do not consume a successful capture period.
     pub fn captured(
@@ -217,6 +228,10 @@ impl FramePipeline {
         {
             return Err("Estado do quadro preparado inválido.".into());
         }
+        let due = self.capture_due(epoch).unwrap_or(started);
+        // Consume one nominal slot only for a successful capture. Reanchor at
+        // completion after a missed deadline, without retaining catch-up work.
+        self.capture_deadline = Some((epoch, (due + epoch.settings().period()).max(finished)));
         self.last_capture = Some(started);
         self.prepared = Some(Prepared {
             width,
@@ -339,11 +354,10 @@ impl FramePipeline {
         if lease.waiting() || self.prepared.is_some() {
             return Duration::from_micros(500);
         }
-        self.last_capture.map_or(Duration::from_millis(1), |at| {
-            (at + epoch.settings().period())
-                .saturating_sub(now)
-                .max(Duration::from_micros(500))
-        })
+        self.capture_due(epoch)
+            .map_or(Duration::from_millis(1), |due| {
+                due.saturating_sub(now).max(Duration::from_micros(500))
+            })
     }
 }
 
@@ -470,8 +484,10 @@ mod tests {
         assert_eq!(p.wait(ms(109), e, &l), Duration::from_micros(500));
         assert_eq!(send(&mut p, &l, ms(109)).sequence, b.sequence);
         assert!(l.ack(b.sequence));
-        let next_capture = ms(101) + e.settings().period();
-        assert!(!p.can_capture(next_capture - Duration::from_nanos(1), e, &l, true, false));
+        // Capturing may resume before a full period after the last real start.
+        // The stale nominal slots were discarded, not queued for replay.
+        let next_capture = ms(109);
+        assert!(p.can_capture(next_capture, e, &l, true, false));
         p.captured(next_capture, next_capture + ms(4), 2560, 1440, e, &l)
             .unwrap();
         let c = p
@@ -622,8 +638,11 @@ mod tests {
         assert!(l.ack(b.sequence));
         assert!(p.queue_send(ms(4005), &l).unwrap().is_none());
         assert_eq!(p.fps, Some(0.25));
-        assert!(!p.can_capture(ms(4005), e, &l, true, false));
+        assert!(p.can_capture(ms(4005), e, &l, true, false));
         assert!(p.prepared.is_none());
+        p.captured(ms(4005), ms(4009), 2560, 1440, e, &l).unwrap();
+        assert_eq!(p.capture_due(e), Some(ms(4004) + e.settings().period()));
+        assert!(!p.can_capture(ms(4010), e, &l, true, false));
     }
     #[test]
     fn profile_change_uses_the_current_capture_period_and_discards_old_pixels() {
@@ -795,8 +814,9 @@ mod tests {
                 }
             }
             assert!(captures
-                .windows(2)
-                .all(|w| w[1] - w[0] >= e.settings().period()));
+                .iter()
+                .enumerate()
+                .all(|(i, at)| *at >= e.settings().period() * u32::try_from(i).unwrap()));
             let actual_rate = (sends.len() - 1) as f64
                 / (sends.last().unwrap().saturating_sub(sends[0])).as_secs_f64();
             eprintln!(
@@ -810,6 +830,138 @@ mod tests {
             );
             assert!(actual_rate <= f64::from(fps));
             assert!((p.fps.unwrap() - actual_rate).abs() < 0.1);
+        }
+    }
+    #[test]
+    fn capture_deadline_does_not_accumulate_real_wake_overshoot() {
+        for fps in [15, 24, 30, 60] {
+            let e = ProfileEpoch::new(Profile { height: 1440, fps }).unwrap();
+            let (mut p, l) = (FramePipeline::default(), FrameLease::default());
+            let period = e.settings().period();
+            let jitter = [300, 800, 500, 1200].map(Duration::from_micros);
+            let mut now = Duration::ZERO;
+            let mut last_start = Duration::ZERO;
+            for n in 0..180 {
+                if !p.can_capture(now, e, &l, true, false) {
+                    now += p.wait(now, e, &l) + jitter[n % jitter.len()];
+                }
+                assert!(p.can_capture(now, e, &l, true, false));
+                let started = now;
+                now += ms(3);
+                p.captured(started, now, 2560, 1440, e, &l).unwrap();
+                assert_eq!(p.last_capture, Some(started));
+                let f = p.reserve_copy(now, e, &l, true, false).unwrap().unwrap();
+                assert_eq!(f.captured_at, now);
+                copy(&l, f);
+                if p.queue_send(now, &l).unwrap().is_none() {
+                    now += p.wait(now, e, &l);
+                    send(&mut p, &l, now);
+                } else {
+                    assert!(l.begin_send(f.sequence));
+                    assert!(l.finish_send(f.sequence, now));
+                }
+                assert!(l.ack(f.sequence));
+                last_start = started;
+            }
+            let nominal = period * 179;
+            assert!(last_start >= nominal);
+            assert!(
+                last_start.saturating_sub(nominal) <= Duration::from_micros(1200),
+                "{fps} fps clock accumulated {:?} of wake overshoot",
+                last_start.saturating_sub(nominal)
+            );
+        }
+    }
+    #[test]
+    fn empty_polls_and_overshoot_larger_than_a_period_do_not_accumulate_slots() {
+        for fps in [15, 24, 30, 60] {
+            let e = ProfileEpoch::new(Profile { height: 1440, fps }).unwrap();
+            let (mut p, l) = (FramePipeline::default(), FrameLease::default());
+            let period = e.settings().period();
+            p.captured(Duration::ZERO, ms(3), 2560, 1440, e, &l)
+                .unwrap();
+            let a = reserve(&mut p, &l, 3, e);
+            copy(&l, a);
+            send(&mut p, &l, ms(3));
+            assert!(l.ack(a.sequence));
+            // The adapter makes no captured() call when WGC returns None.
+            // Repeated readiness polls must not consume any nominal slot.
+            for n in 1..=4 {
+                assert!(p.can_capture(period * n, e, &l, true, false));
+                assert!(p
+                    .reserve_copy(period * n, e, &l, true, false)
+                    .unwrap()
+                    .is_none());
+                assert_eq!(p.capture_due(e), Some(period));
+                assert_eq!(p.last_capture, Some(Duration::ZERO));
+            }
+            let started = period * 4 + ms(1);
+            let finished = started + ms(3);
+            p.captured(started, finished, 2560, 1440, e, &l).unwrap();
+            assert_eq!(p.capture_due(e), Some(finished));
+            assert!(!p.can_capture(finished, e, &l, true, false));
+            let b = p
+                .reserve_copy(finished, e, &l, true, false)
+                .unwrap()
+                .unwrap();
+            assert_eq!(b.captured_at, finished);
+            copy(&l, b);
+            assert!(!l.ack(b.sequence));
+            send(&mut p, &l, finished);
+            assert!(l.ack(b.sequence));
+            let next = finished + ms(1);
+            p.captured(next, next + ms(3), 2560, 1440, e, &l).unwrap();
+            assert_eq!(p.last_capture, Some(next));
+            assert_eq!(p.capture_due(e), Some(finished + period));
+            // A fresh prepared Vec blocks another readback. After a long gap,
+            // the unchanged stale rule drops it before allowing a fresh frame.
+            assert!(!p.can_capture(finished + period, e, &l, true, false));
+            assert!(p.can_capture(finished + period * 10, e, &l, true, false));
+            assert!(p.prepared.is_none());
+            assert_eq!(p.capture_due(e), Some(finished + period));
+        }
+    }
+    #[test]
+    fn epoch_changes_rebase_from_the_last_real_start_including_profile_aba() {
+        for old_fps in [15, 24, 30, 60] {
+            for new_fps in [15, 24, 30, 60] {
+                let mut e = ProfileEpoch::new(Profile {
+                    height: 1440,
+                    fps: old_fps,
+                })
+                .unwrap();
+                let (mut p, l) = (FramePipeline::default(), FrameLease::default());
+                p.captured(Duration::ZERO, ms(3), 2560, 1440, e, &l)
+                    .unwrap();
+                let a = reserve(&mut p, &l, 3, e);
+                copy(&l, a);
+                send(&mut p, &l, ms(3));
+                assert!(l.ack(a.sequence));
+                let late = e.settings().period() + ms(8);
+                p.captured(late, late + ms(3), 2560, 1440, e, &l).unwrap();
+                e.replace(Profile {
+                    height: 1440,
+                    fps: new_fps,
+                })
+                .unwrap();
+                let rebased = late + e.settings().period();
+                assert!(!p.can_capture(rebased - Duration::from_nanos(1), e, &l, true, false));
+                assert_eq!(p.capture_due(e), Some(rebased));
+                assert!(p.can_capture(rebased, e, &l, true, false));
+                p.captured(rebased, rebased + ms(3), 2560, 1440, e, &l)
+                    .unwrap();
+                assert_eq!(p.last_capture, Some(rebased));
+                e.replace(Profile {
+                    height: 1440,
+                    fps: old_fps,
+                })
+                .unwrap();
+                let aba_due = rebased + e.settings().period();
+                assert!(!p.can_capture(aba_due - Duration::from_nanos(1), e, &l, true, false));
+                assert_eq!(p.capture_due(e), Some(aba_due));
+                assert!(p.can_capture(aba_due, e, &l, true, false));
+                assert_eq!(l.pending_sequence(), 0);
+            }
         }
     }
 }

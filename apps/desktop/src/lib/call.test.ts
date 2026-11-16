@@ -16,6 +16,7 @@ import type { Session } from "./types";
 import * as browserApi from "./api";
 import type { StreamProfile } from "./stream";
 import { registerCaptureTrack, getCaptureSettings } from "./capture-track";
+import type { CaptureTrackControl } from "./capture-track";
 
 vi.mock("./api", () => ({
   api: vi.fn(),
@@ -315,7 +316,7 @@ const relaySample = (
   maxBitrate: 16_000_000,
   ...values,
 });
-function boundedScreen() {
+function boundedScreen(contentHint?: CaptureTrackControl["contentHint"]) {
   const track = new Track("video");
   let maximum: number | undefined;
   registerCaptureTrack(track.media(), {
@@ -328,6 +329,7 @@ function boundedScreen() {
           : undefined;
     },
     maxHeight: () => maximum,
+    contentHint,
     release: () => track.stop(),
   });
   return track;
@@ -1485,6 +1487,60 @@ describe("optional screen relay integrated with real P2P engine", () => {
 });
 
 describe("real call negotiation and measured controls", () => {
+  it.each([true, false])(
+    "aplica a política nativa %s antes da publicação e nas atualizações sem alterar a escolha sinalizada ou câmera/voz",
+    async (optimize) => {
+      const test = setup({ screenSfu: true });
+      await test.connect([capable("a"), capable("b")]);
+      const policy = vi.fn((requested: "motion" | "detail") =>
+        optimize ? ("detail" as const) : requested,
+      );
+      const screen = boundedScreen(policy),
+        camera = new Track("video"),
+        microphone = new Track("audio");
+      camera.contentHint = "motion";
+      microphone.contentHint = "speech";
+      await test.call.setTrack("camera", camera.media());
+      await test.call.setTrack("microphone", microphone.media());
+      const nativeProfile = { ...screenProfile, audio: false };
+      await test.call.setScreenProfile(nativeProfile);
+      const seen: string[] = [];
+      test.relay.beforeScreen = async (track) => {
+        if (track) seen.push(track.contentHint);
+      };
+      await test.call.setTrack("screen", screen.media());
+      expect(screen.contentHint).toBe(optimize ? "detail" : "motion");
+      for (const content of ["text", "motion"] as const) {
+        await test.call.setScreenProfile({ ...nativeProfile, content });
+        expect(screen.contentHint).toBe(
+          optimize || content === "text" ? "detail" : "motion",
+        );
+        expect(test.call.snapshot.profile).toEqual({
+          ...nativeProfile,
+          content,
+        });
+        expect(test.relay.setScreen).toHaveBeenLastCalledWith(
+          screen.media(),
+          { ...nativeProfile, content },
+          8_000_000,
+          expect.objectContaining({ max_height: 720 }),
+        );
+      }
+      expect(seen).toEqual(
+        optimize
+          ? ["detail", "detail", "detail"]
+          : ["motion", "detail", "motion"],
+      );
+      expect(policy).toHaveBeenCalledTimes(3);
+      expect(camera.contentHint).toBe("motion");
+      expect(microphone.contentHint).toBe("speech");
+      expect(screen.constraints).toEqual({
+        height: { max: 720 },
+        width: { max: 1280 },
+        frameRate: { max: 30 },
+      });
+    },
+  );
   it("preserves an explicit screen resolution without changing its motion content or FPS and bitrate caps", async () => {
     const test = setup();
     const socket = await test.connect([roster("a"), roster("b"), roster("c")]);

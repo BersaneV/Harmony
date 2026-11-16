@@ -1,5 +1,9 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
-import { getCaptureSettings, registerCaptureTrack } from "./capture-track";
+import {
+  applyCaptureContentHint,
+  getCaptureSettings,
+  registerCaptureTrack,
+} from "./capture-track";
 
 export interface NativeSource {
   key: string;
@@ -212,10 +216,12 @@ function constraintLimit(
 export async function createNativeScreenTrack(
   key: string,
   profile: NativeCaptureProfile,
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; optimizeScreenPerformance?: boolean } = {},
   environment: NativeCaptureEnvironment = desktopEnvironment(),
 ): Promise<MediaStreamTrack> {
   if (options.signal?.aborted) throw abortError();
+  // This choice belongs to this capture, not to later UI/profile updates.
+  const optimizeScreenPerformance = options.optimizeScreenPerformance ?? true;
   const { track, writer } = environment.generator();
   const client = environment.nonce();
   let id: string | undefined;
@@ -435,6 +441,8 @@ export async function createNativeScreenTrack(
   }
   registerCaptureTrack(track, {
     settings: () => settings,
+    contentHint: (requested) =>
+      optimizeScreenPerformance ? "detail" : requested,
     maxHeight: () => (closed ? undefined : captureBound),
     applyConstraints: async (constraints) => {
       if (closed || !id) throw failure ?? new Error("A captura terminou.");
@@ -500,6 +508,7 @@ export async function createNativeScreenTrack(
     release: () => close(),
   });
   try {
+    if (optimizeScreenPerformance) applyCaptureContentHint(track, "detail");
     unlisten = environment.listen(client, receiveBuffer);
     track.addEventListener("ended", trackEnded, { once: true });
     options.signal?.addEventListener("abort", aborted, { once: true });

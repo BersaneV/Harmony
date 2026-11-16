@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyCaptureConstraints,
+  applyCaptureContentHint,
   getCaptureSettings,
   getCaptureBound,
   registerCaptureTrack,
@@ -171,6 +172,70 @@ describe("geometria de um quadro atual", () => {
 });
 
 describe("porta de tracks de captura", () => {
+  it("não aplica os hints de vídeo ao áudio", () => {
+    const audio = {
+      kind: "audio",
+      contentHint: "speech",
+    } as unknown as MediaStreamTrack;
+    expect(() => applyCaptureContentHint(audio, "motion")).toThrow("vídeo");
+    expect(audio.contentHint).toBe("speech");
+  });
+  it("resolve o hint apenas pelo registro do objeto, sem classificar labels, clones ou o ambiente", () => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+    const native = {
+      kind: "video",
+      id: "same",
+      label: "native-window:42",
+      contentHint: "",
+    } as unknown as MediaStreamTrack;
+    const lookalike = {
+      kind: "video",
+      id: "same",
+      label: "native-window:42",
+      contentHint: "",
+    } as unknown as MediaStreamTrack;
+    const policy = vi.fn(() => "detail" as const);
+    registerCaptureTrack(native, {
+      settings: () => ({}),
+      applyConstraints: vi.fn(),
+      release: vi.fn(),
+      contentHint: policy,
+    });
+    expect(applyCaptureContentHint(native, "motion")).toBe("detail");
+    expect(native.contentHint).toBe("detail");
+    expect(policy).toHaveBeenCalledWith("motion");
+    expect(applyCaptureContentHint(lookalike, "motion")).toBe("motion");
+    expect(lookalike.contentHint).toBe("motion");
+    expect(applyCaptureContentHint(lookalike, "detail")).toBe("detail");
+    expect(policy).toHaveBeenCalledOnce();
+  });
+  it("preserva o pedido literal do navegador, câmera e controle sem política e não altera outros controles", () => {
+    for (const registered of [false, true]) {
+      const track = {
+        kind: "video",
+        contentHint: "",
+        getSettings: () => ({ width: 1920 }),
+        applyConstraints: vi.fn(),
+        stop: vi.fn(),
+      } as unknown as MediaStreamTrack;
+      const control = {
+        settings: () => ({ width: 2560 }),
+        applyConstraints: vi.fn(),
+        release: vi.fn(),
+      };
+      if (registered) registerCaptureTrack(track, control);
+      expect(applyCaptureContentHint(track, "motion")).toBe("motion");
+      expect(applyCaptureContentHint(track, "detail")).toBe("detail");
+      expect(track.contentHint).toBe("detail");
+      expect(track.applyConstraints).not.toHaveBeenCalled();
+      expect(track.stop).not.toHaveBeenCalled();
+      expect(control.applyConstraints).not.toHaveBeenCalled();
+      expect(control.release).not.toHaveBeenCalled();
+      expect(getCaptureSettings(track)).toEqual({
+        width: registered ? 2560 : 1920,
+      });
+    }
+  });
   it("só comprova um teto do navegador com max explícito aplicado e geometria dentro dele", () => {
     let constraints: MediaTrackConstraints = { height: { ideal: 1080 } };
     const track = {

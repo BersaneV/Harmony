@@ -29,6 +29,7 @@ import {
 import type { StreamProfile } from "../lib/stream";
 import {
   applyCaptureConstraints,
+  applyCaptureContentHint,
   getCaptureSettings,
   releaseCaptureTrack,
   resolveCaptureSettings,
@@ -287,6 +288,7 @@ export default function P2PCallPanel({
   const [captureMethod, setCaptureMethod] = useState<"auto" | "browser">(
     "auto",
   );
+  const [optimizeNativeScreen, setOptimizeNativeScreen] = useState(true);
   const [nativeSources, setNativeSources] = useState<NativeSource[] | null>(
     null,
   );
@@ -563,6 +565,7 @@ export default function P2PCallPanel({
         [15, 24, 30, 60].includes(profile.fps) &&
         !profile.audio;
       if (useNative) {
+        const optimizeScreenPerformance = optimizeNativeScreen;
         const sources = await nativeScreenSources();
         if (controller.signal.aborted) return;
         const key = await new Promise<string | null>((resolve) => {
@@ -573,6 +576,7 @@ export default function P2PCallPanel({
         if (!key || controller.signal.aborted) return;
         const track = await createNativeScreenTrack(key, profile, {
           signal: controller.signal,
+          optimizeScreenPerformance,
         });
         stream = new MediaStream([track]);
       } else {
@@ -636,7 +640,10 @@ export default function P2PCallPanel({
           frameRate: { max: profile.fps || 30 },
         });
       }
-      video.contentHint = profile.content === "text" ? "detail" : "motion";
+      applyCaptureContentHint(
+        video,
+        profile.content === "text" ? "detail" : "motion",
+      );
       if (
         controller.signal.aborted ||
         !mounted.current ||
@@ -1161,6 +1168,25 @@ export default function P2PCallPanel({
             />
             Incluir áudio da tela, quando disponível
           </label>
+          {nativeAvailable &&
+            captureMethod === "auto" &&
+            [15, 24, 30, 60].includes(profile.fps) &&
+            !profile.audio && (
+              <label
+                className="check-field"
+                title="Vale para a próxima captura: prioriza detalhes em vez de movimento. Desligada, respeita Conteúdo. Não altera o FPS ou bitrate solicitados."
+              >
+                <input
+                  type="checkbox"
+                  checked={optimizeNativeScreen}
+                  disabled={busy || !!preview}
+                  onChange={(event) =>
+                    setOptimizeNativeScreen(event.target.checked)
+                  }
+                />
+                Otimizar desempenho da tela
+              </label>
+            )}
           <p className="small-note">
             O áudio depende da fonte e do suporte do navegador/Windows. Evite
             compartilhar o som da própria chamada. A tela pode usar um envio
