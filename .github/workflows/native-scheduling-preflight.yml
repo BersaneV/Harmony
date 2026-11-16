@@ -28,7 +28,7 @@ jobs:
           try {
             $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $script).Hash.ToLowerInvariant()
             if ($hash -cmatch '^[0-9a-f]{64}$') { $observedSourceSha256 = $hash }
-            if ($hash -ne 'e9ce6ccc815e1ef2c4043bdcf241bedb829e2cec27ab279dfba1b4c19ceeb0f5') { throw 'unreviewed_script' }
+            if ($hash -ne 'c5e371b5ab16251b823c9b1e2b3d6c44dcdcf67d3835afbdd730ce1aad2bc9ce') { throw 'unreviewed_script' }
             $failureCode = 'powershell_ast_invalid'
             $tokens = $null
             $parseErrors = $null

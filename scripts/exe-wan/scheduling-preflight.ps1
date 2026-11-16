@@ -116,7 +116,7 @@ function New-FieldShapes {
     }
     return $shapes
 }
-function Measure-FieldShapes($Raw, $Counts, [string[]]$Expected) {
+function Measure-FieldShapes($Raw, $Counts, [string[]]$Expected, [switch]$HeaderUInt32) {
     $shapes = New-FieldShapes
     foreach ($field in $Expected) {
         $shape = $shapes[$field]
@@ -137,7 +137,7 @@ function Measure-FieldShapes($Raw, $Counts, [string[]]$Expected) {
             if ($trimmed.Length -gt 10) { $shape.exceeds_u32 = 1 }
         } elseif ($trimmed -cmatch '^[+-]?[0-9]+\.[0-9]+$') { $shape.fractional = 1 }
         else { $shape.other = 1 }
-        $parsed = Read-U32 $value
+        $parsed = if ($HeaderUInt32 -and $field -in @('EventsLost','BuffersLost')) { Read-HeaderU32 $value } else { Read-U32 $value }
         $shape.rejected = [int]($null -eq $parsed)
         if ($null -ne $parsed) {
             $shape.zero = [int]($parsed -eq 0); $shape.positive = [int]($parsed -gt 0)
@@ -199,6 +199,42 @@ function Read-U32([string]$Value) {
     if ($Value -cmatch '^[0-9]{1,10}$' -and [uint32]::TryParse($Value, [ref]$n)) { return $n }
     return $null
 }
+
+function Read-HeaderU32([string]$Value) {
+    # XML S whitespace only. Do not use Unicode Trim(), aliases, defaults or ID parsing.
+    return Read-U32 ($Value.Trim([char[]]@([char]0x20,[char]0x09,[char]0x0A,[char]0x0D)))
+}
+function Test-HeaderWhitespace {
+    $pad = " `t`r`n"
+    $nbsp = [string][char]0xA0
+    $em = [string][char]0x2003
+    $vertical = [string][char]0x0B
+    $header = '<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event"><System><Provider Guid="{68fdd900-4a3e-11d1-84f4-0000f80464e3}"/><Opcode>0</Opcode></System><EventData><Data Name="EventsLost"> 0 </Data><Data Name="BuffersLost"> 7 </Data></EventData></Event>'
+    $idEvent = '<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event"><System><Provider Guid="{3d6fa8d1-fe05-11d0-9dda-00c04fd7ba7c}"/><Opcode>36</Opcode></System><EventData><Data Name="OldThreadId"> 42 </Data><Data Name="NewThreadId">9</Data><Data Name="OldThreadState">5</Data><Data Name="OldThreadWaitReason">4</Data></EventData></Event>'
+    $checks = @(
+        (Read-HeaderU32 ($pad + '0' + $pad)) -eq 0
+        (Read-HeaderU32 ($pad + '7' + $pad)) -eq 7
+        (Read-HeaderU32 ($pad + '4294967295' + $pad)) -eq [uint32]::MaxValue
+        $null -eq (Read-HeaderU32 ($pad + '4294967296' + $pad))
+        $null -eq (Read-HeaderU32 ($pad + '-1' + $pad))
+        $null -eq (Read-HeaderU32 $pad)
+        $null -eq (Read-HeaderU32 ($nbsp + '0' + $nbsp))
+        $null -eq (Read-HeaderU32 ($em + '0' + $em))
+        $null -eq (Read-HeaderU32 ($vertical + '0' + $vertical))
+        ((Decode-Event ([xml]$header) 42).events_lost -eq 0 -and (Decode-Event ([xml]$header) 42).buffers_lost -eq 7)
+        ((Decode-Event ([xml]($header.Replace('</EventData>','<Data Name="EventsLost">0</Data></EventData>'))) 42).shape.header_fields_invalid -eq 1 -and $null -eq (Decode-Event ([xml]($header.Replace('</EventData>','<Data Name="EventsLost">0</Data></EventData>'))) 42).events_lost)
+        ((Decode-Event ([xml]($header.Replace('<Data Name="BuffersLost"> 7 </Data>',''))) 42).shape.header_fields_missing -eq 1 -and $null -eq (Decode-Event ([xml]($header.Replace('<Data Name="BuffersLost"> 7 </Data>',''))) 42).buffers_lost)
+        $null -eq (Read-U32 ' 0 ')
+        -not (Decode-Event ([xml]$idEvent) 42).valid
+        $null -eq (Decode-Event ([xml]($header.Replace('68fdd900','00000000'))) 42).events_lost
+        (Measure-FieldShapes @{ OldThreadId=' 42 ' } @{ OldThreadId=1 } @('OldThreadId') -HeaderUInt32).OldThreadId.rejected -eq 1
+        (Measure-FieldShapes @{ EventsLost=' 0 ' } @{ EventsLost=1 } @('EventsLost') -HeaderUInt32).EventsLost.rejected -eq 0
+        (Measure-FieldShapes @{ EventsLost=($nbsp+'0'+$nbsp) } @{ EventsLost=1 } @('EventsLost') -HeaderUInt32).EventsLost.rejected -eq 1
+    )
+    if ($checks -contains $false) { throw 'schema_fixture_failure' }
+    return $checks.Count
+}
+
 function Decode-Event([xml]$Record, [uint32]$Target) {
     $out = @{ kind = 'other'; valid = $false; incoming = $false; outgoing = $false; ready = $false; wait_reason = $null; events_lost = $null; buffers_lost = $null; field_shapes = (New-FieldShapes); shape = @{ provider_guid=0; extended_guid=0; opcode=0; named_fields=0; direct_fields=0; thread_headers=0; log_headers=0; header_fields_missing=0; header_fields_invalid=0 } }
     $data = @{}; $duplicate = $false; $rawFields = @{}; $fieldCounts = @{}
@@ -225,11 +261,16 @@ function Decode-Event([xml]$Record, [uint32]$Target) {
     if ($null -eq $opcode) { return $out }
     $out.shape.opcode = 1
     $op = Read-U32 $opcode.InnerText
+    if ($isHeader -and $op -eq 0 -and -not $duplicate) {
+        foreach ($field in @('EventsLost','BuffersLost')) {
+            if ($rawFields.ContainsKey($field)) { $data[$field] = Read-HeaderU32 $rawFields[$field] }
+        }
+    }
     $expectedFields = @()
     if ($isHeader -and $op -eq 0) { $expectedFields = @('EventsLost','BuffersLost') }
     elseif ($isThread -and $op -eq 36) { $expectedFields = @('OldThreadId','NewThreadId','OldThreadState','OldThreadWaitReason') }
     elseif ($isThread -and $op -eq 50) { $expectedFields = @('TThreadId') }
-    $out.field_shapes = Measure-FieldShapes $rawFields $fieldCounts $expectedFields
+    $out.field_shapes = Measure-FieldShapes $rawFields $fieldCounts $expectedFields -HeaderUInt32:($isHeader -and $op -eq 0)
     if ($isThread -and $op -in @(36,50)) { $out.shape.thread_headers = 1 }
     if ($isHeader -and $op -eq 0) {
         $out.shape.log_headers = 1
@@ -336,7 +377,7 @@ $report = [ordered]@{
 }
 $ownedInstance = $null; $attemptedStart = $false; $worker = $null; $private = $null; $wpr = $null
 try {
-    $report.fixture_tests = (Test-Decoder) + (Test-AdditionalGuards) + (Test-FieldShapes)
+    $report.fixture_tests = (Test-Decoder) + (Test-AdditionalGuards) + (Test-FieldShapes) + (Test-HeaderWhitespace)
     if ($SelfTest) {
         $report.kind = 'SCHEMA_FIXTURE_CHECK_ONLY'
         $report.stage = 'SCHEMA_FIXTURE_CHECK_ONLY'
