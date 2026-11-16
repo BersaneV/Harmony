@@ -220,6 +220,7 @@ impl FullBuffer<'_> {
         row_pitch: usize,
         width: u32,
         height: u32,
+        #[cfg(feature = "capture-diagnostics")] diagnostics: &crate::diagnostics::Recorder,
     ) -> Result<(), String> {
         let len = byte_len(width, height)?;
         let row_bytes = width as usize * 4;
@@ -232,6 +233,8 @@ impl FullBuffer<'_> {
         {
             return Err("Layout de captura inválido.".into());
         }
+        #[cfg(feature = "capture-diagnostics")]
+        let preparation = diagnostics.span(crate::diagnostics::Stage::BufferPrepare);
         let destination = match self {
             Self::Bytes(output) => {
                 output.resize(len, 0);
@@ -247,6 +250,10 @@ impl FullBuffer<'_> {
                 raw.as_ref().unwrap().bits.as_ptr()
             }
         };
+        #[cfg(feature = "capture-diagnostics")]
+        drop(preparation);
+        #[cfg(feature = "capture-diagnostics")]
+        let _copy = diagnostics.span(crate::diagnostics::Stage::RowCopy);
         for row in 0..height as usize {
             unsafe {
                 std::ptr::copy_nonoverlapping(
@@ -295,6 +302,22 @@ impl Capture {
     pub fn is_closed(&self) -> bool {
         self.wgc.is_closed()
     }
+    #[cfg(feature = "capture-diagnostics")]
+    pub fn set_diagnostics_enabled(&mut self, enabled: bool) {
+        self.wgc.diagnostics().set_enabled(enabled);
+    }
+    #[cfg(feature = "capture-diagnostics")]
+    pub fn reset_diagnostics(&mut self) {
+        self.wgc.diagnostics().reset_window();
+    }
+    #[cfg(feature = "capture-diagnostics")]
+    pub fn diagnostics_snapshot(&self) -> crate::diagnostics::Snapshot {
+        self.wgc.diagnostics().snapshot()
+    }
+    #[cfg(feature = "capture-diagnostics")]
+    pub fn diagnostic_frame_observation(&self) -> Option<crate::diagnostics::FrameObservation> {
+        self.wgc.diagnostics().last_frame()
+    }
     pub fn dimensions(&self) -> Result<(u32, u32), String> {
         let (w, h) = self.source_dimensions();
         self.profile.size(w, h)
@@ -315,6 +338,10 @@ impl Capture {
         "native-wgc"
     }
     pub fn frame(&mut self, output: &mut Vec<u8>) -> Result<Option<(u32, u32)>, String> {
+        #[cfg(feature = "capture-diagnostics")]
+        let diagnostic = self.wgc.diagnostics();
+        #[cfg(feature = "capture-diagnostics")]
+        let mut frame_span = diagnostic.frame_span();
         let profile = self.profile;
         let Some((w, h)) = self.wgc.read(|w, h| {
             Ok(if profile.size(w, h)? == (w, h) {
@@ -324,10 +351,14 @@ impl Capture {
             })
         })?
         else {
+            #[cfg(feature = "capture-diagnostics")]
+            frame_span.outcome(crate::diagnostics::Stage::FrameNone);
             return Ok(None);
         };
         let (width, height) = profile.size(w, h)?;
         if (width, height) == (w, h) {
+            #[cfg(feature = "capture-diagnostics")]
+            frame_span.outcome(crate::diagnostics::Stage::FrameSuccess);
             return Ok(Some((w, h)));
         }
         // This path retains the existing HALFTONE resize and final DIB copy.
@@ -370,6 +401,8 @@ impl Capture {
             GdiFlush();
             std::ptr::copy_nonoverlapping(dib.bits.as_ptr(), output.as_mut_ptr(), len);
         }
+        #[cfg(feature = "capture-diagnostics")]
+        frame_span.outcome(crate::diagnostics::Stage::FrameSuccess);
         Ok(Some((width, height)))
     }
 }
@@ -378,6 +411,32 @@ impl Capture {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "capture-diagnostics")]
+    #[test]
+    fn diagnostic_row_timing_keeps_the_same_copy_and_invalid_pitch_guard() {
+        let d = crate::diagnostics::Recorder::new();
+        d.set_enabled(true);
+        d.reset_window();
+        let pixels = [1u8, 2, 3, 4, 99, 99, 99, 99, 5, 6, 7, 8];
+        let mut output = Vec::new();
+        unsafe { FullBuffer::Bytes(&mut output).copy_from(pixels.as_ptr(), 8, 1, 2, &d) }.unwrap();
+        assert_eq!(output, [1, 2, 3, 4, 5, 6, 7, 8]);
+        assert!(
+            unsafe { FullBuffer::Bytes(&mut output).copy_from(pixels.as_ptr(), 3, 1, 2, &d) }
+                .is_err()
+        );
+        assert_eq!(output, [1, 2, 3, 4, 5, 6, 7, 8]);
+        let s = d.snapshot();
+        assert_eq!(
+            s.metrics[crate::diagnostics::Stage::RowCopy as usize].count,
+            1
+        );
+        assert_eq!(
+            s.metrics[crate::diagnostics::Stage::BufferPrepare as usize].count,
+            1
+        );
+    }
+
     #[test]
     fn full_buffer_copies_bgrx_rows_without_padding_and_reuses_the_vec() {
         let pixels = [
@@ -385,10 +444,30 @@ mod tests {
         ];
         let mut output = Vec::with_capacity(64);
         let allocation = output.as_ptr();
-        unsafe { FullBuffer::Bytes(&mut output).copy_from(pixels.as_ptr(), 12, 2, 2) }.unwrap();
+        unsafe {
+            FullBuffer::Bytes(&mut output).copy_from(
+                pixels.as_ptr(),
+                12,
+                2,
+                2,
+                #[cfg(feature = "capture-diagnostics")]
+                &crate::diagnostics::Recorder::new(),
+            )
+        }
+        .unwrap();
         assert_eq!(output, (1..=16).collect::<Vec<_>>());
         assert_eq!(output.as_ptr(), allocation);
-        unsafe { FullBuffer::Bytes(&mut output).copy_from(pixels.as_ptr(), 12, 1, 1) }.unwrap();
+        unsafe {
+            FullBuffer::Bytes(&mut output).copy_from(
+                pixels.as_ptr(),
+                12,
+                1,
+                1,
+                #[cfg(feature = "capture-diagnostics")]
+                &crate::diagnostics::Recorder::new(),
+            )
+        }
+        .unwrap();
         assert_eq!(output, [1, 2, 3, 4]);
         assert_eq!(output.as_ptr(), allocation);
     }
@@ -405,7 +484,14 @@ mod tests {
         ] {
             let mut output = vec![42];
             assert!(unsafe {
-                FullBuffer::Bytes(&mut output).copy_from(source, pitch, width, height)
+                FullBuffer::Bytes(&mut output).copy_from(
+                    source,
+                    pitch,
+                    width,
+                    height,
+                    #[cfg(feature = "capture-diagnostics")]
+                    &crate::diagnostics::Recorder::new(),
+                )
             }
             .is_err());
             assert_eq!(output, [42]);
@@ -421,10 +507,24 @@ mod tests {
         let mut dib = None;
         unsafe {
             FullBuffer::Bytes(&mut output)
-                .copy_from(pixels.as_ptr(), 12, 2, 2)
+                .copy_from(
+                    pixels.as_ptr(),
+                    12,
+                    2,
+                    2,
+                    #[cfg(feature = "capture-diagnostics")]
+                    &crate::diagnostics::Recorder::new(),
+                )
                 .unwrap();
             FullBuffer::Dib(&mut dib)
-                .copy_from(pixels.as_ptr(), 12, 2, 2)
+                .copy_from(
+                    pixels.as_ptr(),
+                    12,
+                    2,
+                    2,
+                    #[cfg(feature = "capture-diagnostics")]
+                    &crate::diagnostics::Recorder::new(),
+                )
                 .unwrap();
             assert_eq!(
                 std::slice::from_raw_parts(dib.as_ref().unwrap().bits.as_ptr(), output.len()),

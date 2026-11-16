@@ -59,6 +59,8 @@ pub struct Wgc {
     ready: Arc<AtomicBool>,
     closed_token: i64,
     frame_token: i64,
+    #[cfg(feature = "capture-diagnostics")]
+    diagnostics: std::rc::Rc<crate::diagnostics::Recorder>,
     pub title: String,
     // Rust drops fields in declaration order, after Drop; release COM before RoUninitialize.
     _apartment: Apartment,
@@ -124,7 +126,13 @@ impl Wgc {
                     Some(context),
                 )
             };
+            #[cfg(feature = "capture-diagnostics")]
+            let mut driver_type = 1;
             if make(D3D_DRIVER_TYPE_HARDWARE, &mut device, &mut context).is_err() {
+                #[cfg(feature = "capture-diagnostics")]
+                {
+                    driver_type = 2;
+                }
                 make(D3D_DRIVER_TYPE_WARP, &mut device, &mut context)?;
             }
             let device: ID3D11Device = device.ok_or_else(windows::core::Error::from_thread)?;
@@ -151,10 +159,18 @@ impl Wgc {
             }))?;
             let ready = Arc::new(AtomicBool::new(false));
             let arrived = ready.clone();
+            #[cfg(feature = "capture-diagnostics")]
+            let diagnostics = std::rc::Rc::new(crate::diagnostics::Recorder::new());
+            #[cfg(feature = "capture-diagnostics")]
+            diagnostics.set_driver_type(driver_type);
+            #[cfg(feature = "capture-diagnostics")]
+            let notices = diagnostics.arrivals();
             let frame_token = pool.FrameArrived(&TypedEventHandler::<
                 Direct3D11CaptureFramePool,
                 windows::core::IInspectable,
             >::new(move |_, _| {
+                #[cfg(feature = "capture-diagnostics")]
+                notices.notify();
                 arrived.store(true, Ordering::Release);
                 Ok(())
             }))?;
@@ -174,6 +190,8 @@ impl Wgc {
                 ready,
                 closed_token,
                 frame_token,
+                #[cfg(feature = "capture-diagnostics")]
+                diagnostics,
                 title,
                 _apartment: apartment,
             })
@@ -214,22 +232,42 @@ impl Wgc {
     pub fn is_closed(&self) -> bool {
         self.closed.load(Ordering::Acquire)
     }
+    #[cfg(feature = "capture-diagnostics")]
+    pub(super) fn diagnostics(&self) -> std::rc::Rc<crate::diagnostics::Recorder> {
+        self.diagnostics.clone()
+    }
     pub(super) fn read<'a>(
         &mut self,
         choose: impl FnOnce(u32, u32) -> Result<FullBuffer<'a>, String>,
     ) -> Result<Option<(u32, u32)>, String> {
+        #[cfg(feature = "capture-diagnostics")]
+        let diagnostic = self.diagnostics();
+        #[cfg(feature = "capture-diagnostics")]
+        let _read = diagnostic.span(crate::diagnostics::Stage::WgcRead);
+        #[cfg(feature = "capture-diagnostics")]
+        diagnostic.begin_attempt();
         if self.closed.load(Ordering::Acquire) {
             return Err("A janela compartilhada foi fechada.".into());
         }
         if !self.ready.swap(false, Ordering::AcqRel) {
+            #[cfg(feature = "capture-diagnostics")]
+            diagnostic.none(0);
             return Ok(None);
         }
+        #[cfg(feature = "capture-diagnostics")]
+        diagnostic.notice_age();
+        #[cfg(feature = "capture-diagnostics")]
+        let drain_span = diagnostic.span(crate::diagnostics::Stage::PoolDrain);
         let mut frame = match self.pool.TryGetNextFrame() {
             Ok(f) => f,
             // windows-core 0.62 maps a successful nullable COM result to
             // Error::empty() (code S_OK), not E_POINTER. A late FrameArrived
             // callback after draining the pool must not terminate capture.
-            Err(e) if e.code().0 == 0 => return Ok(None),
+            Err(e) if e.code().0 == 0 => {
+                #[cfg(feature = "capture-diagnostics")]
+                diagnostic.none(1);
+                return Ok(None);
+            }
             Err(e) => {
                 eprintln!(
                     "harmony_native_capture stage=next_frame hresult={:08X}",
@@ -238,9 +276,20 @@ impl Wgc {
                 return Err("A captura do Windows foi encerrada.".into());
             }
         };
+        #[cfg(feature = "capture-diagnostics")]
+        let mut drained = 0;
         while let Ok(newer) = self.pool.TryGetNextFrame() {
             let _ = frame.Close();
             frame = newer;
+            #[cfg(feature = "capture-diagnostics")]
+            {
+                drained += 1;
+            }
+        }
+        #[cfg(feature = "capture-diagnostics")]
+        {
+            diagnostic.drain(drained);
+            drop(drain_span);
         }
         let result = (|| -> Result<Option<(u32, u32)>, String> {
             let size = frame
@@ -266,6 +315,8 @@ impl Wgc {
                     .map_err(|_| "Não foi possível acompanhar o tamanho da janela.")?;
                 self.size = size;
                 self.staging = None;
+                #[cfg(feature = "capture-diagnostics")]
+                diagnostic.none(2);
                 return Ok(None);
             }
             // Choose using this frame's validated geometry only after handling
@@ -313,18 +364,45 @@ impl Wgc {
                 .map_err(|_| "Não foi possível ler o quadro da captura.")?;
             }
             let staging = self.staging.as_ref().ok_or("Quadro indisponível.")?;
+            #[cfg(feature = "capture-diagnostics")]
+            let copy_span = diagnostic.span(crate::diagnostics::Stage::CopyResourceCpu);
             unsafe { self.context.CopyResource(staging, &texture) };
+            #[cfg(feature = "capture-diagnostics")]
+            drop(copy_span);
             let mut mapped = D3D11_MAPPED_SUBRESOURCE::default();
+            #[cfg(feature = "capture-diagnostics")]
+            let map_span = diagnostic.span(crate::diagnostics::Stage::MapWall);
             unsafe {
                 self.context
                     .Map(staging, 0, D3D11_MAP_READ, 0, Some(&mut mapped))
             }
             .map_err(|_| "Não foi possível mapear o quadro da captura.")?;
+            #[cfg(feature = "capture-diagnostics")]
+            drop(map_span);
             let copied = unsafe {
-                target.copy_from(mapped.pData as *const u8, mapped.RowPitch as usize, w, h)
+                target.copy_from(
+                    mapped.pData as *const u8,
+                    mapped.RowPitch as usize,
+                    w,
+                    h,
+                    #[cfg(feature = "capture-diagnostics")]
+                    &diagnostic,
+                )
             };
+            #[cfg(feature = "capture-diagnostics")]
+            let unmap_span = diagnostic.span(crate::diagnostics::Stage::Unmap);
             unsafe { self.context.Unmap(staging, 0) };
+            #[cfg(feature = "capture-diagnostics")]
+            drop(unmap_span);
             copied?;
+            #[cfg(feature = "capture-diagnostics")]
+            if diagnostic.enabled() {
+                let getter = diagnostic.span(crate::diagnostics::Stage::TimestampGetter);
+                let timestamp = frame.SystemRelativeTime().ok().map(|time| time.Duration);
+                drop(getter);
+                // Telemetry failure must never turn a successful copy into failure.
+                diagnostic.observe_frame(timestamp);
+            }
             Ok(Some((w, h)))
         })();
         let _ = frame.Close();
