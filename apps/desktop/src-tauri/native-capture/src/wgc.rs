@@ -261,8 +261,25 @@ impl Wgc {
                 unsafe { access.GetInterface() }.map_err(|_| "Textura de captura indisponível.")?;
             let mut desc = D3D11_TEXTURE2D_DESC::default();
             unsafe { texture.GetDesc(&mut desc) };
-            if desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM || desc.Width < w || desc.Height < h {
+            byte_len(desc.Width, desc.Height)?;
+            if desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM
+                || desc.Width < w
+                || desc.Height < h
+                || desc.SampleDesc.Count != 1
+                || desc.ArraySize != 1
+                || desc.MipLevels != 1
+            {
                 return Err("Formato de captura não suportado.".into());
+            }
+            if let Some(staging) = &self.staging {
+                let mut previous = D3D11_TEXTURE2D_DESC::default();
+                unsafe { staging.GetDesc(&mut previous) };
+                if previous.Width != desc.Width
+                    || previous.Height != desc.Height
+                    || previous.Format != desc.Format
+                {
+                    self.staging = None;
+                }
             }
             if self.staging.is_none() {
                 desc.Usage = D3D11_USAGE_STAGING;

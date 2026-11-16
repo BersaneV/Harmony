@@ -44,7 +44,7 @@ jobs:
           $env:HARMONY_OWNED_WINDOW="HarmonyWAN-$env:GITHUB_RUN_ID"
           $width=[int]$env:HARMONY_CAPTURE_HEIGHT*16/9
           if ($env:HARMONY_CAPTURE_SOURCE -eq 'layered') { $sourceFile="$PWD/scripts/exe-wan/window-layered.ps1" } elseif ($env:HARMONY_CAPTURE_SOURCE -eq 'window') { $sourceFile="$PWD/scripts/exe-wan/window.ps1" } else { throw 'Only owned source fixtures allowed' }
-          $window=Start-Process powershell.exe -ArgumentList @('-NoProfile','-File',$sourceFile,'-Title',$env:HARMONY_OWNED_WINDOW,'-Width',"$width",'-Height',$env:HARMONY_CAPTURE_HEIGHT,'-Fps','60') -PassThru
+          $window=Start-Process powershell.exe -ArgumentList @('-NoProfile','-File',$sourceFile,'-Title',$env:HARMONY_OWNED_WINDOW,'-Width',"$width",'-Height',$env:HARMONY_CAPTURE_HEIGHT,'-Fps','60') -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/native-source.log" -RedirectStandardError "$env:RUNNER_TEMP/native-source-error.log"
           $probe=Start-Process "$env:RUNNER_TEMP/harmony-native-target/release/examples/capture_probe.exe" -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/native-probe.json" -RedirectStandardError "$env:RUNNER_TEMP/native-probe-error.log"
           try {
             powershell.exe -NoProfile -File scripts/exe-wan/native-consent.ps1 -Title $env:HARMONY_OWNED_WINDOW
@@ -54,6 +54,8 @@ jobs:
             Get-Content "$env:RUNNER_TEMP/native-probe-error.log"
             exit $probe.ExitCode
           } finally {
+            if (Test-Path "$env:RUNNER_TEMP/native-source.log") { Get-Content "$env:RUNNER_TEMP/native-source.log" }
+            if (Test-Path "$env:RUNNER_TEMP/native-source-error.log") { Get-Content "$env:RUNNER_TEMP/native-source-error.log" }
             if (Test-Path "$env:RUNNER_TEMP/native-probe.json") { Get-Content "$env:RUNNER_TEMP/native-probe.json" }
             if (Test-Path "$env:RUNNER_TEMP/native-probe-error.log") { Get-Content "$env:RUNNER_TEMP/native-probe-error.log" }
             foreach ($process in @($probe,$window)) { if (-not $process.HasExited) { taskkill /PID $process.Id /T /F | Out-Null } }

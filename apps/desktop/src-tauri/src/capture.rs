@@ -417,7 +417,7 @@ mod platform {
                 break;
             }
             capture.set_profile(*locked(&run.profile)?)?;
-            let Some((width, height)) = capture.frame(&mut locked(&run.pixels)?)? else {
+            let Some((width, height)) = capture.frame(&mut *locked(&run.pixels)?)? else {
                 // Pool is event-driven. Poll briefly for its newest frame;
                 // waiting a full frame period here can halve the capture rate.
                 pacer.sleep(Duration::from_millis(1));
