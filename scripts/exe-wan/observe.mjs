@@ -4,6 +4,7 @@ export function observe(){
  if(!window.__TAURI_INTERNALS__||!['http://tauri.localhost','https://tauri.localhost'].includes(location.origin))throw Error('Owned compiled Tauri page required');
  if(window.__exeWan)throw Error('Already instrumented');
  const qa=window.__exeWan={pcs:[],tracks:[],events:[],contexts:[],captures:[],microphones:[],screenAudio:[],started:performance.now()};
+ qa.nativeCalls=[];const invoke=window.__TAURI_INTERNALS__.invoke;window.__TAURI_INTERNALS__.invoke=function(command,...args){if(!/^native_capture_(start|sources|available|profile|stop)$/.test(command))return invoke.call(this,command,...args);const row={command,status:'pending',at:performance.now()};qa.nativeCalls.push(row);return invoke.call(this,command,...args).then(value=>{row.status='resolved';return value},error=>{row.status='rejected';row.error=String(error).slice(0,500);throw error});};
  function countSource(record){
   record.processor_frames=0;record.distinct_marker_frames=0;record.marker_copy_errors=0;record.processor_error=null;record.processor_sizes=new Set();record.processor_status='starting';
   record.observer_overhead='One native-track clone and one 1px RGBA copy per delivered frame; extra observer overhead is possible. Full source geometry is unchanged.';
@@ -77,7 +78,7 @@ export function observe(){
     if(t.track.kind==='video'){const v=[...document.querySelectorAll('video')].find(v=>v.srcObject?.getVideoTracks?.().some(a=>a.id===t.track.id));if(v){const q=v.getVideoPlaybackQuality();out.video={width:v.videoWidth,height:v.videoHeight,current_time:v.currentTime,total_frames:q.totalVideoFrames,dropped_frames:q.droppedVideoFrames,paused:v.paused,ready_state:v.readyState};}}return out;});
    return{pc:index,route,m_line_kinds:shape(pc),state:pc.connectionState,local_fingerprint:fingerprint(rows.get(transport?.localCertificateId),pc.localDescription),remote_fingerprint:fingerprint(rows.get(transport?.remoteCertificateId),pc.remoteDescription),local_candidate:{type:local?.candidateType||null,protocol:local?.protocol||null,address:local?.address||local?.ip||null,port:local?.port||null},remote_candidate:{type:remote?.candidateType||null,protocol:remote?.protocol||null,address:remote?.address||remote?.ip||null,port:remote?.port||null},ice_rtt_ms:typeof pair?.currentRoundTripTime==='number'?pair.currentRoundTripTime*1000:null,available_outgoing_bitrate:typeof pair?.availableOutgoingBitrate==='number'?pair.availableOutgoingBitrate:null,rtp,tracks};
   }));
-  return{at:performance.now(),wall_utc:Date.now(),peers,events:qa.events.slice(-200),captures:qa.captureSnapshots()};
+  return{at:performance.now(),wall_utc:Date.now(),peers,events:qa.events.slice(-200),captures:qa.captureSnapshots(),native_calls:qa.nativeCalls};
  };
  return true;
 }

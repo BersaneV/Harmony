@@ -43,7 +43,7 @@ try{
  result.status='PASS';
 }catch(error){
  result.status='FAIL';result.error=String(error.message).slice(0,700);
- if(app)try{result.final_sample=await app.sample();result.visible_errors=await app.cdp.evaluate(`Array.from(document.querySelectorAll('.error-banner,[role=alert]')).map(e=>e.textContent.slice(0,300))`);result.visible_capture_ui=await app.cdp.evaluate(`({panel:document.querySelector('.call-panel')?.innerText.slice(-4500),dialogs:Array.from(document.querySelectorAll('dialog[open]')).map(d=>d.innerText.slice(0,1500))})`);}catch{}
+ if(app)try{result.final_sample=await app.sample();result.visible_errors=await app.cdp.evaluate(`Array.from(document.querySelectorAll('.error-banner,[role=alert]')).map(e=>e.textContent.slice(0,300))`);result.visible_capture_ui=await app.cdp.evaluate(`({panel:document.querySelector('.call-panel')?.innerText.slice(-4500),buttons:Array.from(document.querySelectorAll('.call-panel button')).map(b=>({text:b.textContent.trim(),disabled:b.disabled})),dialogs:Array.from(document.querySelectorAll('dialog[open]')).map(d=>d.innerText.slice(0,1500))})`);}catch{}
 }finally{
  if(app){result.fixture_diagnostic=app.fixtureDiagnostic();try{app.close();}catch{result.cleanup_policy='FAIL';result.status='FAIL';}await writeFile(join(app.root,'probe.json'),JSON.stringify(result,null,2)+'\n');}
  console.log('HARMONY_EXE_PROBE '+JSON.stringify(result));

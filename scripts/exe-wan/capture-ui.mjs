@@ -53,7 +53,7 @@ export function summarizeNativeSource(samples,profile){
 
 function confirmNative(title){
  const result=spawnSync('powershell.exe',['-NoProfile','-File',resolve('scripts/exe-wan/native-consent.ps1'),'-Title',title],{encoding:'utf8',timeout:50000});
- assert.equal(result.status,0,'Owned native confirmation failed: '+(result.stderr||'').slice(-500));
+ assert.equal(result.status,0,'Owned native confirmation failed: '+((result.stdout||'').slice(-2000)+' '+(result.stderr||'').slice(-500)));
  return{status:result.status,message:(result.stdout||'').trim()};
 }
 
