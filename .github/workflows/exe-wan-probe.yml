@@ -21,13 +21,13 @@ on:
         type: choice
         # Every choice requires real published installer and EXE hashes.
         # The compiled UI path fails closed on any identity mismatch.
-        options: ['0.4.1', '0.4.2', '0.4.3', '0.4.4']
+        options: ['0.4.1', '0.4.2', '0.4.3', '0.4.4', '0.4.5']
         default: '0.4.2'
 permissions:
   contents: read
 jobs:
   prepare:
-    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["0.4.3","0.4.4"]'), inputs.release)
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["0.4.3","0.4.4","0.4.5"]'), inputs.release)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -50,7 +50,7 @@ jobs:
           import assert from 'node:assert/strict';
           import {readFile} from 'node:fs/promises';
           const version=process.env.HARMONY_EXE_RELEASE;
-          assert.ok(['0.4.3','0.4.4'].includes(version));
+          assert.ok(['0.4.3','0.4.4','0.4.5'].includes(version));
           const release=JSON.parse(await readFile(`scripts/exe-wan/releases/${version}.json`,'utf8'));
           assert.equal(release.version,version);
           assert.equal(release.installer_url,`https://github.com/BersaneV/Harmony/releases/download/v${version}/Harmony_${version}_x64-setup.exe`);
@@ -66,13 +66,13 @@ jobs:
         run: node scripts/exe-wan/prepare.mjs
   probe:
     needs: prepare
-    if: always() && github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["windows-2022","windows-2025"]'), inputs.image) && ((contains(fromJSON('["0.4.3","0.4.4"]'), inputs.release) && needs.prepare.result == 'success') || (contains(fromJSON('["0.4.1","0.4.2"]'), inputs.release) && needs.prepare.result == 'skipped'))
+    if: always() && github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["windows-2022","windows-2025"]'), inputs.image) && ((contains(fromJSON('["0.4.3","0.4.4","0.4.5"]'), inputs.release) && needs.prepare.result == 'success') || (contains(fromJSON('["0.4.1","0.4.2"]'), inputs.release) && needs.prepare.result == 'skipped'))
     runs-on: ${{ inputs.image }}
     timeout-minutes: 15
     env:
       HARMONY_EXE_RELEASE: ${{ inputs.release }}
       HARMONY_EXE_PROFILE: ${{ inputs.profile }}
-      HARMONY_EXE_WAN_SEED: ${{ contains(fromJSON('["0.4.3","0.4.4"]'), inputs.release) && secrets.HARMONY_EXE_WAN_SEED || '' }}
+      HARMONY_EXE_WAN_SEED: ${{ contains(fromJSON('["0.4.3","0.4.4","0.4.5"]'), inputs.release) && secrets.HARMONY_EXE_WAN_SEED || '' }}
       HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
       HARMONY_GUILD_ID: ${{ needs.prepare.outputs.guild }}
       HARMONY_GUILD_NAME: ${{ needs.prepare.outputs.guild_name }}

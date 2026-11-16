@@ -62,7 +62,7 @@ fps_axis.set_ylim(0, max(request['fps']+5, max((v for v in fps if np.isfinite(v)
 fps_axis.set_ylabel('FPS exibidos · média na fase sustentada')
 fps_axis.set_title(f"Uma janela {request['width']}×{request['height']} → sete espectadores", loc='left', weight='bold', pad=12)
 for x, value, (index, stream) in zip(positions, fps, video):
-    label = f'{value:.1f}' + (f"\n{stream['height']}p final" if stream['height'] != request['height'] else '') if np.isfinite(value) else 'n/d'
+    label = f'{value:.4f}' + (f"\n{stream['height']}p final" if stream['height'] != request['height'] else '') if np.isfinite(value) else 'n/d'
     fps_axis.text(x, value + .5 if np.isfinite(value) else 1, label, ha='center', fontsize=9)
 fps_axis.legend(loc='upper left', fontsize=8)
 fps_axis.grid(axis='y', alpha=.2)

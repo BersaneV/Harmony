@@ -5,8 +5,8 @@ import {resolve} from 'node:path';
 import {until} from './cdp.mjs';
 
 export function captureMode(release='0.4.1',profile){
- assert.ok(['0.4.1','0.4.2','0.4.3','0.4.4'].includes(release),'Unsupported pinned capture release');
- return ['0.4.3','0.4.4'].includes(release)&&profile.fps===60?'native':'browser';
+ assert.ok(['0.4.1','0.4.2','0.4.3','0.4.4','0.4.5'].includes(release),'Unsupported pinned capture release');
+ return ['0.4.3','0.4.4','0.4.5'].includes(release)&&profile.fps===60?'native':'browser';
 }
 export const fixtureScript=(release,profile)=>captureMode(release,profile)==='native'?'window-layered.ps1':'window.ps1';
 
@@ -69,7 +69,7 @@ export async function chooseScreenUi(app,profile,{release=process.env.HARMONY_EX
  if(mode==='native'){
   await wait(()=>app.cdp.evaluate(`Array.from(document.querySelectorAll('label.field')).some(l=>l.querySelector('span')?.textContent==='Método de captura')`),'compiled native capture method');
   await app.select('Método de captura','auto');
- }else if(['0.4.3','0.4.4'].includes(release)){
+ }else if(['0.4.3','0.4.4','0.4.5'].includes(release)){
   const method=await app.cdp.evaluate(`Array.from(document.querySelectorAll('label.field')).some(l=>l.querySelector('span')?.textContent==='Método de captura')`);
   if(method)await app.select('Método de captura','browser');
  }

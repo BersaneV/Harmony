@@ -5,7 +5,7 @@ import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {resolve,join} from 'node:path';
 import {CDP,until,delay,hasFlag} from './cdp.mjs';
-if(['0.4.3','0.4.4'].includes(process.env.HARMONY_EXE_RELEASE)){
+if(['0.4.3','0.4.4','0.4.5'].includes(process.env.HARMONY_EXE_RELEASE)){
  await import('./probe-native.mjs');
 }else{
 assert.equal(process.platform,'win32');assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REPOSITORY,'BersaneV/Harmony');

@@ -14,7 +14,7 @@ import {assertCallRoute} from './fixture-contract.mjs';
 const request=requestedProfile();let app;
 const result={kind:'exe_probe',status:'RUNNING',scope:'One pinned published EXE on one disposable VM; normal compiled login/call/preview UI and an owned native Windows source. This is not eight-peer capacity approval.',requested_profile:request,instrumentation:'Passive application capture event and clones of actual application tracks; no injected capture or sender changes'};
 try{
- guard();const version=process.env.HARMONY_EXE_RELEASE;assert.ok(['0.4.3','0.4.4'].includes(version),'Explicit pinned desktop release required');
+ guard();const version=process.env.HARMONY_EXE_RELEASE;assert.ok(['0.4.3','0.4.4','0.4.5'].includes(version),'Explicit pinned desktop release required');
  for(const field of ['HARMONY_GUILD_ID','HARMONY_GUILD_NAME','HARMONY_VOICE_ID','HARMONY_COHORT_USERS'])assert.ok(process.env[field],`Compiled UI probe requires the private prepare.mjs fixture: ${field}`);
  assert.equal(process.env.HARMONY_GUILD_NAME,'EXE WAN '+cohort());
  const users=JSON.parse(process.env.HARMONY_COHORT_USERS);assert.equal(users.length,8);
