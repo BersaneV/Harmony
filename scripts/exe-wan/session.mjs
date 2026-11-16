@@ -1,7 +1,7 @@
 import{requestedProfile}from'./profiles.mjs';
 import assert from'node:assert/strict';import{spawn,spawnSync}from'node:child_process';import{mkdir,writeFile,readFile}from'node:fs/promises';import{join,resolve}from'node:path';import{createHash}from'node:crypto';
 import{CDP,until,delay,hasFlag}from'./cdp.mjs';import{guard,opaque}from'./lab.mjs';import{observe}from'./observe.mjs';
-import{captureMode,fixtureScript,chooseScreenUi}from'./capture-ui.mjs';
+import{captureMode,fixtureScript,fixtureReady,chooseScreenUi}from'./capture-ui.mjs';
 import{createBrowserEvents}from'./browser-events.mjs';
 export async function session(index){
  guard();const request=requestedProfile(),release=process.env.HARMONY_EXE_RELEASE||'0.4.1',capture=captureMode(release,request);const root=process.env.HARMONY_EXE_ROOT,exe=process.env.HARMONY_EXE_PATH;assert.ok(root&&exe?.startsWith(root)&&!/[\s"\r\n]/.test(root));
@@ -14,7 +14,7 @@ export async function session(index){
   assert.equal(index,0,'Only the owned publisher creates a source window');if(fixture){assert.equal(fixture.exitCode,null,'Owned source fixture exited: '+fixtureError);return;}
   fixture=spawn('powershell.exe',['-NoProfile','-File',resolve('scripts/exe-wan/'+fixtureScript(release,request)),'-Title',title,'-Width',String(request.width),'-Height',String(request.height),'-Fps',String(request.fps),...(capture==='native'?['-DurationSeconds','600']:[])],{stdio:['ignore','pipe','pipe']});
   fixture.stdout.on('data',b=>fixtureOutput=(fixtureOutput+b).slice(-12000));fixture.stderr.on('data',b=>fixtureError=(fixtureError+b).slice(-6000));
-  await until(()=>{assert.equal(fixture.exitCode,null,'Owned source exited before complete geometry: '+fixtureError);return new RegExp(`(?:^|\\r?\\n)WINDOW [0-9]+ ${request.width}x${request.height} TARGET ${request.fps}${capture==='native'?' SOURCE native-layered-dib':''}(?:\\r?\\n|$)`).test(fixtureOutput)},'complete owned fixture surface',45000);
+  await until(()=>{assert.equal(fixture.exitCode,null,'Owned source exited before complete geometry: '+fixtureError);return fixtureReady(fixtureOutput,request,capture)},'complete owned fixture surface',45000);
  }
  function policyCall(remove=false){const args=['-NoProfile','-File',policy,'-ExePath',exe,...(remove?['-Remove']:['-Profile',profile])];const r=spawnSync('pwsh',args,{encoding:'utf8',timeout:30000,env:{...process.env,HARMONY_WAN_BROWSER_ARGUMENTS:flags.join(' ')}});assert.equal(r.status,0,'Scoped test policy failed');}
  const close=()=>{cdp?.close();for(const child of[app,fixture])if(child?.pid&&child.exitCode===null)spawnSync('taskkill',['/PID',String(child.pid),'/T','/F'],{stdio:'ignore'});policyCall(true);};

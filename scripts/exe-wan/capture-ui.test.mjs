@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {captureMode,fixtureScript,assertOwnedCapture,assertCaptureMeasurement,summarizeNativeSource,chooseScreenUi} from './capture-ui.mjs';
+import {captureMode,fixtureScript,fixtureReady,assertOwnedCapture,assertCaptureMeasurement,summarizeNativeSource,chooseScreenUi} from './capture-ui.mjs';
 import {getProfile} from './profiles.mjs';
 import {observe} from './observe.mjs';
 const profile=getProfile('1440p60');
@@ -63,4 +63,11 @@ test('passive native observation preserves raw track settings separately from fr
  let width=2560;const track={kind:'video',id:'actual-track',label:'',readyState:'live',getSettings:()=>({})};
  listeners.get('harmony-native-screen')({detail:{track,label:'native-window:42',backend:'native-wgc',settings:()=>({width,height:1440})}});
  const read=()=>context.window.__exeWan.captureSnapshots()[0];assert.equal(read().settings.width,2560);width=1920;assert.equal(read().settings.width,1920);assert.equal(Object.keys(read().track_settings).length,0);assert.equal(read().processor_status,'unsupported');assert.equal(read().processor_frames,0);
+});
+
+test('fixture readiness accepts the real native lifetime suffix and preserves exact dimensions and FPS',()=>{
+ const line='WINDOW 66186 1920x1080 TARGET 60 SOURCE native-layered-dib LIFETIME_SECONDS 600\r\nPAINT 300 ELAPSED_MS 5055\r\n',p=getProfile('1080p60');
+ assert.equal(fixtureReady(line,p,'native'),true);
+ for(const bad of [line.replace('1920x1080','960x540'),line.replace('TARGET 60','TARGET 30'),line.replace('LIFETIME_SECONDS 600','LIFETIME_SECONDS 60'),line.replace(' SOURCE native-layered-dib',' SOURCE other')])assert.equal(fixtureReady(bad,p,'native'),false);
+ assert.equal(fixtureReady('PHYSICAL_WINDOW 1280x720 DWM 1280x720\r\nWINDOW 197048 1280x720 TARGET 30\r\n',getProfile('720p30'),'browser'),true);
 });

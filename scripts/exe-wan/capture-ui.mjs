@@ -10,6 +10,11 @@ export function captureMode(release='0.4.1',profile){
 }
 export const fixtureScript=(release,profile)=>captureMode(release,profile)==='native'?'window-layered.ps1':'window.ps1';
 
+export function fixtureReady(output,profile,mode){
+ assert.ok(['native','browser'].includes(mode),'Explicit fixture mode required');
+ return new RegExp(`(?:^|\\r?\\n)WINDOW [0-9]+ ${profile.width}x${profile.height} TARGET ${profile.fps}${mode==='native'?' SOURCE native-layered-dib LIFETIME_SECONDS 600':''}(?:\\r?\\n|$)`).test(output);
+}
+
 export function assertOwnedCapture(capture,handle,profile,mode){
  assert.ok(Number.isSafeInteger(handle)&&handle>0,'Owned fixture HWND required');
  assert.equal(capture.ready,'live');
