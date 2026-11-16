@@ -10,7 +10,7 @@ on:
       release:
         description: Pinned published Windows package to test
         type: choice
-        options: ['0.4.1', '0.4.2', '0.4.3']
+        options: ['0.4.1', '0.4.2', '0.4.3', '0.4.4']
         default: '0.4.2'
       encoder_probe:
         description: Diagnostic only; compare native adaptation on one owned connection, never a capacity PASS
@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with: {node-version: '26.13.0'}
-      - run: node --test scripts/exe-wan/browser-events.test.mjs scripts/exe-wan/observe.test.mjs scripts/exe-wan/metrics.test.mjs scripts/exe-wan/auth.test.mjs scripts/exe-wan/profiles.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/routes.test.mjs scripts/exe-wan/fixture-contract.test.mjs
+      - run: node --test scripts/exe-wan/host-cpu.test.mjs scripts/exe-wan/browser-events.test.mjs scripts/exe-wan/observe.test.mjs scripts/exe-wan/metrics.test.mjs scripts/exe-wan/auth.test.mjs scripts/exe-wan/profiles.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/routes.test.mjs scripts/exe-wan/fixture-contract.test.mjs
       - name: Create the private eight-account fixture
         id: fixture
         env:

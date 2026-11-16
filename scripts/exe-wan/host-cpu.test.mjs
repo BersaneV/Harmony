@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';import{summarizeHostCpu}from'./host-cpu.mjs';
+const times=(user,idle)=>({user,nice:0,sys:0,idle,irq:0});
+const sample=(at,cores)=>({host_cpu:{platform:'win32',at_ms:at,cores}});
+test('host utilization uses actual counter deltas across all cores and reports VM scope',()=>{const r=summarizeHostCpu([sample(1000,[times(100,900),times(500,500)]),sample(2000,[times(350,1650),times(1250,750)])]);assert.equal(r.status,'OBSERVED');assert.equal(r.logical_cores,2);assert.equal(r.busy_fraction,.5);assert.equal(r.busy_core_equivalent,1);assert.equal(r.duration_seconds,1);assert.deepEqual(r.per_core.map(c=>c.busy_fraction),[.25,.75]);assert.match(r.scope,/not process or encoder/);});
+test('missing host telemetry remains unverified instead of zero utilization',()=>{assert.equal(summarizeHostCpu([]).status,'NOT_VERIFIED');assert.equal(summarizeHostCpu([{}]).status,'NOT_VERIFIED');});
+test('counter reset, core changes and missing fields cannot produce a utilization claim',()=>{const a=sample(1000,[times(100,900)]);for(const b of [sample(2000,[times(0,1000)]),sample(2000,[times(200,1800),times(200,1800)]),sample(2000,[{user:200,idle:1800}]),sample(1000,[times(200,1800)]),sample(2000,[times(100,900)])])assert.equal(summarizeHostCpu([a,b]).status,'NOT_VERIFIED');});
+
+test('an invalid intermediate timestamp or core container remains unverified',()=>{assert.equal(summarizeHostCpu([sample(1000,[times(100,900)]),sample(999,[times(150,950)]),sample(2000,[times(200,1800)])]).status,'NOT_VERIFIED');assert.equal(summarizeHostCpu([sample(1000,{length:1}),sample(2000,{length:1})]).status,'NOT_VERIFIED');});
+
+test('missing intermediate snapshot and negative clock remain unverified',()=>{const a=sample(1000,[times(100,900)]),b=sample(2000,[times(200,1800)]);assert.equal(summarizeHostCpu([a,{},b]).status,'NOT_VERIFIED');assert.equal(summarizeHostCpu([sample(-1,[times(100,900)]),b]).status,'NOT_VERIFIED');const wrong=structuredClone(a);wrong.host_cpu.platform='linux';assert.equal(summarizeHostCpu([wrong,b]).status,'NOT_VERIFIED');});
+
+test('Windows sys already includes interrupt CPU time, so irq is not counted twice',()=>{const a=sample(0,[{user:0,nice:0,sys:0,idle:0,irq:0}]),b=sample(1000,[{user:400,nice:0,sys:100,idle:500,irq:50}]);const r=summarizeHostCpu([a,b]);assert.equal(r.status,'OBSERVED');assert.equal(r.busy_fraction,.5);assert.equal(r.per_core[0].total_ms,1000);assert.equal(r.per_core[0].busy_ms,500);});

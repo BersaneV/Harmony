@@ -1,4 +1,4 @@
-// 0.4.3 probe: the compiled application's normal authenticated UI creates media.
+// Pinned desktop probe: the compiled application's normal authenticated UI creates media.
 // This module never invokes native capture IPC or imports application TS through CDP.
 import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
@@ -14,14 +14,14 @@ import {assertCallRoute} from './fixture-contract.mjs';
 const request=requestedProfile();let app;
 const result={kind:'exe_probe',status:'RUNNING',scope:'One pinned published EXE on one disposable VM; normal compiled login/call/preview UI and an owned native Windows source. This is not eight-peer capacity approval.',requested_profile:request,instrumentation:'Passive application capture event and clones of actual application tracks; no injected capture or sender changes'};
 try{
- guard();assert.equal(process.env.HARMONY_EXE_RELEASE,'0.4.3');
+ guard();const version=process.env.HARMONY_EXE_RELEASE;assert.ok(['0.4.3','0.4.4'].includes(version),'Explicit pinned desktop release required');
  for(const field of ['HARMONY_GUILD_ID','HARMONY_GUILD_NAME','HARMONY_VOICE_ID','HARMONY_COHORT_USERS'])assert.ok(process.env[field],`Compiled UI probe requires the private prepare.mjs fixture: ${field}`);
  assert.equal(process.env.HARMONY_GUILD_NAME,'EXE WAN '+cohort());
  const users=JSON.parse(process.env.HARMONY_COHORT_USERS);assert.equal(users.length,8);
  // The manifest must be supplied from the real published artifact. No candidate
  // digest or missing release is silently accepted as an expected binary hash.
- let release;try{release=JSON.parse(await readFile(new URL('./releases/0.4.3.json',import.meta.url),'utf8'));}catch{throw Error('Real pinned 0.4.3 release manifest is required before running this probe');}
- assert.equal(release.version,'0.4.3');assert.match(release.main_sha256,/^[a-f0-9]{64}$/);
+ let release;try{release=JSON.parse(await readFile(new URL(`./releases/${version}.json`,import.meta.url),'utf8'));}catch{throw Error(`Real pinned ${version} release manifest is required before running this probe`);}
+ assert.equal(release.version,version);assert.match(release.main_sha256,/^[a-f0-9]{64}$/);
  const executableHash=createHash('sha256').update(await readFile(process.env.HARMONY_EXE_PATH)).digest('hex');assert.equal(executableHash,release.main_sha256,'Only the pinned installed EXE may run');
  const token=await ownedSession(0),members=(await api(`/guilds/${process.env.HARMONY_GUILD_ID}/members`,token)).items;
  assert.equal(members.length,8);assert.ok(members.every(m=>users.some(u=>u.id===m.id)),'Only owned fixture members may join');

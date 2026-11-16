@@ -11,7 +11,9 @@ test('legacy releases retain browser capture, while only the explicit new 60 FPS
  for(const release of ['0.4.1','0.4.2']){assert.equal(captureMode(release,profile),'browser');assert.equal(fixtureScript(release,profile),'window.ps1');}
  assert.equal(captureMode('0.4.3',getProfile('720p30')),'browser');
  assert.equal(captureMode('0.4.3',profile),'native');assert.equal(fixtureScript('0.4.3',profile),'window-layered.ps1');
- assert.throws(()=>captureMode('0.4.4',profile),/Unsupported pinned/);
+ assert.equal(captureMode('0.4.4',profile),'native');
+ assert.equal(captureMode('0.4.4',getProfile('720p30')),'browser');
+ assert.throws(()=>captureMode('0.4.5',profile),/Unsupported pinned/);
 });
 test('capture identity rejects another HWND, backend, missing live track and reduced dimensions',()=>{
  assertOwnedCapture(native(),42,profile,'native');

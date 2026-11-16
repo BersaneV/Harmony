@@ -49,23 +49,25 @@ fps_axis = fig.add_subplot(grid[1, 0])
 video = [(client['index'], stream) for client in phases['screen']['clients']
          for peer in (client.get('sfu_peers', []) if phases['screen'].get('sfu', {}).get('enabled') else client['peers'])
          for stream in peer['streams'] if stream['source'] == 'screen']
-positions = np.arange(len(video))
-fps = [stream['displayed_fps'] or 0 for _, stream in video]
+by_receiver = dict(video)
+video = [(index, by_receiver.get(index)) for index in range(1, 8)]
+positions = np.arange(7)
+fps = [stream['displayed_fps'] if stream and stream['displayed_fps'] is not None else np.nan for _, stream in video]
 failed = {c['index'] for c in phases['screen']['clients'] if c['video_status'] == 'FAIL'}
 fps_axis.bar(positions, fps, color=['#b45309' if index in failed else '#047857' for index, _ in video], width=.65)
 fps_axis.axhline(request['fps'], color='#475569', linestyle=':', label=f"Solicitado: {request['fps']} FPS")
 fps_axis.axhline(request['min_displayed_fps'], color='#b45309', linestyle='--', label=f"Meta do ensaio: {request['min_displayed_fps']} FPS")
 fps_axis.set_xticks(positions, [f'P{index+1}' for index, _ in video])
-fps_axis.set_ylim(0, max(request['fps']+5, max(fps, default=0) + 5))
+fps_axis.set_ylim(0, max(request['fps']+5, max((v for v in fps if np.isfinite(v)), default=0) + 5))
 fps_axis.set_ylabel('FPS exibidos · média na fase sustentada')
 fps_axis.set_title(f"Uma janela {request['width']}×{request['height']} → sete espectadores", loc='left', weight='bold', pad=12)
 for x, value, (index, stream) in zip(positions, fps, video):
-    label = f'{value:.1f}' + (f"\n{stream['height']}p final" if stream['height'] != request['height'] else '')
-    fps_axis.text(x, value + .5, label, ha='center', fontsize=9)
+    label = f'{value:.1f}' + (f"\n{stream['height']}p final" if stream['height'] != request['height'] else '') if np.isfinite(value) else 'n/d'
+    fps_axis.text(x, value + .5 if np.isfinite(value) else 1, label, ha='center', fontsize=9)
 fps_axis.legend(loc='upper left', fontsize=8)
 fps_axis.grid(axis='y', alpha=.2)
 freeze_axis = fps_axis.twinx()
-freezes = [stream['freeze_seconds'] if stream['freeze_seconds'] is not None else np.nan for _, stream in video]
+freezes = [stream['freeze_seconds'] if stream and stream['freeze_seconds'] is not None else np.nan for _, stream in video]
 freeze_axis.plot(positions, freezes, 'o', color='#9f1239', label='Tempo congelado')
 freeze_axis.set_ylabel('Segundos congelados no período medido', color='#9f1239')
 freeze_axis.set_ylim(0, max(1, max((v for v in freezes if np.isfinite(v)), default=0) * 1.2))
@@ -81,16 +83,21 @@ for client in phases['screen']['clients']:
 audio_axis.bar(range(8), audio, color='#2563eb', width=.65)
 audio_axis.set_xticks(range(8), [f'P{i+1}' for i in range(8)])
 audio_axis.set_ylabel('Amostras de áudio reconstruídas (%)')
-audio_axis.set_title('Voz durante a tela · pior fluxo por receptor', loc='left', weight='bold', pad=12)
+audio_axis.set_title('Voz durante a tela · pior fluxo completo por receptor', loc='left', weight='bold', pad=12)
 audio_axis.set_ylim(0, max(.05, np.nanmax(audio) * 1.5))
 audio_axis.grid(axis='y', alpha=.2)
 for x, value in enumerate(audio):
     if np.isfinite(value):
         audio_axis.annotate(f'{value:.3f}%', (x, value), xytext=(0, 4), textcoords='offset points', ha='center', fontsize=8)
+    else:
+        audio_axis.text(x, .001, 'n/d', ha='center', fontsize=8)
+    if phases['screen']['clients'][x]['voice_status'] != 'PASS':
+        audio_axis.text(x, audio_axis.get_ylim()[1] * .80, 'FAIL', ha='center', color='#9f1239', fontsize=8)
 
 version = report.get('product', {}).get('version', '0.4.1')
 voice_ok = all(c['voice_status'] == 'PASS' for c in phases['screen']['clients'])
-result = ('voz 8/8' if voice_ok else 'voz reprovada') + f', vídeo aprovado {len(video)-len(failed)}/7'
+approved = sum(index not in failed and stream is not None for index, stream in video)
+result = ('voz 8/8' if voice_ok else 'voz reprovada') + f', vídeo aprovado {approved}/7'
 fig.suptitle(f"Harmony {version} · {request['id']} · oito EXEs Windows · {result}", fontsize=18, weight='bold')
 fig.supxlabel('RTT: amostras do último valor ICE a cada ~3 s. Áudio gerado e janela de teste; ambiente de nuvem, sem medição de acústica física.', fontsize=9)
 destination.parent.mkdir(parents=True, exist_ok=True)

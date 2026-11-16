@@ -19,15 +19,15 @@ on:
       release:
         description: Pinned published Windows package to test
         type: choice
-        # Add 0.4.3 only after releases/0.4.3.json records the real published
-        # installer and EXE hashes. The prepared UI path below fails closed.
-        options: ['0.4.1', '0.4.2', '0.4.3']
+        # Every choice requires real published installer and EXE hashes.
+        # The compiled UI path fails closed on any identity mismatch.
+        options: ['0.4.1', '0.4.2', '0.4.3', '0.4.4']
         default: '0.4.2'
 permissions:
   contents: read
 jobs:
   prepare:
-    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && inputs.release == '0.4.3'
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["0.4.3","0.4.4"]'), inputs.release)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -43,18 +43,22 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with: {node-version: '26.13.0'}
       - name: Require the real pinned release before creating private fixture accounts
+        env:
+          HARMONY_EXE_RELEASE: ${{ inputs.release }}
         run: |
           node --input-type=module <<'JS'
           import assert from 'node:assert/strict';
           import {readFile} from 'node:fs/promises';
-          const release=JSON.parse(await readFile('scripts/exe-wan/releases/0.4.3.json','utf8'));
-          assert.equal(release.version,'0.4.3');
-          assert.equal(release.installer_url,'https://github.com/BersaneV/Harmony/releases/download/v0.4.3/Harmony_0.4.3_x64-setup.exe');
+          const version=process.env.HARMONY_EXE_RELEASE;
+          assert.ok(['0.4.3','0.4.4'].includes(version));
+          const release=JSON.parse(await readFile(`scripts/exe-wan/releases/${version}.json`,'utf8'));
+          assert.equal(release.version,version);
+          assert.equal(release.installer_url,`https://github.com/BersaneV/Harmony/releases/download/v${version}/Harmony_${version}_x64-setup.exe`);
           assert.match(release.installer_sha256,/^[a-f0-9]{64}$/);
           assert.match(release.main_sha256,/^[a-f0-9]{64}$/);
           JS
       - name: Validate direct-call fixture and capture guards
-        run: node --test scripts/exe-wan/browser-events.test.mjs scripts/exe-wan/observe.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/fixture-contract.test.mjs scripts/exe-wan/routes.test.mjs scripts/exe-wan/metrics.test.mjs scripts/exe-wan/auth.test.mjs scripts/exe-wan/profiles.test.mjs
+        run: node --test scripts/exe-wan/host-cpu.test.mjs scripts/exe-wan/browser-events.test.mjs scripts/exe-wan/observe.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/fixture-contract.test.mjs scripts/exe-wan/routes.test.mjs scripts/exe-wan/metrics.test.mjs scripts/exe-wan/auth.test.mjs scripts/exe-wan/profiles.test.mjs
       - name: Create the private ordinary-account fixture for the compiled UI
         id: fixture
         env:
@@ -62,13 +66,13 @@ jobs:
         run: node scripts/exe-wan/prepare.mjs
   probe:
     needs: prepare
-    if: always() && github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["windows-2022","windows-2025"]'), inputs.image) && ((inputs.release == '0.4.3' && needs.prepare.result == 'success') || (contains(fromJSON('["0.4.1","0.4.2"]'), inputs.release) && needs.prepare.result == 'skipped'))
+    if: always() && github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["windows-2022","windows-2025"]'), inputs.image) && ((contains(fromJSON('["0.4.3","0.4.4"]'), inputs.release) && needs.prepare.result == 'success') || (contains(fromJSON('["0.4.1","0.4.2"]'), inputs.release) && needs.prepare.result == 'skipped'))
     runs-on: ${{ inputs.image }}
     timeout-minutes: 15
     env:
       HARMONY_EXE_RELEASE: ${{ inputs.release }}
       HARMONY_EXE_PROFILE: ${{ inputs.profile }}
-      HARMONY_EXE_WAN_SEED: ${{ inputs.release == '0.4.3' && secrets.HARMONY_EXE_WAN_SEED || '' }}
+      HARMONY_EXE_WAN_SEED: ${{ contains(fromJSON('["0.4.3","0.4.4"]'), inputs.release) && secrets.HARMONY_EXE_WAN_SEED || '' }}
       HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
       HARMONY_GUILD_ID: ${{ needs.prepare.outputs.guild }}
       HARMONY_GUILD_NAME: ${{ needs.prepare.outputs.guild_name }}

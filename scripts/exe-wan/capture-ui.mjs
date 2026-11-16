@@ -5,8 +5,8 @@ import {resolve} from 'node:path';
 import {until} from './cdp.mjs';
 
 export function captureMode(release='0.4.1',profile){
- assert.ok(['0.4.1','0.4.2','0.4.3'].includes(release),'Unsupported pinned capture release');
- return release==='0.4.3'&&profile.fps===60?'native':'browser';
+ assert.ok(['0.4.1','0.4.2','0.4.3','0.4.4'].includes(release),'Unsupported pinned capture release');
+ return ['0.4.3','0.4.4'].includes(release)&&profile.fps===60?'native':'browser';
 }
 export const fixtureScript=(release,profile)=>captureMode(release,profile)==='native'?'window-layered.ps1':'window.ps1';
 
@@ -64,7 +64,7 @@ export async function chooseScreenUi(app,profile,{release=process.env.HARMONY_EX
  if(mode==='native'){
   await wait(()=>app.cdp.evaluate(`Array.from(document.querySelectorAll('label.field')).some(l=>l.querySelector('span')?.textContent==='Método de captura')`),'compiled native capture method');
   await app.select('Método de captura','auto');
- }else if(release==='0.4.3'){
+ }else if(['0.4.3','0.4.4'].includes(release)){
   const method=await app.cdp.evaluate(`Array.from(document.querySelectorAll('label.field')).some(l=>l.querySelector('span')?.textContent==='Método de captura')`);
   if(method)await app.select('Método de captura','browser');
  }
@@ -76,7 +76,7 @@ export async function chooseScreenUi(app,profile,{release=process.env.HARMONY_EX
   await app.click('Confirmar janela');
   confirmation=await confirm(title);
  }
- await wait(()=>app.cdp.evaluate(`!!document.querySelector('.share-preview video')&&__exeWan.captureSnapshots().some(c=>c.ready==='live'&&c.kind===${JSON.stringify(mode)})`),'compiled preview and observed real capture track',60000);
+ await wait(()=>app.cdp.evaluate(`(()=>{const v=document.querySelector('.share-preview video');return !!v&&v.readyState>=2&&v.videoWidth>0&&v.videoHeight>0})()&&__exeWan.captureSnapshots().some(c=>c.ready==='live'&&c.kind===${JSON.stringify(mode)})`),'compiled preview with current frame and observed real capture track',60000);
  const captures=await app.cdp.evaluate(`__exeWan.captureSnapshots().filter(c=>c.ready==='live')`);
  assert.equal(captures.length,1,'Exactly one live owned preview source required');
  const handle=await app.ownedWindow();
