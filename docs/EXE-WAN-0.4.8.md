@@ -43,7 +43,7 @@ Em 1440p, o clone contou 4.993 quadros brutos e 4.984 distintos em 182,2257 s. O
 
 Nos três perfis, as 61 amostras sustentadas do sender SFU ativo reportaram contentHint detail, content_type screenshare e qualityLimitationReason none. As durações de limitação CPU e bandwidth não avançaram. Isso preserva o que o WebRTC reportou; não demonstra ausência de pressão de CPU no restante do aplicativo. As sete linhas mesh de tela inativas foram excluídas dessa análise. VP8, encoding único, maintain-resolution e os tetos solicitados de FPS/bitrate permaneceram.
 
-CPU da VM inclui Windows, fixture, app, codificação e observação. As VMs das versões e perfis diferem; a comparação com a 0.4.7 não é um controle na mesma máquina e não atribui toda variação a uma alteração. Os [diagnósticos controlados anteriores](EXE-DIAGNOSTICS-0.4.7.md) têm seus próprios limites. Os novos diagnósticos de WGC e da ponte sob carga ainda precisam ser executados.
+CPU da VM inclui Windows, fixture, app, codificação e observação. As VMs das versões e perfis diferem; a comparação com a 0.4.7 não é um controle na mesma máquina e não atribui toda variação a uma alteração. Os [diagnósticos controlados anteriores](EXE-DIAGNOSTICS-0.4.7.md) têm seus próprios limites. Os [diagnósticos posteriores de WGC, espera por sinal e entrega JavaScript sob carga](EXE-DIAGNOSTICS-0.4.8.md) foram executados e têm escopos próprios; não substituem estes resultados de capacidade.
 
 ## Congelamentos na primeira rodada 720p
 
