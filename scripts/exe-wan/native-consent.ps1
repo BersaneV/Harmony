@@ -10,6 +10,12 @@ public class HarmonyNativeConsent {
  [DllImport("user32.dll")]public static extern IntPtr GetDlgItem(IntPtr dialog,int id);
  [DllImport("user32.dll")]public static extern IntPtr SendMessage(IntPtr window,uint message,IntPtr w,IntPtr l);
  [DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr window);
+ [DllImport("user32.dll")]public static extern bool IsWindowEnabled(IntPtr window);
+ [DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr window,out uint pid);
+ [DllImport("kernel32.dll")]public static extern IntPtr OpenThread(uint access,bool inherit,uint id);
+ [DllImport("kernel32.dll")]public static extern int GetThreadDescription(IntPtr thread,out IntPtr text);
+ [DllImport("kernel32.dll")]public static extern bool CloseHandle(IntPtr handle);
+ [DllImport("kernel32.dll")]public static extern IntPtr LocalFree(IntPtr handle);
 }
 '@
 $deadline=[DateTime]::UtcNow.AddSeconds(45)
@@ -35,4 +41,14 @@ while ([DateTime]::UtcNow -lt $deadline) {
 }
 $windows=[Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Children,[Windows.Automation.Condition]::TrueCondition)
 $windows | Where-Object {$_.Current.Name -like '*Harmony*'} | ForEach-Object {[ordered]@{name=$_.Current.Name;handle=$_.Current.NativeWindowHandle;type=$_.Current.ControlType.ProgrammaticName}} | ConvertTo-Json -Compress
+$main=[HarmonyNativeConsent]::FindWindow($null,'Harmony')
+if($main -ne [IntPtr]::Zero){
+ [uint32]$ownerPid=0;$null=[HarmonyNativeConsent]::GetWindowThreadProcessId($main,[ref]$ownerPid)
+ $names=@();foreach($thread in [Diagnostics.Process]::GetProcessById($ownerPid).Threads){
+  $handle=[HarmonyNativeConsent]::OpenThread(0x0800,$false,[uint32]$thread.Id)
+  if($handle -eq [IntPtr]::Zero){continue}
+  try{$text=[IntPtr]::Zero;if([HarmonyNativeConsent]::GetThreadDescription($handle,[ref]$text) -eq 0){try{$name=[Runtime.InteropServices.Marshal]::PtrToStringUni($text);if($name){$names+=$name}}finally{if($text -ne [IntPtr]::Zero){$null=[HarmonyNativeConsent]::LocalFree($text)}}}}finally{$null=[HarmonyNativeConsent]::CloseHandle($handle)}
+ }
+ [ordered]@{main_enabled=[HarmonyNativeConsent]::IsWindowEnabled($main);thread_names=$names}|ConvertTo-Json -Compress
+}
 throw 'Owned native consent dialog did not appear'
