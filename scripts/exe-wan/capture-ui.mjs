@@ -65,26 +65,31 @@ function confirmNative(title){
 export async function chooseScreenUi(app,profile,{release=process.env.HARMONY_EXE_RELEASE||'0.4.1',title='HarmonyWAN-'+process.env.GITHUB_RUN_ID,confirm=confirmNative,wait=until}={}){
  assert.match(title,/^HarmonyWAN-[0-9]+$/,'Exact disposable fixture title required');
  const mode=captureMode(release,profile);
+ app.cdp.setStage?.('capture.fixture');
  await app.ensureFixture();
  if(mode==='native'){
+  app.cdp.setStage?.('capture.method.detect');
   await wait(()=>app.cdp.evaluate(`Array.from(document.querySelectorAll('label.field')).some(l=>l.querySelector('span')?.textContent==='Método de captura')`),'compiled native capture method');
   await app.select('Método de captura','auto');
  }else if(['0.4.3','0.4.4','0.4.5'].includes(release)){
+  app.cdp.setStage?.('capture.method.detect');
   const method=await app.cdp.evaluate(`Array.from(document.querySelectorAll('label.field')).some(l=>l.querySelector('span')?.textContent==='Método de captura')`);
   if(method)await app.select('Método de captura','browser');
  }
  await app.click('Escolher tela ou janela');
  let confirmation=null;
  if(mode==='native'){
+  app.cdp.setStage?.('capture.native_picker.wait');
   await wait(()=>app.cdp.evaluate(`Array.from(document.querySelectorAll('dialog[open]')).some(d=>d.querySelector('h2')?.textContent==='Escolher janela do Windows'&&Array.from(d.querySelectorAll('option')).filter(o=>o.textContent.trim()===${JSON.stringify(title)}).length===1)`),'exact owned option in compiled native picker',30000);
-  await app.cdp.evaluate(`(()=>{const d=Array.from(document.querySelectorAll('dialog[open]')).find(d=>d.querySelector('h2')?.textContent==='Escolher janela do Windows');const s=d?.querySelector('select');const options=s&&Array.from(s.options).filter(o=>o.textContent.trim()===${JSON.stringify(title)});if(!s||options.length!==1)throw Error('Exact owned source missing or ambiguous');s.value=options[0].value;s.dispatchEvent(new Event('change',{bubbles:true}));return true})()`,true);
+  app.cdp.setStage?.('capture.native_picker.select');await app.cdp.evaluate(`(()=>{const d=Array.from(document.querySelectorAll('dialog[open]')).find(d=>d.querySelector('h2')?.textContent==='Escolher janela do Windows');const s=d?.querySelector('select');const options=s&&Array.from(s.options).filter(o=>o.textContent.trim()===${JSON.stringify(title)});if(!s||options.length!==1)throw Error('Exact owned source missing or ambiguous');s.value=options[0].value;s.dispatchEvent(new Event('change',{bubbles:true}));return true})()`,true);
   await app.click('Confirmar janela');
-  confirmation=await confirm(title);
+  app.cdp.setStage?.('capture.native_consent');confirmation=await confirm(title);
  }
+ app.cdp.setStage?.('capture.preview.wait');
  await wait(()=>app.cdp.evaluate(`(()=>{const v=document.querySelector('.share-preview video');return !!v&&v.readyState>=2&&v.videoWidth>0&&v.videoHeight>0})()&&__exeWan.captureSnapshots().some(c=>c.ready==='live'&&c.kind===${JSON.stringify(mode)})`),'compiled preview with current frame and observed real capture track',60000);
- const captures=await app.cdp.evaluate(`__exeWan.captureSnapshots().filter(c=>c.ready==='live')`);
+ app.cdp.setStage?.('capture.snapshot');const captures=await app.cdp.evaluate(`__exeWan.captureSnapshots().filter(c=>c.ready==='live')`);
  assert.equal(captures.length,1,'Exactly one live owned preview source required');
- const handle=await app.ownedWindow();
+ app.cdp.setStage?.('capture.owner');const handle=await app.ownedWindow();
  assertOwnedCapture(captures[0],handle,profile,mode);
  return{mode,captures,owned_window_handle:handle,confirmation};
 }
