@@ -1,4 +1,4 @@
-import { getServer, getSession, onSession, refreshSession } from "./api";
+import { api, getServer, getSession, onSession, refreshSession } from "./api";
 import type { Session } from "./types";
 import {
   defaultProfile,
@@ -12,8 +12,16 @@ import { tryScreenVp8L1T1 } from "./screen-encoder";
 import {
   applyCaptureConstraints,
   getCaptureSettings,
+  getCaptureBound,
   releaseCaptureTrack,
 } from "./capture-track";
+import type {
+  ScreenRelay,
+  ScreenRelayAuthority,
+  ScreenRelayCallbacks,
+  ScreenRelayGrant,
+  ScreenRelayRef,
+} from "./screen-relay";
 
 /** Stable m-line order. A track ID supplied by another client is never an identity. */
 export const callSources = [
@@ -31,6 +39,7 @@ export interface CallParticipant {
   user_id: string;
   display_name: string;
   can_publish: boolean;
+  screen_sfu?: boolean;
   media: CallMedia;
 }
 export interface CallMediaStats {
@@ -54,6 +63,8 @@ export interface CallPeerSnapshot extends CallParticipant {
   stats: CallStats;
   error: string;
   receiveHeight: number;
+  /** ICE statistics still describe P2P voice; SFU video has separate transport. */
+  screenTransport: "p2p" | "sfu";
 }
 export interface CallSnapshot {
   state: "idle" | "connecting" | "connected" | "closed" | "failed";
@@ -73,7 +84,23 @@ export interface CallEnvironment {
   refreshSession: () => Promise<Session>;
   socket: (url: string) => WebSocket;
   peer: (configuration: RTCConfiguration) => RTCPeerConnection;
+  getCallConfig?: (
+    channel: string,
+  ) => Promise<{ screen_sfu_enabled?: boolean }>;
+  getScreenToken?: (channel: string, peer: string) => Promise<ScreenRelayGrant>;
+  relayFactory?: (
+    callbacks: ScreenRelayCallbacks,
+  ) => CallScreenRelay | Promise<CallScreenRelay>;
 }
+export type CallScreenRelay = Pick<
+  ScreenRelay,
+  | "connect"
+  | "updateAuthority"
+  | "setScreen"
+  | "setScreenAudio"
+  | "setReceiveHeight"
+  | "close"
+>;
 const browserEnvironment: CallEnvironment = {
   getServer,
   getSession,
@@ -81,9 +108,41 @@ const browserEnvironment: CallEnvironment = {
   refreshSession,
   socket: (url) => new WebSocket(url),
   peer: (configuration) => new RTCPeerConnection(configuration),
+  getCallConfig: (channel) => api(`/api/channels/${channel}/call`),
+  getScreenToken: (channel, peer) =>
+    api(`/api/channels/${channel}/screen-token`, {
+      method: "POST",
+      body: { peer_id: peer },
+    }),
+  relayFactory: async (callbacks) => {
+    const { ScreenRelay } = await import("./screen-relay");
+    return new ScreenRelay(callbacks);
+  },
 };
 type StatsRow = RTCStats & Record<string, unknown>;
 type Observation = { bytes: number; timestamp: number; frames: number | null };
+const relayOpaque = /^[A-Za-z0-9_-]{1,128}$/;
+function sameRelayRef(
+  a: ScreenRelayRef | undefined,
+  b: ScreenRelayRef | undefined,
+) {
+  return (
+    !!a && !!b && a.track_sid === b.track_sid && a.generation === b.generation
+  );
+}
+function relayRef(value: unknown): ScreenRelayRef | undefined {
+  if (value === null || value === undefined) return;
+  if (
+    !record(value) ||
+    Object.keys(value).length !== 2 ||
+    typeof value.track_sid !== "string" ||
+    !relayOpaque.test(value.track_sid) ||
+    typeof value.generation !== "string" ||
+    !relayOpaque.test(value.generation)
+  )
+    throw new Error("Confirmação da tela do servidor inválida.");
+  return { track_sid: value.track_sid, generation: value.generation };
+}
 // encoding.codec is standardized, but is not present in this pinned DOM typing.
 type EncodingCodec = Pick<
   RTCRtpCodecParameters,
@@ -97,6 +156,10 @@ interface Peer {
   member: CallParticipant;
   pc: RTCPeerConnection;
   tracks: CallTracks;
+  relayTracks: CallTracks;
+  relayTracksRef?: ScreenRelayRef;
+  receivedRelayRef?: ScreenRelayRef;
+  remoteRelayRef?: ScreenRelayRef;
   stats: CallStats;
   observations: Map<string, Observation>;
   queue: Promise<void>;
@@ -207,6 +270,7 @@ function members(value: unknown, maximum: number): CallParticipant[] {
       typeof item.display_name !== "string" ||
       item.display_name.length > 100 ||
       typeof item.can_publish !== "boolean" ||
+      (item.screen_sfu !== undefined && typeof item.screen_sfu !== "boolean") ||
       !record(item.media) ||
       callSources.some(
         (source) =>
@@ -226,6 +290,7 @@ function members(value: unknown, maximum: number): CallParticipant[] {
       user_id: item.user_id,
       display_name: item.display_name,
       can_publish: item.can_publish,
+      ...(item.screen_sfu === true ? { screen_sfu: true } : {}),
       media,
     };
   });
@@ -341,6 +406,15 @@ export class P2PCall {
   private flight: Promise<void> | null = null;
   private connected?: () => void;
   private rejected?: (error: Error) => void;
+  private screenSfuAdvertised = false;
+  private screenSfuEnabled = false;
+  private relay?: CallScreenRelay;
+  private relayReady = false;
+  private relayConnecting?: Promise<void>;
+  private relayQueue: Promise<unknown> = Promise.resolve();
+  private relayLocalRef?: ScreenRelayRef;
+  private relayTrack?: MediaStreamTrack;
+  private relayBound?: { max_height: number };
 
   constructor(
     private options: { channelId: string },
@@ -372,14 +446,46 @@ export class P2PCall {
           if (track && allowed && !peer.failed && track.readyState === "live")
             tracks[source] = track;
         }
+        const receivingRelay =
+          !!peer.receivedRelayRef &&
+          sameRelayRef(peer.receivedRelayRef, peer.relayTracksRef) &&
+          peer.member.can_publish &&
+          peer.member.media.screen &&
+          !peer.failed &&
+          peer.relayTracks.screen?.readyState === "live";
+        for (const source of ["screen", "screen_audio"] as const) {
+          const track = peer.relayTracks[source];
+          const enabled =
+            !!receivingRelay &&
+            peer.member.can_publish &&
+            peer.member.media[source] &&
+            !peer.failed;
+          if (track && track.enabled !== enabled) track.enabled = enabled;
+          if (enabled && track?.readyState === "live") tracks[source] = track;
+        }
+        const stats = {
+          ...peer.stats,
+          sent: { ...peer.stats.sent },
+          received: { ...peer.stats.received },
+        };
+        if (this.usesRelay(peer)) {
+          delete stats.sent.screen;
+          delete stats.sent.screen_audio;
+        }
+        if (receivingRelay) {
+          // A past P2P sample is not a measurement of the selected SFU track.
+          delete stats.received.screen;
+          delete stats.received.screen_audio;
+        }
         return {
           ...peer.member,
           media: { ...peer.member.media },
           tracks,
           connection: peer.failed ? "failed" : peer.pc.connectionState,
-          stats: peer.stats,
+          stats,
           error: peer.error,
           receiveHeight: peer.receiveHeight,
+          screenTransport: receivingRelay ? ("sfu" as const) : ("p2p" as const),
         };
       }),
     };
@@ -407,6 +513,276 @@ export class P2PCall {
     );
   }
 
+  private relayAuthority(): ScreenRelayAuthority {
+    return {
+      generation: String(this.generation),
+      self: { ...this.data.self!, media: { ...this.data.self!.media } },
+      peers: [...this.peers.values()].map(({ member }) => ({
+        ...member,
+        media: { ...member.media },
+      })),
+    };
+  }
+  private usesRelay(peer: Peer): boolean {
+    return (
+      !!this.relay &&
+      this.relayReady &&
+      this.screenSfuEnabled &&
+      this.data.self?.screen_sfu === true &&
+      peer.member.screen_sfu === true &&
+      this.mayPublish() &&
+      this.local.screen?.enabled === true &&
+      this.local.screen === this.relayTrack &&
+      sameRelayRef(peer.remoteRelayRef, this.relayLocalRef) &&
+      (!peer.remoteReceiveHeight ||
+        (!!this.relayBound &&
+          this.relayBound.max_height <= peer.remoteReceiveHeight))
+    );
+  }
+  private scheduleRelayRoutes() {
+    for (const peer of this.peers.values())
+      if (this.current(peer))
+        void this.enqueue(peer, () => this.synchronizeRelayRoutes(peer)).catch(
+          () => {
+            this.failPeer(
+              peer,
+              "Não foi possível preservar a tela na conexão direta.",
+            );
+          },
+        );
+  }
+  private relayPublication(ref: ScreenRelayRef | null) {
+    this.relayLocalRef = ref ?? undefined;
+    for (const peer of this.peers.values())
+      if (!sameRelayRef(peer.remoteRelayRef, this.relayLocalRef))
+        peer.remoteRelayRef = undefined;
+    this.scheduleRelayRoutes();
+    this.emit();
+  }
+  private clearRelayTracks(peer: Peer) {
+    for (const track of Object.values(peer.relayTracks)) track.enabled = false;
+    peer.relayTracks = {};
+    peer.relayTracksRef = undefined;
+  }
+  private stopRelay(quiet = false) {
+    const relay = this.relay;
+    this.relay = undefined;
+    this.relayReady = false;
+    this.relayTrack = undefined;
+    this.relayBound = undefined;
+    if (quiet) this.relayLocalRef = undefined;
+    else this.relayPublication(null);
+    for (const peer of this.peers.values()) {
+      this.clearRelayTracks(peer);
+      if (peer.receivedRelayRef) {
+        peer.receivedRelayRef = undefined;
+        if (!quiet) this.sendReceivePreference(peer);
+      }
+    }
+    if (relay) void relay.close().catch(() => {});
+  }
+  private sendReceivePreference(peer: Peer) {
+    this.signal(peer, {
+      receive: {
+        screen_height: peer.receiveHeight,
+        ...(this.screenSfuEnabled && peer.member.screen_sfu === true
+          ? { screen_sfu: peer.receivedRelayRef ?? null }
+          : {}),
+      },
+    });
+  }
+  private startRelay(run: number) {
+    if (
+      !this.screenSfuEnabled ||
+      this.relay ||
+      this.relayConnecting ||
+      !this.environment.getScreenToken ||
+      !this.environment.relayFactory
+    )
+      return;
+    const pending = (async () => {
+      const grant = await this.environment.getScreenToken!(
+        this.options.channelId,
+        this.data.self!.peer_id,
+      );
+      if (!this.live(run) || !this.screenSfuEnabled) return;
+      let relay: CallScreenRelay;
+      const current = () =>
+        !!relay &&
+        this.live(run) &&
+        this.relay === relay &&
+        this.screenSfuEnabled;
+      relay = await this.environment.relayFactory!({
+        onLocalPublication: (ref) => {
+          if (current()) this.relayPublication(ref);
+        },
+        onTrack: ({ peer_id, source, track, ref }) => {
+          const peer = this.peers.get(peer_id);
+          if (!current() || !peer || !this.current(peer)) {
+            if (track) track.enabled = false;
+            return;
+          }
+          if (!track) {
+            if (sameRelayRef(peer.relayTracksRef, ref)) {
+              if (peer.relayTracks[source])
+                peer.relayTracks[source]!.enabled = false;
+              delete peer.relayTracks[source];
+            }
+          } else if (
+            peer.member.screen_sfu === true &&
+            peer.member.can_publish &&
+            peer.member.media[source]
+          ) {
+            if (!sameRelayRef(peer.relayTracksRef, ref))
+              this.clearRelayTracks(peer);
+            if (peer.relayTracks[source] && peer.relayTracks[source] !== track)
+              peer.relayTracks[source]!.enabled = false;
+            peer.relayTracksRef = { ...ref };
+            peer.relayTracks[source] = track;
+          } else track.enabled = false;
+          this.emit();
+        },
+        onAck: ({ peer_id, screen_sfu }) => {
+          const peer = this.peers.get(peer_id);
+          if (
+            !current() ||
+            !peer ||
+            !this.current(peer) ||
+            peer.member.screen_sfu !== true
+          )
+            return;
+          if (
+            screen_sfu &&
+            (!peer.member.can_publish ||
+              !peer.member.media.screen ||
+              !sameRelayRef(peer.relayTracksRef, screen_sfu) ||
+              peer.relayTracks.screen?.readyState !== "live" ||
+              (peer.member.media.screen_audio &&
+                peer.relayTracks.screen_audio?.readyState !== "live"))
+          )
+            return;
+          peer.receivedRelayRef = screen_sfu ? { ...screen_sfu } : undefined;
+          if (!screen_sfu) this.clearRelayTracks(peer);
+          this.sendReceivePreference(peer);
+          this.emit();
+        },
+        onError: () => {
+          if (current()) {
+            this.stopRelay();
+            this.emit();
+          }
+        },
+      });
+      if (!this.live(run) || !this.screenSfuEnabled) {
+        await relay.close();
+        return;
+      }
+      this.relay = relay;
+      await relay.connect(grant, this.relayAuthority());
+      if (!current()) {
+        await relay.close();
+        return;
+      }
+      this.relayReady = true;
+      for (const peer of this.peers.values())
+        relay.setReceiveHeight(peer.member.peer_id, peer.receiveHeight);
+      await this.syncRelay();
+    })().catch(() => {
+      if (this.live(run)) {
+        this.stopRelay();
+        this.emit();
+      }
+    });
+    this.relayConnecting = pending;
+    void pending.finally(() => {
+      if (this.relayConnecting === pending) this.relayConnecting = undefined;
+    });
+  }
+  /** This queue never waits for the media or peer queues. SDK callbacks only
+   * schedule peer work, so capture/profile changes may safely await retirement. */
+  private syncRelay(retire = false): Promise<void> {
+    const relay = this.relay,
+      run = this.generation,
+      epoch = this.publicationEpoch;
+    if (!relay || !this.relayReady) return Promise.resolve();
+    if (retire) {
+      this.relayTrack = undefined;
+      this.relayBound = undefined;
+      this.relayPublication(null);
+    }
+    const operation = this.relayQueue
+      .catch(() => {})
+      .then(async () => {
+        if (!this.live(run) || this.relay !== relay) return;
+        if (!retire && this.screenTransition?.run === run) return;
+        const track =
+          !retire && this.mayPublish(run, epoch) && this.local.screen?.enabled
+            ? this.local.screen
+            : null;
+        const bound = track ? getCaptureBound(track) : undefined;
+        // Audio intent is immutable in the publication generation. A requested
+        // source that was not actually captured must not advertise phantom audio.
+        const profile = {
+          ...this.data.profile,
+          audio: !!(
+            track &&
+            this.data.profile.audio &&
+            this.local.screen_audio?.enabled
+          ),
+        };
+        const ref = await relay.setScreen(
+          track,
+          profile,
+          this.data.maxVideoBitrate,
+          bound,
+        );
+        if (!this.live(run) || this.relay !== relay) {
+          await relay.close();
+          return;
+        }
+        if (!this.mayPublish(run, epoch)) {
+          await relay.setScreen(
+            null,
+            { ...this.data.profile },
+            this.data.maxVideoBitrate,
+          );
+          return;
+        }
+        if (!retire && this.local.screen === track) {
+          this.relayTrack = track ?? undefined;
+          this.relayBound = bound;
+          if (!sameRelayRef(this.relayLocalRef, ref ?? undefined))
+            this.relayPublication(ref);
+          await relay.setScreenAudio(
+            track && this.data.profile.audio && this.local.screen_audio?.enabled
+              ? this.local.screen_audio
+              : null,
+          );
+          if (this.live(run) && this.relay === relay)
+            this.scheduleRelayRoutes();
+        }
+      })
+      .catch(async () => {
+        if (this.relay === relay) this.stopRelay();
+        await relay.close();
+      });
+    this.relayQueue = operation;
+    return operation;
+  }
+  private async synchronizeRelayRoutes(peer: Peer) {
+    await this.synchronizeScreen(peer);
+    if (!this.current(peer)) return;
+    const sender = peer.pc.getTransceivers()[3]?.sender;
+    if (sender)
+      await this.replaceSenderTrack(
+        sender,
+        this.mayPublish() && !this.usesRelay(peer)
+          ? (this.local.screen_audio ?? null)
+          : null,
+      );
+    await this.parameters(peer, "screen_audio");
+  }
+
   connect(): Promise<void> {
     if (this.data.state === "connected") return Promise.resolve();
     if (this.data.state === "connecting" && this.flight) return this.flight;
@@ -416,6 +792,8 @@ export class P2PCall {
         new Error("Entre na sua conta para iniciar a chamada."),
       );
     const run = ++this.generation;
+    this.screenSfuAdvertised = false;
+    this.screenSfuEnabled = false;
     this.origin = this.environment.getServer();
     this.userId = session.user.id;
     this.token = session.access_token;
@@ -440,65 +818,83 @@ export class P2PCall {
       () => this.fail("O servidor não confirmou a entrada na chamada."),
       15_000,
     );
-    try {
-      const url = new URL("/api/calls", this.origin);
-      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-      const socket = this.environment.socket(url.toString());
-      const budget = { frames: 0, bytes: 0 };
-      this.socket = socket;
-      socket.onopen = () => {
-        if (this.live(run))
-          this.send({
-            type: "auth",
-            token: this.token,
-            channel_id: this.options.channelId,
-          });
-      };
-      socket.onmessage = (event) => {
-        if (!this.live(run)) return;
-        const raw = typeof event.data === "string" ? event.data : "";
-        if (
-          !raw ||
-          raw.length > 65_536 ||
-          budget.frames >= 128 ||
-          budget.bytes + raw.length > 1_048_576
-        ) {
-          this.fail("A sinalização excedeu o limite seguro da chamada.");
-          return;
-        }
-        budget.frames++;
-        budget.bytes += raw.length;
-        // Authority changes must interrupt media operations immediately. Peer queues
-        // serialize SDP/ICE independently; one slow peer cannot delay revocation.
-        let pending: Promise<void>;
-        try {
-          pending = this.receive(JSON.parse(raw));
-        } catch {
-          pending = Promise.reject(new Error("Invalid frame"));
-        }
-        void pending
-          .catch(() => {
-            if (this.live(run))
-              this.fail("Não foi possível negociar a chamada com segurança.");
-          })
-          .finally(() => {
-            budget.frames--;
-            budget.bytes -= raw.length;
-          });
-      };
-      socket.onerror = () => {
-        if (this.live(run))
-          this.fail("Não foi possível manter a conexão com o servidor.");
-      };
-      socket.onclose = () => {
-        if (this.live(run))
-          this.fail(
-            "A conexão com o servidor terminou. Reconecte para continuar.",
-          );
-      };
-    } catch {
-      this.fail("Este navegador não conseguiu abrir a chamada.");
-    }
+    const open = () => {
+      try {
+        const url = new URL("/api/calls", this.origin);
+        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+        const socket = this.environment.socket(url.toString());
+        const budget = { frames: 0, bytes: 0 };
+        this.socket = socket;
+        socket.onopen = () => {
+          if (this.live(run))
+            this.send({
+              type: "auth",
+              token: this.token,
+              channel_id: this.options.channelId,
+              ...(this.screenSfuAdvertised ? { screen_sfu: true } : {}),
+            });
+        };
+        socket.onmessage = (event) => {
+          if (!this.live(run)) return;
+          const raw = typeof event.data === "string" ? event.data : "";
+          if (
+            !raw ||
+            raw.length > 65_536 ||
+            budget.frames >= 128 ||
+            budget.bytes + raw.length > 1_048_576
+          ) {
+            this.fail("A sinalização excedeu o limite seguro da chamada.");
+            return;
+          }
+          budget.frames++;
+          budget.bytes += raw.length;
+          // Authority changes must interrupt media operations immediately. Peer queues
+          // serialize SDP/ICE independently; one slow peer cannot delay revocation.
+          let pending: Promise<void>;
+          try {
+            pending = this.receive(JSON.parse(raw));
+          } catch {
+            pending = Promise.reject(new Error("Invalid frame"));
+          }
+          void pending
+            .catch(() => {
+              if (this.live(run))
+                this.fail("Não foi possível negociar a chamada com segurança.");
+            })
+            .finally(() => {
+              budget.frames--;
+              budget.bytes -= raw.length;
+            });
+        };
+        socket.onerror = () => {
+          if (this.live(run))
+            this.fail("Não foi possível manter a conexão com o servidor.");
+        };
+        socket.onclose = () => {
+          if (this.live(run))
+            this.fail(
+              "A conexão com o servidor terminou. Reconecte para continuar.",
+            );
+        };
+      } catch {
+        this.fail("Este navegador não conseguiu abrir a chamada.");
+      }
+    };
+    if (this.environment.getCallConfig) {
+      void this.environment
+        .getCallConfig(this.options.channelId)
+        .then((config) => {
+          if (this.live(run))
+            this.screenSfuAdvertised =
+              config.screen_sfu_enabled === true &&
+              !!this.environment.getScreenToken &&
+              !!this.environment.relayFactory;
+        })
+        .catch(() => {})
+        .then(() => {
+          if (this.live(run)) open();
+        });
+    } else open();
     return flight;
   }
   async reconnect(): Promise<void> {
@@ -621,7 +1017,9 @@ export class P2PCall {
         Number(value.max_participants) > 12 ||
         !Number.isFinite(value.max_video_bitrate) ||
         Number(value.max_video_bitrate) < 500_000 ||
-        Number(value.max_video_bitrate) > 32_000_000
+        Number(value.max_video_bitrate) > 32_000_000 ||
+        (value.screen_sfu_enabled !== undefined &&
+          typeof value.screen_sfu_enabled !== "boolean")
       )
         throw new Error("Invalid ready");
       this.iceServers = iceConfiguration(value.ice_servers);
@@ -634,6 +1032,10 @@ export class P2PCall {
       const self = roster.find((peer) => peer.peer_id === value.peer_id);
       if (!self || self.user_id !== this.userId)
         throw new Error("Identity mismatch");
+      this.screenSfuEnabled =
+        this.screenSfuAdvertised &&
+        value.screen_sfu_enabled === true &&
+        self.screen_sfu === true;
       this.data = { ...this.data, self, state: "connected" };
       this.applyRoster(roster);
       clearTimeout(this.connectTimer);
@@ -650,6 +1052,7 @@ export class P2PCall {
       this.connected?.();
       this.connected = undefined;
       this.rejected = undefined;
+      this.startRelay(this.generation);
       return;
     }
     if (this.data.state !== "connected") throw new Error("Frame before ready");
@@ -669,8 +1072,15 @@ export class P2PCall {
           if (!heightAllowed(data.receive.screen_height))
             throw new Error("Invalid ceiling");
           peer.remoteReceiveHeight = data.receive.screen_height;
+          const ack = relayRef(data.receive.screen_sfu);
+          peer.remoteRelayRef =
+            this.screenSfuEnabled && peer.member.screen_sfu === true
+              ? ack
+              : undefined;
           await this.enqueue(peer, async () =>
-            this.parameters(peer, "screen"),
+            this.screenSfuEnabled
+              ? this.synchronizeRelayRoutes(peer)
+              : this.parameters(peer, "screen"),
           ).catch(() => {
             peer.error =
               "O navegador não aplicou o teto de resolução solicitado.";
@@ -764,8 +1174,20 @@ export class P2PCall {
             this.failPeer(next, "Não foi possível iniciar a conexão direta."),
           );
         }
-      } else peer.member = member;
+      } else {
+        peer.member = member;
+        if (member.screen_sfu !== true) {
+          peer.remoteRelayRef = undefined;
+          peer.receivedRelayRef = undefined;
+          this.clearRelayTracks(peer);
+        }
+      }
     }
+    if (this.relay) {
+      if (self.screen_sfu !== true) this.stopRelay();
+      else this.relay.updateAuthority(this.relayAuthority());
+    }
+    if (this.screenSfuEnabled) this.scheduleRelayRoutes();
     this.emit();
   }
   private createPeer(member: CallParticipant): Peer {
@@ -779,6 +1201,7 @@ export class P2PCall {
       member,
       pc,
       tracks: {},
+      relayTracks: {},
       stats: emptyStats(),
       observations: new Map(),
       queue: Promise.resolve(),
@@ -925,7 +1348,10 @@ export class P2PCall {
       if (source === "screen") continue;
       await this.replaceSenderTrack(
         transceivers[i].sender,
-        this.mayPublish() ? (this.local[source] ?? null) : null,
+        this.mayPublish() &&
+          !(source === "screen_audio" && this.usesRelay(peer))
+          ? (this.local[source] ?? null)
+          : null,
       );
     }
     for (const candidate of peer.pendingIce.splice(0)) {
@@ -967,6 +1393,7 @@ export class P2PCall {
       screen &&
         this.mayPublish() &&
         this.current(peer) &&
+        !this.usesRelay(peer) &&
         this.local.screen === screen
         ? screen
         : null,
@@ -975,6 +1402,7 @@ export class P2PCall {
       screen &&
       (!this.mayPublish() ||
         !this.current(peer) ||
+        this.usesRelay(peer) ||
         this.local.screen !== screen)
     )
       await this.replaceSenderTrack(sender, null);
@@ -1272,6 +1700,11 @@ export class P2PCall {
           releaseCaptureTrack(track);
           throw new Error("Compartilhe uma tela antes de publicar seu áudio.");
         }
+        if (
+          (source === "screen" || source === "screen_audio") &&
+          this.local[source] !== track
+        )
+          await this.syncRelay(true);
         if (source === "screen" && this.local.screen !== track)
           await this.replaceSource("screen_audio", null, run, epoch);
         if (source === "screen" && track) {
@@ -1279,10 +1712,13 @@ export class P2PCall {
             await this.constrain(track, this.data.profile);
           } catch (error) {
             releaseCaptureTrack(track);
+            await this.syncRelay();
             throw error;
           }
         }
         await this.replaceSource(source, track, run, epoch);
+        if (source === "screen" || source === "screen_audio")
+          await this.syncRelay();
       });
     const owned = operation.finally(() => {
       if (track) this.pendingTracks.delete(track);
@@ -1345,7 +1781,14 @@ export class P2PCall {
             }
             await this.replaceSenderTrack(
               sender,
-              track && this.mayPublish(run, epoch) ? track : null,
+              track &&
+                this.mayPublish(run, epoch) &&
+                !(
+                  (source === "screen" || source === "screen_audio") &&
+                  this.usesRelay(peer)
+                )
+                ? track
+                : null,
             );
             if (track && !this.mayPublish(run, epoch)) {
               await this.replaceSenderTrack(sender, null);
@@ -1382,6 +1825,8 @@ export class P2PCall {
     if (source === "screen" && !enabled && this.local.screen_audio)
       this.local.screen_audio.enabled = false;
     this.publishMedia();
+    if (source === "screen" || source === "screen_audio")
+      void this.syncRelay(true).then(() => this.syncRelay());
   }
   setScreenProfile(profile: StreamProfile): Promise<void> {
     const candidate = {
@@ -1401,6 +1846,7 @@ export class P2PCall {
         if (transition) this.screenTransition = transition;
         try {
           if (track) {
+            await this.syncRelay(true);
             // A codec transition must finish before the capture can exceed H264's
             // envelope. This preflight changes no bitrate, FPS or scaling caps;
             // failure therefore leaves the previous capture/profile usable.
@@ -1471,6 +1917,7 @@ export class P2PCall {
           throw error;
         }
         this.emit();
+        await this.syncRelay();
       });
     this.mediaQueue = operation;
     return operation;
@@ -1480,7 +1927,8 @@ export class P2PCall {
     const peer = this.peers.get(peerId);
     if (!peer || !this.current(peer)) return;
     peer.receiveHeight = height;
-    this.signal(peer, { receive: { screen_height: height } });
+    this.relay?.setReceiveHeight(peerId, height);
+    this.sendReceivePreference(peer);
     this.emit();
   }
   private async sample() {
@@ -1648,6 +2096,9 @@ export class P2PCall {
     }
     peer.pc.close();
     peer.tracks = {};
+    this.clearRelayTracks(peer);
+    peer.remoteRelayRef = undefined;
+    peer.receivedRelayRef = undefined;
     peer.pendingIce = [];
     peer.stats = emptyStats();
     peer.observations.clear();
@@ -1676,6 +2127,11 @@ export class P2PCall {
     clearInterval(this.sampleTimer);
     this.unsubscribeSession?.();
     this.unsubscribeSession = undefined;
+    this.screenSfuEnabled = false;
+    this.screenSfuAdvertised = false;
+    this.relayConnecting = undefined;
+    this.stopRelay(true);
+    this.relayQueue = Promise.resolve();
     this.stopLocal();
     this.mediaQueue = Promise.resolve();
     for (const peer of this.peers.values()) this.disposePeer(peer);

@@ -9,6 +9,7 @@ mod db;
 mod error;
 mod media;
 mod p2p;
+mod rtc;
 mod uploads;
 mod ws;
 use crate::{
@@ -40,6 +41,7 @@ pub struct AppState {
     pub file_slots: Arc<Semaphore>,
     pub p2p: p2p::ProbeRegistry,
     pub calls: calls::CallRegistry,
+    pub(crate) media_operations: media::MediaOperations,
     pub config: Arc<Config>,
     pub events: broadcast::Sender<Value>,
     pub password_slots: Arc<Semaphore>,
@@ -57,6 +59,7 @@ impl AppState {
             file_slots: Arc::new(Semaphore::new(4)),
             p2p: Default::default(),
             calls: Default::default(),
+            media_operations: Default::default(),
             config: Arc::new(config),
             events,
             password_slots: Arc::new(Semaphore::new(2)),
@@ -175,6 +178,10 @@ pub fn router(s: AppState) -> Router {
     }
     routes
         .route("/health", get(health))
+        .route("/rtc", get(rtc::signal))
+        .route("/rtc/v1", get(rtc::signal))
+        .route("/rtc/validate", get(rtc::signal))
+        .route("/rtc/v1/validate", get(rtc::signal))
         .route("/api/instance", get(instance))
         .route("/api/internal/media-admit", get(media::admit))
         .route("/api/auth/login", post(auth::login))
@@ -248,6 +255,7 @@ pub fn router(s: AppState) -> Router {
         .route("/api/channels/{id}/call", get(calls::info))
         .route("/api/calls", get(calls::upgrade))
         .route("/api/channels/{id}/media-token", post(media::token))
+        .route("/api/channels/{id}/screen-token", post(media::screen_token))
         .route("/api/channels/{id}/moderate", post(media::moderate))
         .route("/api/channels/{id}/uploads", post(uploads::reserve))
         .route(

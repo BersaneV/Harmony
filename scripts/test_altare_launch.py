@@ -162,5 +162,50 @@ class Boundaries(unittest.TestCase):
             launch.load_configuration()
 
 
+class OptionalScreenSfu(unittest.TestCase):
+    def test_candidate_requires_operator_source_pin_and_rollback_restores_original(self):
+        original = (launch.VERSION, launch.VERIFIED_PRODUCT, launch.ASSET_URL)
+        try:
+            for configuration in ({'HARMONY_DEPLOYMENT_VERSION': 'latest'}, {'HARMONY_DEPLOYMENT_VERSION':'0.4.3'}, {'HARMONY_DEPLOYMENT_VERSION':'0.4.3','HARMONY_BUNDLE_SOURCE_COMMIT':'bad'}):
+                with patch.dict(os.environ, configuration, clear=True), self.assertRaises(RuntimeError): launch.select_release()
+            with patch.dict(os.environ, {'HARMONY_DEPLOYMENT_VERSION':'0.4.3','HARMONY_BUNDLE_SOURCE_COMMIT':'a'*40}, clear=True):
+                launch.select_release()
+                self.assertEqual(launch.VERSION, '0.4.3')
+                self.assertEqual(launch.VERIFIED_PRODUCT, 'a'*40)
+                self.assertTrue(launch.ASSET_URL.endswith('/v0.4.3/harmony-server-0.4.3-linux-x86_64.tar.gz'))
+            with patch.dict(os.environ, {}, clear=True):
+                launch.select_release()
+                self.assertEqual(launch.VERSION, '0.4.1')
+                self.assertEqual(launch.VERIFIED_PRODUCT, '2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d')
+        finally: launch.VERSION, launch.VERIFIED_PRODUCT, launch.ASSET_URL = original
+
+    def test_private_configuration_uses_only_loopback_signaling_and_existing_udp_port(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); runtime, state = root / 'runtime', root / 'state'
+            (runtime / 'bin').mkdir(parents=True); state.mkdir()
+            (runtime / 'bin/livekit-server').write_bytes(b'verified-runtime-fixture')
+            secret = 'random-fixture-"\\\n' + 'x'*40
+            environment = {'LIVEKIT_API_KEY':'fixture-key', 'LIVEKIT_API_SECRET':secret,
+                           'HARMONY_MEDIA_TRANSPORT':'p2p','LIVEKIT_API_URL':'http://127.0.0.1:7880',
+                           'HARMONY_PUBLIC_API_URL':'https://example.invalid','LIVEKIT_URL':'wss://example.invalid'}
+            with patch.object(launch, 'VERSION', '0.4.3'), patch.dict(os.environ, environment, clear=True):
+                launch.configure_screen_sfu(runtime, state, 25094)
+                path = state / 'livekit.json'; config = json.loads(path.read_text())
+                self.assertEqual(path.stat().st_mode & 0o777, 0o400)
+                self.assertEqual(config['keys']['fixture-key'], secret)
+                self.assertEqual(config['bind_addresses'], ['127.0.0.1'])
+                self.assertEqual(config['rtc']['udp_port'], 25094)
+                self.assertEqual(config['rtc']['tcp_port'], 0)
+                self.assertFalse(config['turn']['enabled'])
+                self.assertEqual(os.environ['HARMONY_LIVEKIT_BIN'], str(runtime / 'bin/livekit-server'))
+                self.assertEqual(os.environ['HARMONY_LIVEKIT_CONFIG'], str(path))
+                for invalid_port in (0, 7880, 65536):
+                    with self.assertRaises(RuntimeError): launch.configure_screen_sfu(runtime, state, invalid_port)
+                for name, value in [('LIVEKIT_API_URL','http://169.254.169.254'), ('LIVEKIT_URL','wss://attacker.invalid'), ('HARMONY_MEDIA_TRANSPORT','livekit'), ('LIVEKIT_API_SECRET','short')]:
+                    with patch.dict(os.environ, {name:value}), self.assertRaises(RuntimeError): launch.configure_screen_sfu(runtime, state, 25094)
+                (runtime / 'bin/livekit-server').unlink()
+                (runtime / 'bin/livekit-server').symlink_to('/bin/false')
+                with self.assertRaises(RuntimeError): launch.configure_screen_sfu(runtime, state, 25094)
+
 if __name__ == '__main__':
     unittest.main()

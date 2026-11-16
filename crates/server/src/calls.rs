@@ -44,7 +44,12 @@ struct PublicPeer {
     user_id: Uuid,
     display_name: String,
     can_publish: bool,
+    #[serde(skip_serializing_if = "disabled")]
+    screen_sfu: bool,
     media: Media,
+}
+fn disabled(value: &bool) -> bool {
+    !value
 }
 struct Peer {
     public: PublicPeer,
@@ -88,6 +93,19 @@ fn broadcast(peers: &mut HashMap<Uuid, Peer>, cid: Uuid) {
     }
 }
 impl CallRegistry {
+    fn screen_claims(&self, pid: Uuid, cid: Uuid, uid: Uuid, sid: Uuid) -> Option<Claims> {
+        self.0
+            .lock()
+            .ok()?
+            .get(&pid)
+            .filter(|peer| {
+                peer.channel == cid
+                    && peer.public.user_id == uid
+                    && peer.claims.sid == sid
+                    && peer.public.screen_sfu
+            })
+            .map(|peer| peer.claims.clone())
+    }
     pub fn revoke_user(&self, uid: Uuid, guild: Option<Uuid>) {
         if let Ok(mut peers) = self.0.lock() {
             let ids = peers
@@ -151,6 +169,25 @@ impl CallRegistry {
         }
         peers.contains_key(&id)
     }
+}
+/// The database and the current registry are both authoritative. No mutex is
+/// held while the existing bounded ACL check waits for SQLite.
+pub(crate) async fn screen_access(
+    s: &AppState,
+    cid: Uuid,
+    pid: Uuid,
+    uid: Uuid,
+    sid: Uuid,
+) -> ApiResult<bool> {
+    let claims = s
+        .calls
+        .screen_claims(pid, cid, uid, sid)
+        .ok_or(Error::Forbidden)?;
+    let access = checked(s, cid, &claims).await?;
+    if s.calls.screen_claims(pid, cid, uid, sid).is_none() {
+        return Err(Error::Forbidden.into());
+    }
+    Ok(access.can_publish)
 }
 fn remove(peers: &mut HashMap<Uuid, Peer>, id: Uuid, reason: &'static str) {
     if let Some(peer) = peers.remove(&id) {
@@ -224,7 +261,7 @@ pub async fn info(
     s.limit(&format!("call-info:{}", a.user.id), 90, 60)?;
     let peers = s.calls.0.lock().map_err(|_| Error::Internal)?;
     Ok(Json(
-        json!({"transport":s.config.media_transport,"max_participants":s.config.max_room_participants,
+        json!({"transport":s.config.media_transport,"screen_sfu_enabled":s.config.screen_sfu_enabled,"max_participants":s.config.max_room_participants,
         "max_video_bitrate":s.config.max_bitrate,"ice_servers":ice(&s),"participants":snapshot(&peers,cid)}),
     ))
 }
@@ -239,6 +276,8 @@ struct Join {
     r#type: String,
     token: String,
     channel_id: Uuid,
+    #[serde(default)]
+    screen_sfu: bool,
 }
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -266,7 +305,27 @@ fn valid_signal(data: &Value) -> bool {
         return false;
     }
     if let Some(receive) = object.get("receive").and_then(Value::as_object) {
-        return receive.len() == 1
+        return receive
+            .keys()
+            .all(|key| matches!(key.as_str(), "screen_height" | "screen_sfu"))
+            && receive.get("screen_sfu").is_none_or(|ack| {
+                ack.is_null()
+                    || ack.as_object().is_some_and(|ack| {
+                        ack.len() == 2
+                            && ["track_sid", "generation"].iter().all(|field| {
+                                ack.get(*field)
+                                    .and_then(Value::as_str)
+                                    .is_some_and(|value| {
+                                        !value.is_empty()
+                                            && value.len() <= 128
+                                            && value.bytes().all(|b| {
+                                                b.is_ascii_alphanumeric()
+                                                    || matches!(b, b'_' | b'-')
+                                            })
+                                    })
+                            })
+                    })
+            })
             && receive
                 .get("screen_height")
                 .and_then(Value::as_u64)
@@ -397,6 +456,7 @@ async fn session(mut socket: WebSocket, s: AppState) {
                         user_id: a.user.id,
                         display_name: a.user.display_name,
                         can_publish: access.can_publish,
+                        screen_sfu: s.config.screen_sfu_enabled && join.screen_sfu,
                         media: Media::default(),
                     },
                     channel: join.channel_id,
@@ -407,7 +467,7 @@ async fn session(mut socket: WebSocket, s: AppState) {
                 },
             );
             let ready = json!({"type":"ready","peer_id":id,"channel_id":join.channel_id,"participants":snapshot(&peers,join.channel_id),
-                "max_participants":s.config.max_room_participants,"max_video_bitrate":s.config.max_bitrate,"ice_servers":ice(&s)});
+                "max_participants":s.config.max_room_participants,"max_video_bitrate":s.config.max_bitrate,"ice_servers":ice(&s),"screen_sfu_enabled":s.config.screen_sfu_enabled});
             broadcast(&mut peers, join.channel_id);
             Ok(ready)
         }
@@ -485,6 +545,10 @@ async fn session(mut socket: WebSocket, s: AppState) {
                         let Ok(mut peers)=s.calls.0.lock() else { break "Chamada indisponível"; };
                         if !peers.contains_key(&id) { break "Chamada encerrada"; }
                         let Some(target)=peers.get(&to).filter(|p| p.channel==join.channel_id) else { continue; };
+                        if data.pointer("/receive/screen_sfu").is_some_and(|ack| !ack.is_null())
+                            && (!s.config.screen_sfu_enabled || !target.public.screen_sfu || !peers.get(&id).is_some_and(|peer| peer.public.screen_sfu)) {
+                            break "SFU de tela não negociado entre estes participantes";
+                        }
                         if target.outgoing.try_send(json!({"type":"signal","from":id,"data":data})).is_err() { remove(&mut peers,to,"Consumidor de sinalização lento; reconecte"); }
                     },
                 }
@@ -782,6 +846,41 @@ mod tests {
         assert!(serde_json::from_value::<Input>(json!({"type":"signal","to":Uuid::now_v7(),"from":"spoof","data":{"candidate":null}})).is_err());
     }
     #[test]
+    fn screen_sfu_ack_is_optional_bounded_and_cannot_redefine_identity() {
+        assert!(valid_signal(
+            &json!({"receive":{"screen_height":0,"screen_sfu":null}})
+        ));
+        assert!(valid_signal(
+            &json!({"receive":{"screen_height":1440,"screen_sfu":{"track_sid":"TR_a-B_123","generation":"capture-1"}}})
+        ));
+        for bad in [
+            json!({"track_sid":"","generation":"x"}),
+            json!({"track_sid":"TR_ok","generation":""}),
+            json!({"track_sid":"a".repeat(129),"generation":"x"}),
+            json!({"track_sid":"TR_ok","generation":"x".repeat(129)}),
+            json!({"track_sid":"TR_á","generation":"x"}),
+            json!({"track_sid":"TR_ok","generation":"x\n"}),
+            json!({"track_sid":"TR_ok","generation":"x","peer_id":Uuid::now_v7()}),
+            json!(true),
+            json!(false),
+            json!("TR_not-an-object"),
+        ] {
+            assert!(!valid_signal(
+                &json!({"receive":{"screen_height":720,"screen_sfu":bad}})
+            ));
+        }
+        assert!(!valid_signal(&json!({"receive":{"screen_sfu":null}})));
+        assert!(serde_json::from_value::<Join>(json!({"type":"auth","token":"fixture","channel_id":Uuid::now_v7(),"screen_sfu":true})).unwrap().screen_sfu);
+        assert!(
+            !serde_json::from_value::<Join>(
+                json!({"type":"auth","token":"fixture","channel_id":Uuid::now_v7()})
+            )
+            .unwrap()
+            .screen_sfu
+        );
+        assert!(serde_json::from_value::<Join>(json!({"type":"auth","token":"fixture","channel_id":Uuid::now_v7(),"screen_sfu":"true"})).is_err());
+    }
+    #[test]
     fn full_outbound_queue_revokes_peer_without_blocking_other_receivers() {
         let channel = Uuid::now_v7();
         let mut peers = HashMap::new();
@@ -805,6 +904,7 @@ mod tests {
                         user_id: id,
                         display_name: "Fixture".into(),
                         can_publish: true,
+                        screen_sfu: false,
                         media: Media::default(),
                     },
                     channel,

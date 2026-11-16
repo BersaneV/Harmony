@@ -1,10 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { P2PCall, type CallEnvironment, type CallParticipant } from "./call";
+import {
+  P2PCall,
+  type CallEnvironment,
+  type CallParticipant,
+  type CallScreenRelay,
+} from "./call";
+import type {
+  ScreenRelayAuthority,
+  ScreenRelayCallbacks,
+  ScreenRelayCaptureBound,
+  ScreenRelayRef,
+} from "./screen-relay";
 import type { Session } from "./types";
+import * as browserApi from "./api";
 import type { StreamProfile } from "./stream";
 import { registerCaptureTrack } from "./capture-track";
 
 vi.mock("./api", () => ({
+  api: vi.fn(),
   getServer: vi.fn(),
   getSession: vi.fn(),
   onSession: vi.fn(),
@@ -275,11 +288,84 @@ class Socket extends EventTarget {
 }
 const flush = () => vi.advanceTimersByTimeAsync(0);
 const active: P2PCall[] = [];
+const capable = (peer: string): CallParticipant => ({
+  ...roster(peer),
+  screen_sfu: true,
+});
+function boundedScreen() {
+  const track = new Track("video");
+  let maximum: number | undefined;
+  registerCaptureTrack(track.media(), {
+    settings: () => track.settings,
+    applyConstraints: async (constraints) => {
+      await track.applyConstraints(constraints);
+      maximum =
+        typeof constraints.height === "object"
+          ? constraints.height.max
+          : undefined;
+    },
+    maxHeight: () => maximum,
+    release: () => track.stop(),
+  });
+  return track;
+}
+class FakeRelay implements CallScreenRelay {
+  screen?: MediaStreamTrack;
+  audio?: MediaStreamTrack;
+  ref?: ScreenRelayRef;
+  key = "";
+  sequence = 0;
+  beforeScreen?: (track: MediaStreamTrack | null) => Promise<void>;
+  constructor(readonly callbacks: ScreenRelayCallbacks) {}
+  connect = vi.fn(
+    async (_grant: unknown, _authority: ScreenRelayAuthority) => {},
+  );
+  updateAuthority = vi.fn((_authority: ScreenRelayAuthority) => {});
+  setReceiveHeight = vi.fn((_peer: string, _height: number) => {});
+  close = vi.fn(async () => {
+    this.screen = undefined;
+    this.audio = undefined;
+    this.ref = undefined;
+  });
+  setScreen = vi.fn(
+    async (
+      track: MediaStreamTrack | null,
+      profile: StreamProfile,
+      _max: number,
+      bound?: ScreenRelayCaptureBound,
+    ) => {
+      await this.beforeScreen?.(track);
+      if (!track) {
+        this.screen = undefined;
+        this.audio = undefined;
+        this.ref = undefined;
+        this.callbacks.onLocalPublication?.(null);
+        return null;
+      }
+      const key = JSON.stringify({ profile, bound });
+      if (this.screen === track && key === this.key && this.ref)
+        return this.ref;
+      this.screen = track;
+      this.key = key;
+      const index = ++this.sequence;
+      this.ref = {
+        track_sid: `TR_local_${index}`,
+        generation: `capture_${index}_${bound ? `h${bound.max_height}` : "u"}_a${profile.audio ? 1 : 0}`,
+      };
+      this.callbacks.onLocalPublication?.(this.ref);
+      return this.ref;
+    },
+  );
+  setScreenAudio = vi.fn(async (track: MediaStreamTrack | null) => {
+    this.audio = track ?? undefined;
+  });
+}
 function setup(
   options: {
     self?: string;
     codecs?: RTCRtpCodecParameters[];
     maxBitrate?: number;
+    screenSfu?: boolean;
   } = {},
 ) {
   let auth: Session | null = session();
@@ -288,6 +374,7 @@ function setup(
   const listeners = new Set<(value: Session | null) => void>();
   const peers: Peer[] = [],
     sockets: Socket[] = [];
+  let relay: FakeRelay | undefined;
   const environment: CallEnvironment = {
     getServer: () => "https://harmony.test",
     getSession: () => auth,
@@ -309,6 +396,22 @@ function setup(
       return peer.rtc();
     },
   };
+  if (options.screenSfu !== undefined) {
+    environment.getCallConfig = vi.fn(async () => ({
+      screen_sfu_enabled: options.screenSfu,
+    }));
+    environment.getScreenToken = vi.fn(async (_channel, peer) => ({
+      peer_id: peer,
+      token: "screen-token",
+      url: "wss://harmony.test",
+      room: "harmony-channel",
+      max_video_bitrate: options.maxBitrate ?? 8_000_000,
+    }));
+    environment.relayFactory = vi.fn((callbacks) => {
+      relay = new FakeRelay(callbacks);
+      return relay;
+    });
+  }
   const call = new P2PCall({ channelId: "channel" }, environment);
   active.push(call);
   return {
@@ -316,13 +419,17 @@ function setup(
     peers,
     sockets,
     environment,
+    get relay() {
+      return relay!;
+    },
     auth: (next: Session | null) => {
       auth = next;
       for (const listener of listeners) listener(next);
     },
     async connect(participants = [roster("a"), roster("b")]) {
-      const pending = call.connect(),
-        socket = sockets.at(-1)!;
+      const pending = call.connect();
+      if (environment.getCallConfig) await flush();
+      const socket = sockets.at(-1)!;
       socket.open();
       socket.receive({
         type: "ready",
@@ -332,6 +439,7 @@ function setup(
         max_video_bitrate: options.maxBitrate ?? 8_000_000,
         ice_servers: [],
         participants,
+        ...(options.screenSfu ? { screen_sfu_enabled: true } : {}),
       });
       await pending;
       await flush();
@@ -504,6 +612,497 @@ describe("real call ownership and authority", () => {
     await vi.advanceTimersByTimeAsync(30_000);
     expect(test.call.snapshot.state).toBe("failed");
     expect(mic.readyState).toBe("ended");
+  });
+});
+
+describe("optional screen relay integrated with real P2P engine", () => {
+  it("keeps an early screen P2P while SDK connect is pending, then publishes it without reopening capture", async () => {
+    const test = setup({ screenSfu: true });
+    let connected!: () => void, relay!: FakeRelay;
+    const waiting = new Promise<void>((resolve) => {
+      connected = resolve;
+    });
+    test.environment.relayFactory = (callbacks) => {
+      relay = new FakeRelay(callbacks);
+      relay.connect.mockImplementation(async () => waiting);
+      return relay;
+    };
+    const socket = await test.connect([capable("a"), capable("b")]);
+    await description(socket, "b");
+    const screen = boundedScreen();
+    await test.call.setTrack("screen", screen.media());
+    expect(relay.setScreen).not.toHaveBeenCalled();
+    expect(relay.close).not.toHaveBeenCalled();
+    expect(test.peers[0].slots[2].sender.track).toBe(screen);
+    connected();
+    await flush();
+    expect(relay.setScreen).toHaveBeenLastCalledWith(
+      screen,
+      expect.objectContaining({ height: 1080 }),
+      8_000_000,
+      { max_height: 1080 },
+    );
+    expect(screen.readyState).toBe("live");
+    expect(test.call.snapshot.state).toBe("connected");
+  });
+
+  it("defers a late SDK connection until an in-flight source profile has committed its bound", async () => {
+    const test = setup({ screenSfu: true });
+    let connected!: () => void, relay!: FakeRelay, constrained!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      connected = resolve;
+    });
+    test.environment.relayFactory = (callbacks) => {
+      relay = new FakeRelay(callbacks);
+      relay.connect.mockImplementation(async () => waiting);
+      return relay;
+    };
+    const socket = await test.connect([capable("a"), capable("b")]);
+    await description(socket, "b");
+    const screen = boundedScreen();
+    await test.call.setTrack("screen", screen.media());
+    const captureWaiting = new Promise<void>((resolve) => {
+      constrained = resolve;
+    });
+    screen.onConstraints = () => captureWaiting;
+    const changing = test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+      fps: 60,
+    });
+    await flush();
+    connected();
+    await flush();
+    expect(relay.setScreen).not.toHaveBeenCalled();
+    constrained();
+    await changing;
+    expect(relay.setScreen).toHaveBeenLastCalledWith(
+      screen,
+      expect.objectContaining({ height: 1440 }),
+      8_000_000,
+      { max_height: 1440 },
+    );
+  });
+  it("uses the real API serializer and HTTP routes for discovery and screen-token", async () => {
+    const sockets: Socket[] = [];
+    vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {} });
+    const actualApi = await vi.importActual<typeof import("./api")>("./api");
+    await actualApi.setServer("https://harmony.test");
+    await actualApi.saveSession(session());
+    vi.mocked(browserApi.getServer).mockReturnValue(actualApi.getServer());
+    vi.mocked(browserApi.getSession).mockReturnValue(actualApi.getSession());
+    vi.mocked(browserApi.onSession).mockReturnValue(() => {});
+    vi.mocked(browserApi.api).mockImplementation(actualApi.api);
+    const requests: { url: string; options: RequestInit }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options: RequestInit) => {
+        requests.push({ url, options });
+        const discovery =
+          url === "https://harmony.test/api/channels/channel/call" &&
+          options.method === "GET";
+        const token =
+          url === "https://harmony.test/api/channels/channel/screen-token" &&
+          options.method === "POST";
+        return new Response(
+          JSON.stringify(
+            discovery
+              ? { screen_sfu_enabled: true }
+              : {
+                  error: {
+                    message: "No SDK network in this HTTP contract test",
+                  },
+                },
+          ),
+          {
+            status: discovery ? 200 : token ? 503 : 404,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }),
+    );
+    vi.stubGlobal(
+      "WebSocket",
+      class extends Socket {
+        constructor() {
+          super();
+          sockets.push(this);
+        }
+      },
+    );
+    vi.stubGlobal("RTCPeerConnection", Peer);
+    const call = new P2PCall({ channelId: "channel" });
+    active.push(call);
+    try {
+      const pending = call.connect();
+      await flush();
+      const socket = sockets[0];
+      socket.open();
+      socket.receive({
+        type: "ready",
+        peer_id: "a",
+        channel_id: "channel",
+        screen_sfu_enabled: true,
+        max_participants: 12,
+        max_video_bitrate: 8_000_000,
+        ice_servers: [],
+        participants: [capable("a"), capable("b")],
+      });
+      await pending;
+      await flush();
+      expect(requests.map(({ url }) => url)).toEqual([
+        "https://harmony.test/api/channels/channel/call",
+        "https://harmony.test/api/channels/channel/screen-token",
+      ]);
+      expect(JSON.parse(String(requests[1].options.body))).toEqual({
+        peer_id: "a",
+      });
+      expect(requests[1].options.headers).toMatchObject({
+        Authorization: `Bearer ${session().access_token}`,
+        "Content-Type": "application/json",
+      });
+      expect(socket.sent[0]).toMatchObject({ type: "auth", screen_sfu: true });
+      expect(call.snapshot.state).toBe("connected");
+    } finally {
+      call.close();
+      await actualApi.saveSession(null);
+      vi.unstubAllGlobals();
+      vi.mocked(browserApi.api).mockReset();
+    }
+  });
+  it("leaves legacy calls untouched when discovery disables SFU", async () => {
+    const test = setup({ screenSfu: false });
+    const socket = await test.connect();
+    expect(
+      socket.sent.find((frame) => (frame as { type: string }).type === "auth"),
+    ).not.toHaveProperty("screen_sfu");
+    expect(test.environment.getScreenToken).not.toHaveBeenCalled();
+    expect(test.environment.relayFactory).not.toHaveBeenCalled();
+    test.call.setReceiveHeight("b", 720);
+    expect(socket.sent.at(-1)).toMatchObject({
+      data: { receive: { screen_height: 720 } },
+    });
+    expect(
+      (socket.sent.at(-1) as { data: { receive: unknown } }).data.receive,
+    ).not.toHaveProperty("screen_sfu");
+  });
+
+  it("waits for capability discovery and cannot create a socket after close", async () => {
+    const test = setup({ screenSfu: true });
+    let answer!: (value: { screen_sfu_enabled: boolean }) => void;
+    test.environment.getCallConfig = () =>
+      new Promise((resolve) => {
+        answer = resolve;
+      });
+    const pending = test.call.connect();
+    const rejection = expect(pending).rejects.toThrow("saiu");
+    expect(test.sockets).toHaveLength(0);
+    test.call.close();
+    answer({ screen_sfu_enabled: true });
+    await rejection;
+    await flush();
+    expect(test.sockets).toHaveLength(0);
+    expect(test.environment.relayFactory).not.toHaveBeenCalled();
+  });
+
+  it("removes only screen senders after seven matching ACKs, keeping every microphone and camera P2P", async () => {
+    const test = setup({ screenSfu: true, codecs: videoCodecs });
+    const socket = await test.connect("abcdefgh".split("").map(capable));
+    for (const peer of "bcdefgh") await description(socket, peer);
+    const mic = new Track("audio"),
+      camera = new Track("video"),
+      screen = boundedScreen(),
+      audio = new Track("audio");
+    await test.call.setTrack("microphone", mic.media());
+    await test.call.setTrack("camera", camera.media());
+    await test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+      fps: 60,
+    });
+    await test.call.setTrack("screen", screen.media());
+    await test.call.setTrack("screen_audio", audio.media());
+    const ref = test.relay.ref!;
+    expect(test.environment.getScreenToken).toHaveBeenCalledWith(
+      "channel",
+      "a",
+    );
+    expect(test.relay.setScreen).toHaveBeenLastCalledWith(
+      screen,
+      expect.objectContaining({ height: 1440 }),
+      8_000_000,
+      { max_height: 1440 },
+    );
+    for (const peer of test.peers)
+      expect(peer.slots[2].sender.track).toBe(screen);
+    for (const from of "bcdefgh")
+      socket.receive({
+        type: "signal",
+        from,
+        data: { receive: { screen_height: 0, screen_sfu: ref } },
+      });
+    await flush();
+    for (const peer of test.peers) {
+      expect(peer.slots[0].sender.track).toBe(mic);
+      expect(peer.slots[1].sender.track).toBe(camera);
+      expect(peer.slots[2].sender.track).toBeNull();
+      expect(peer.slots[3].sender.track).toBeNull();
+    }
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 360, screen_sfu: ref } },
+    });
+    await flush();
+    expect(test.peers[0].slots[2].sender.track).toBe(screen);
+    expect(
+      test.peers[0].slots[2].sender.parameters.encodings[0]
+        .scaleResolutionDownBy,
+    ).toBe(4);
+    expect(test.peers[0].slots[3].sender.track).toBe(audio);
+    expect(test.peers[1].slots[2].sender.track).toBeNull();
+    test.relay.callbacks.onLocalPublication?.(null);
+    await flush();
+    for (const peer of test.peers)
+      expect(peer.slots[2].sender.track).toBe(screen);
+    expect(mic.readyState).toBe("live");
+    expect(camera.readyState).toBe("live");
+  });
+
+  it("rejects capped SFU ACKs without a proven capture envelope while Auto remains eligible", async () => {
+    const test = setup({ screenSfu: true });
+    const socket = await test.connect([capable("a"), capable("b")]);
+    await description(socket, "b");
+    const screen = new Track("video");
+    await test.call.setTrack("screen", screen.media());
+    const ref = test.relay.ref!;
+    expect(test.relay.setScreen).toHaveBeenLastCalledWith(
+      screen,
+      expect.objectContaining({ audio: false }),
+      8_000_000,
+      undefined,
+    );
+    expect(ref.generation.endsWith("_a0")).toBe(true);
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 1080, screen_sfu: ref } },
+    });
+    await flush();
+    expect(test.peers[0].slots[2].sender.track).toBe(screen);
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 0, screen_sfu: ref } },
+    });
+    await flush();
+    expect(test.peers[0].slots[2].sender.track).toBeNull();
+  });
+
+  it("retires the previous generation before changing capture limits and ignores old ACKs", async () => {
+    const test = setup({ screenSfu: true });
+    const socket = await test.connect([capable("a"), capable("b")]);
+    await description(socket, "b");
+    const screen = boundedScreen();
+    await test.call.setTrack("screen", screen.media());
+    const oldRef = test.relay.ref!;
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 0, screen_sfu: oldRef } },
+    });
+    await flush();
+    expect(test.peers[0].slots[2].sender.track).toBeNull();
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    test.relay.beforeScreen = async (track) => {
+      if (!track) await waiting;
+    };
+    const constrained = vi.fn();
+    screen.onConstraints = constrained;
+    const changing = test.call.setScreenProfile({
+      ...screenProfile,
+      height: 1440,
+      fps: 60,
+    });
+    await flush();
+    expect(constrained).not.toHaveBeenCalled();
+    release();
+    await changing;
+    test.relay.beforeScreen = undefined;
+    expect(constrained).toHaveBeenCalled();
+    const current = test.relay.ref!;
+    expect(current).not.toEqual(oldRef);
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 0, screen_sfu: oldRef } },
+    });
+    await flush();
+    expect(test.peers[0].slots[2].sender.track).toBe(screen);
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 1440, screen_sfu: current } },
+    });
+    await flush();
+    expect(test.peers[0].slots[2].sender.track).toBeNull();
+  });
+
+  it("selects decoded SDK tracks atomically and preserves real P2P fallback tracks and measurements", async () => {
+    const test = setup({ screenSfu: true });
+    const remote = capable("b");
+    remote.media.screen = true;
+    remote.media.screen_audio = true;
+    const socket = await test.connect([capable("a"), remote]);
+    await description(socket, "b");
+    const peer = test.peers[0];
+    for (const index of [2, 3])
+      peer.ontrack?.({
+        track: peer.slots[index].receiver.track.media(),
+        transceiver: peer.slots[index],
+      });
+    const fallback = peer.slots[2].receiver.track;
+    const ref = { track_sid: "TR_remote", generation: "remote_h1440" };
+    const video = new Track("video"),
+      audio = new Track("audio");
+    test.relay.callbacks.onTrack({
+      peer_id: "b",
+      source: "screen",
+      track: video.media(),
+      ref,
+    });
+    test.relay.callbacks.onAck({ peer_id: "b", screen_sfu: ref });
+    expect(test.call.snapshot.participants[0].screenTransport).toBe("p2p");
+    test.relay.callbacks.onTrack({
+      peer_id: "b",
+      source: "screen_audio",
+      track: audio.media(),
+      ref,
+    });
+    test.relay.callbacks.onAck({ peer_id: "b", screen_sfu: ref });
+    expect(test.call.snapshot.participants[0].tracks.screen).toBe(video);
+    expect(test.call.snapshot.participants[0].tracks.screen_audio).toBe(audio);
+    expect(test.call.snapshot.participants[0].screenTransport).toBe("sfu");
+    expect(
+      test.call.snapshot.participants[0].stats.received.screen,
+    ).toBeUndefined();
+    expect(socket.sent.at(-1)).toMatchObject({
+      data: { receive: { screen_height: 0, screen_sfu: ref } },
+    });
+    test.relay.callbacks.onAck({ peer_id: "b", screen_sfu: null });
+    expect(video.enabled).toBe(false);
+    expect(audio.enabled).toBe(false);
+    expect(test.call.snapshot.participants[0].tracks.screen).toBe(fallback);
+    expect(test.call.snapshot.participants[0].screenTransport).toBe("p2p");
+    expect(fallback.readyState).toBe("live");
+  });
+
+  it("keeps voice alive on relay failure and rejects callbacks after close or authoritative removal", async () => {
+    const test = setup({ screenSfu: true });
+    const remote = capable("b");
+    remote.media.screen = true;
+    const socket = await test.connect([capable("a"), remote]);
+    await description(socket, "b");
+    const mic = new Track("audio"),
+      screen = boundedScreen();
+    await test.call.setTrack("microphone", mic.media());
+    await test.call.setTrack("screen", screen.media());
+    const oldRelay = test.relay,
+      ref = oldRelay.ref!;
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 0, screen_sfu: ref } },
+    });
+    await flush();
+    expect(test.peers[0].slots[2].sender.track).toBeNull();
+    oldRelay.callbacks.onError?.(new Error("SFU disconnected"));
+    await flush();
+    expect(test.call.snapshot.state).toBe("connected");
+    expect(test.peers[0].slots[0].sender.track).toBe(mic);
+    expect(test.peers[0].slots[2].sender.track).toBe(screen);
+    expect(oldRelay.close).toHaveBeenCalled();
+    const before = socket.sent.length;
+    test.call.close();
+    oldRelay.callbacks.onLocalPublication?.(ref);
+    oldRelay.callbacks.onAck({ peer_id: "b", screen_sfu: ref });
+    await flush();
+    expect(socket.sent).toHaveLength(before);
+    expect(test.call.snapshot.state).toBe("closed");
+  });
+
+  it("clamps active relay tracks synchronously on authoritative mute and ignores late decoded callbacks", async () => {
+    const test = setup({ screenSfu: true });
+    const remote = capable("b");
+    remote.media.screen = true;
+    remote.media.screen_audio = true;
+    const socket = await test.connect([capable("a"), remote]);
+    await description(socket, "b");
+    const ref = { track_sid: "TR_remote", generation: "remote_h1440" },
+      video = new Track("video"),
+      audio = new Track("audio");
+    test.relay.callbacks.onTrack({
+      peer_id: "b",
+      source: "screen",
+      track: video.media(),
+      ref,
+    });
+    test.relay.callbacks.onTrack({
+      peer_id: "b",
+      source: "screen_audio",
+      track: audio.media(),
+      ref,
+    });
+    test.relay.callbacks.onAck({ peer_id: "b", screen_sfu: ref });
+    expect(video.enabled).toBe(true);
+    expect(audio.enabled).toBe(true);
+    socket.receive({
+      type: "roster",
+      participants: [capable("a"), { ...remote, can_publish: false }],
+    });
+    expect(video.enabled).toBe(false);
+    expect(audio.enabled).toBe(false);
+    const before = socket.sent.length;
+    test.relay.callbacks.onAck({ peer_id: "b", screen_sfu: ref });
+    expect(socket.sent).toHaveLength(before);
+    socket.receive({ type: "roster", participants: [capable("a")] });
+    const late = new Track("video");
+    test.relay.callbacks.onTrack({
+      peer_id: "b",
+      source: "screen",
+      track: late.media(),
+      ref,
+    });
+    expect(late.enabled).toBe(false);
+    expect(test.call.snapshot.participants).toHaveLength(0);
+  });
+
+  it("fences a relay publish that completes after local close without reopening captures", async () => {
+    const test = setup({ screenSfu: true });
+    const socket = await test.connect([capable("a"), capable("b")]);
+    await description(socket, "b");
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    test.relay.beforeScreen = async (track) => {
+      if (track) await waiting;
+    };
+    const screen = boundedScreen(),
+      publishing = test.call.setTrack("screen", screen.media());
+    await flush();
+    test.call.close();
+    release();
+    await publishing;
+    await flush();
+    expect(test.call.snapshot.state).toBe("closed");
+    expect(test.call.snapshot.localTracks.screen).toBeUndefined();
+    expect(screen.readyState).toBe("ended");
+    expect(test.relay.screen).toBeUndefined();
+    expect(test.relay.close).toHaveBeenCalled();
   });
 });
 

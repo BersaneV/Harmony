@@ -28,6 +28,23 @@ MAX_EXPANDED = 512 * 1024 * 1024
 PHASE = 'configuration'
 
 
+def select_release():
+    """Operator pins both archive digest and verified commit; rollback keeps 0.4.1."""
+    global VERSION, VERIFIED_PRODUCT, ASSET_URL
+    selected = os.environ.get('HARMONY_DEPLOYMENT_VERSION', '0.4.1')
+    if selected not in ('0.4.1', '0.4.3'):
+        raise RuntimeError('Unsupported deployment release')
+    if selected == '0.4.3':
+        commit = os.environ.get('HARMONY_BUNDLE_SOURCE_COMMIT', '')
+        if not re.fullmatch(r'[0-9a-f]{40}', commit):
+            raise RuntimeError('An operator-verified source commit is required')
+        VERIFIED_PRODUCT = commit
+    else:
+        VERIFIED_PRODUCT = '2ea5c8cfa6eb003d732dbcbe0c4a76ae73bc1f7d'
+    VERSION = selected
+    ASSET_URL = f'https://github.com/BersaneV/Harmony/releases/download/v{VERSION}/harmony-server-{VERSION}-linux-x86_64.tar.gz'
+
+
 def sha(path):
     with path.open('rb') as source:
         digest = hashlib.sha256()
@@ -68,6 +85,9 @@ def verify(root, archive_digest=None):
     if (manifest.get('version') != VERSION or manifest.get('platform') != 'linux-x86_64'
             or manifest.get('verified_product_commit') != VERIFIED_PRODUCT):
         raise RuntimeError('Bundle source or version mismatch')
+    if VERSION == '0.4.3' and (manifest.get('source_commit') != VERIFIED_PRODUCT
+                             or not re.fullmatch(r'[0-9]+', str(manifest.get('verify_run', '')))):
+        raise RuntimeError('Candidate verification provenance missing')
     files = manifest['files']
     if not isinstance(files, dict) or len(files) > 2048:
         raise RuntimeError('Invalid bundle manifest')
@@ -323,6 +343,7 @@ def main():
     global PHASE
     os.umask(0o077)
     load_configuration()
+    select_release()
     PHASE = 'bundle_verification'
     runtime = bundle(os.environ.get('HARMONY_BUNDLE_SHA256', ''))
     slot = os.environ.get('HARMONY_DEPLOYMENT_SLOT', 'state')
@@ -347,6 +368,8 @@ def main():
     })
     PHASE = 'private_paths_and_identity'
     identity_and_paths(runtime, state, worker_temp, sqlite_temp)
+    if os.environ.get('HARMONY_SCREEN_SFU_ENABLED') == 'true':
+        configure_screen_sfu(runtime, state, port)
     PHASE = 'kernel_filesystem_policy'
     abi = read_only_policy(runtime, (state, worker_temp, sqlite_temp))
     PHASE = 'filesystem_policy_negative_checks'
@@ -359,6 +382,49 @@ def main():
     print(json.dumps(report), flush=True)
     PHASE = 'supervisor_exec'
     os.execv(sys.executable, [sys.executable, str(runtime / 'scripts/supervise.py')])
+
+
+def configure_screen_sfu(runtime, state, port):
+    """One private signaling socket and the existing allocation's UDP port.
+
+    JSON is accepted by LiveKit's YAML decoder. Secrets are serialized as values,
+    never shell/YAML fragments. No additional public allocation is requested.
+    """
+    binary = runtime / 'bin/livekit-server'
+    key, secret = os.environ.get('LIVEKIT_API_KEY', ''), os.environ.get('LIVEKIT_API_SECRET', '')
+    if (VERSION != '0.4.3' or not 1024 <= port <= 65535 or port == 7880
+            or not binary.is_file() or binary.is_symlink()
+            or not re.fullmatch(r'[A-Za-z0-9_-]{8,64}', key) or len(secret.encode()) < 32
+            or os.environ.get('HARMONY_MEDIA_TRANSPORT') != 'p2p'
+            or os.environ.get('LIVEKIT_API_URL') != 'http://127.0.0.1:7880'):
+        raise RuntimeError('Invalid optional screen SFU deployment')
+    public = urllib.parse.urlsplit(os.environ.get('HARMONY_PUBLIC_API_URL', ''))
+    signal = urllib.parse.urlsplit(os.environ.get('LIVEKIT_URL', ''))
+    if (public.scheme != 'https' or public.username or public.password
+            or public.query or public.fragment or public.path not in ('', '/')
+            or not public.hostname or signal.scheme != 'wss'
+            or signal.netloc != public.netloc or signal.path not in ('', '/')
+            or signal.query or signal.fragment):
+        raise RuntimeError('Screen signaling must use the existing public TLS origin')
+    configuration = {
+        'port': 7880, 'bind_addresses': ['127.0.0.1'], 'keys': {key: secret},
+        'rtc': {'udp_port': port, 'tcp_port': 0, 'port_range_start': 0,
+                'port_range_end': 0, 'use_external_ip': True,
+                'enable_loopback_candidate': False},
+        'turn': {'enabled': False}, 'logging': {'level': 'warn'},
+    }
+    destination = state / 'livekit.json'
+    temporary = state / ('.livekit-' + secrets.token_hex(12))
+    try:
+        with temporary.open('x') as output:
+            output.write(json.dumps(configuration))
+        temporary.chmod(0o400)
+        temporary.replace(destination)
+    finally:
+        if temporary.exists(): temporary.unlink()
+    os.environ.update({'HARMONY_LIVEKIT_BIN': str(binary),
+                       'HARMONY_LIVEKIT_CONFIG': str(destination),
+                       'GOMEMLIMIT': '256MiB', 'GOMAXPROCS': '2'})
 
 
 if __name__ == '__main__':

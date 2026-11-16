@@ -1,0 +1,85 @@
+{
+  "schema": "harmony-screen-sfu-integration-v1",
+  "scope": "Local isolated transports and authorization, generated media, real SQLite/LiveKit/Chromium where explicitly stated. Not installed EXEs, native capture, WAN, or target60FPS capacity.",
+  "cases": [
+    {
+      "name": "race-control",
+      "status": "PASS",
+      "scope": "Disposable HTTP/WS/SQLite; simulated LiveKit control-plane only; no media/performance or external deployment validation",
+      "checks": [
+        "SFU disabled by default in discovery and signaling",
+        "Disabled capability preserves legacy roster shape",
+        "Disabled flag issues no LiveKit control RPC",
+        "Explicit optional SFU capability advertised",
+        "Only negotiated clients have authoritative SFU capability",
+        "Token requires exact active capable peer, channel, user and session with strict body",
+        "Signed screen-only token uses authoritative metadata and existing room namespace",
+        "Gateway validates renewed token, bound peer, sources and signature",
+        "Bounded ACK relays with server identity only between negotiated clients",
+        "Reconciliation repairs sources, metadata and data permissions for linked peers",
+        "Mute waits for the preceding grant on the same SFU identity",
+        "An unrelated SFU identity remains admissible while the grant is blocked",
+        "A completed mute cannot be overwritten by the stale reconciliation grant",
+        "Mute preserves native screen-source restrictions",
+        "Muted participant may receive but cannot publish",
+        "PUBLISH revoked during CreateRoom is rechecked before signing",
+        "Unmute cannot override current denied PUBLISH in SFU token",
+        "CONNECT revoked during CreateRoom blocks token and existing SFU reentry",
+        "Leaving during CreateRoom cannot issue a token and renewed token cannot rejoin",
+        "Reentry allocates a new peer and rejects the obsolete peer token request",
+        "Logout rejects reentry and the existing reconciliation removes the linked SFU participant"
+      ]
+    },
+    {
+      "name": "real-signaling",
+      "status": "PASS",
+      "scope": "Real local signaling/control plane through Harmony RTC gateway",
+      "checks": [
+        "Client-supplied proxy headers do not provide RTC credentials",
+        "Conflicting header/query credentials fail closed",
+        "Gateway does not expose LiveKit administration",
+        "Both validate route versions reach real LiveKit",
+        "Real LiveKit rejects a client attempt to override signed peer metadata",
+        "JoinResponse preserves signed user/session identity and peer metadata",
+        "Real LiveKit admits only screen sources and prohibits metadata/data publication",
+        "Actual LiveKit renewal retains identity/metadata and extends expiration",
+        "Gateway accepts the actual renewed LiveKit token",
+        "Completed mute revokes publish permission in real LiveKit",
+        "Mute denies original and actual renewed publisher tokens",
+        "Muted participant reconnects as receiver only",
+        "Unmute restores only currently authorized publication",
+        "Leaving rejects renewed tokens and closes existing SFU signaling",
+        "A new call peer cannot reuse the previous peer renewal",
+        "Session revocation rejects entry and removes real SFU signaling",
+        "An unavailable media backend yields a bounded gateway failure"
+      ]
+    },
+    {
+      "name": "eight-browser-routing",
+      "status": "PASS",
+      "scope": "Eight isolated real Chromium engines, real Harmony/SQLite/LiveKit, generated sources; transport and lifecycle only",
+      "checks": [
+        "Eight real Chromium engines retain their original P2P voice tracks",
+        "All fifty-six incoming P2P microphone paths receive and decode generated audio",
+        "Eight screen-only SDK rooms connect using production HTTP and RTC gateway",
+        "After confirmed SFU ACK only screen senders retire; original voice remains P2P",
+        "One capped recipient falls back independently without moving the other six",
+        "SFU loss preserves all eight original P2P microphones and connected calls",
+        "No unhandled browser errors during hybrid switching"
+      ]
+    }
+  ],
+  "source_sha256": {
+    "crates/server/src/config.rs": "ef212654f55b892acd5196dee71981a9b28c29c0aafb4255d15805c6b08e2548",
+    "crates/server/src/calls.rs": "da4d5b977d90146142b3ca20b467fb5a83c64e0befd6af4f7816cce479e4dc7d",
+    "crates/server/src/media.rs": "6d2304b864ba3090749c7912eda21d2f77a078b524a4efe1d4660299bb6c2c93",
+    "crates/server/src/rtc.rs": "f9596e50fad1140e747729cbb216de0896e4730f1b1422dbb306ba24a12df987",
+    "crates/server/src/lib.rs": "d9ec2179044887ee06759e3c08d4959736c6266192ef7e18a319a91be2ff918f",
+    "apps/desktop/src/lib/call.ts": "a26d7137db962c8d4ce92a19066d30e6893ddb30b17f550be5a6f762c4f52261",
+    "apps/desktop/src/lib/screen-relay.ts": "2c9949b2011752946bdae5bae2d13e1009a2afc1553632a8636e9c517e9423da",
+    "apps/desktop/src/lib/capture-track.ts": "31baa203b0d450aa64c4a91bd3755b4560cd941e013eeaeda4896e7da4752db3",
+    "scripts/test_call_screen_sfu.mjs": "493ef330827b6d3d55c805a5bde0b6e777b892a3715d46a0d6044f0b944c61a3",
+    "scripts/test_screen_sfu.mjs": "164c7d11fc2be72d8735885200def00c97d8d48e5e521030745e41b9b4990f64",
+    "scripts/test_screen_sfu_livekit.mjs": "38ac74dec6dc59c3dc736c44d7d6ab0fb63149e43b148d8d7d2b7cbe10901513"
+  }
+}

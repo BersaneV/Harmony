@@ -1,0 +1,91 @@
+{
+  "schema": "harmony-native-capture-calibration-v1",
+  "scope": "The production native WGC core and our own full-resolution layered window on disposable Windows VMs. This is not the installed EXE, voice, WAN transport or eight-party capacity.",
+  "acceptance": {
+    "minimum_capture_fps": 54,
+    "minimum_distinct_marker_fps": 54,
+    "full_requested_dimensions": true,
+    "minimum_colored_samples_exclusive": 13680,
+    "total_pixel_samples": 14400
+  },
+  "cases": [
+    {
+      "run": "43779165926",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43779165926",
+      "source_commit": "10470e417674d59a5101bd4f66ed736eaa96e1e6",
+      "workflow_conclusion": "success",
+      "windows_image": "windows-2022",
+      "requested_height": 1440,
+      "requested_fps": 60,
+      "duration_seconds": 10,
+      "settle_seconds": 5,
+      "observed": {
+        "status": "PASS",
+        "backend": "native-wgc",
+        "width": 2560,
+        "height": 1440,
+        "capture_fps": 57.84351465107293,
+        "distinct_marker_fps": 54.94634379635598,
+        "frames": 579,
+        "colored_pixels_of_14400": 14342,
+        "capture_ms_p50": 8.3967,
+        "capture_ms_p95": 9.8565
+      }
+    },
+    {
+      "run": "43779169073",
+      "url": "https://github.com/BersaneV/Harmony/actions/runs/43779169073",
+      "source_commit": "10470e417674d59a5101bd4f66ed736eaa96e1e6",
+      "workflow_conclusion": "success",
+      "windows_image": "windows-2022",
+      "requested_height": 1080,
+      "requested_fps": 60,
+      "duration_seconds": 10,
+      "settle_seconds": 5,
+      "observed": {
+        "status": "PASS",
+        "backend": "native-wgc",
+        "width": 1920,
+        "height": 1080,
+        "capture_fps": 57.874779907159855,
+        "distinct_marker_fps": 56.37543327744069,
+        "frames": 579,
+        "colored_pixels_of_14400": 14334,
+        "capture_ms_p50": 3.6578,
+        "capture_ms_p95": 5.0135
+      }
+    }
+  ],
+  "preserved_failures": [
+    {
+      "run": "43773481433",
+      "finding": "GDI capture clipped content outside the visible desktop and failed the full-frame and FPS checks."
+    },
+    {
+      "run": "43773484325",
+      "finding": "GDI capture clipped content outside the visible desktop and failed the full-frame and FPS checks."
+    },
+    {
+      "run": "43777539061",
+      "finding": "WGC captured the full 1440p frame, but distinct source FPS was below54."
+    },
+    {
+      "run": "43777941939",
+      "finding": "57.128 capture FPS,53.732 distinct marker FPS: FAIL; the distinct threshold was not rounded down."
+    },
+    {
+      "run": "43778373980",
+      "finding": "A nullable empty WGC frame pool was treated as a capture error. Bridge also failed lint."
+    },
+    {
+      "run": "43778769464",
+      "finding": "Native pool failure reproduced with HRESULT00000000; Windows bridge tests passed separately."
+    }
+  ],
+  "remaining": [
+    "Installed signed EXE native bridge under load",
+    "Eight independent EXEs with voice at1080p60 and1440p60",
+    "External optional SFU network and capacity",
+    "Physical Windows PCs and residential/mobile network coverage"
+  ]
+}

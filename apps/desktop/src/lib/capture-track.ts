@@ -3,6 +3,8 @@
 export interface CaptureTrackControl {
   settings(): MediaTrackSettings;
   applyConstraints(constraints: MediaTrackConstraints): Promise<void>;
+  /** Enforced maximum for subsequent frames, including source resize. */
+  maxHeight?(): number | undefined;
   release(): void;
 }
 const controls = new WeakMap<MediaStreamTrack, CaptureTrackControl>();
@@ -18,6 +20,33 @@ export function getCaptureSettings(
   track: MediaStreamTrack,
 ): MediaTrackSettings {
   return { ...(controls.get(track)?.settings() ?? track.getSettings()) };
+}
+export function getCaptureBound(
+  track: MediaStreamTrack,
+): { max_height: number } | undefined {
+  try {
+    if (track.readyState !== "live") return undefined;
+    const control = controls.get(track);
+    const constraints = control ? undefined : track.getConstraints();
+    const height = constraints?.height;
+    const maximum = control
+      ? control.maxHeight?.()
+      : height && typeof height === "object"
+        ? height.max
+        : undefined;
+    const actual = getCaptureSettings(track).height;
+    return typeof maximum === "number" &&
+      Number.isSafeInteger(maximum) &&
+      maximum > 0 &&
+      typeof actual === "number" &&
+      Number.isFinite(actual) &&
+      actual > 0 &&
+      actual <= maximum
+      ? { max_height: maximum }
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 export function applyCaptureConstraints(
   track: MediaStreamTrack,

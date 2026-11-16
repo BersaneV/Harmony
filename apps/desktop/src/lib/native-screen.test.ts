@@ -8,6 +8,7 @@ import {
 } from "./native-screen";
 import {
   applyCaptureConstraints,
+  getCaptureBound,
   getCaptureSettings,
   releaseCaptureTrack,
 } from "./capture-track";
@@ -372,5 +373,49 @@ describe("adaptador nativo de captura", () => {
     expect(capture.env.stop).toHaveBeenCalledOnce();
     expect(capture.writer.abort).toHaveBeenCalledOnce();
     expect(capture.listening()).toBe(false);
+  });
+
+  it("expõe o limite nativo aplicado e o amplia durante uma mudança pendente", async () => {
+    const f = fixture(),
+      pending = f.begin();
+    f.ready();
+    const track = await pending;
+    expect(getCaptureBound(track)).toEqual({ max_height: 1440 });
+    const profile = deferred<[number, number]>();
+    vi.mocked(f.env.profile).mockReturnValueOnce(profile.promise);
+    const changing = applyCaptureConstraints(track, {
+      height: { max: 2160 },
+      frameRate: { max: 60 },
+    });
+    expect(getCaptureBound(track)).toEqual({ max_height: 2160 });
+    profile.resolve([3840, 2160]);
+    await flush();
+    f.buffer();
+    f.frame();
+    await changing;
+    expect(getCaptureBound(track)).toEqual({ max_height: 2160 });
+    releaseCaptureTrack(track);
+    expect(getCaptureBound(track)).toBeUndefined();
+  });
+
+  it("não promete limite de altura durante uma transição para captura automática", async () => {
+    const f = fixture(),
+      pending = f.begin();
+    f.ready();
+    const track = await pending;
+    const profile = deferred<[number, number]>();
+    vi.mocked(f.env.profile).mockReturnValueOnce(profile.promise);
+    const changing = applyCaptureConstraints(track, {
+      height: undefined,
+      frameRate: { max: 60 },
+    });
+    expect(getCaptureBound(track)).toBeUndefined();
+    profile.resolve([2560, 1440]);
+    await flush();
+    f.buffer();
+    f.frame();
+    await changing;
+    expect(getCaptureBound(track)).toBeUndefined();
+    releaseCaptureTrack(track);
   });
 });

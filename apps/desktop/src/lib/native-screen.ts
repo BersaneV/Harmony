@@ -225,6 +225,7 @@ export async function createNativeScreenTrack(
   let observed = false;
   let source: NativeStarted | undefined;
   let currentProfile = { ...profile, fps: profile.fps || 30 };
+  let captureBound = profile.height > 0 ? profile.height : undefined;
   let settings: MediaTrackSettings = {};
   let latestFrame: NativeFrame | undefined;
   let consumedFrame: NativeFrame | undefined;
@@ -434,11 +435,17 @@ export async function createNativeScreenTrack(
   }
   registerCaptureTrack(track, {
     settings: () => settings,
+    maxHeight: () => (closed ? undefined : captureBound),
     applyConstraints: async (constraints) => {
       if (closed || !id) throw failure ?? new Error("A captura terminou.");
       const height = constraintLimit(constraints.height) ?? 0;
       const fps = constraintLimit(constraints.frameRate) ?? currentProfile.fps;
       const next = { height, fps };
+      // Native profile application can precede its IPC reply and the next
+      // consumed frame. During that interval advertise the larger bound, or
+      // unknown if either side is automatic. A failed reply stays conservative.
+      captureBound =
+        captureBound && height ? Math.max(captureBound, height) : undefined;
       const before = consumedFrame?.sequence ?? 0;
       const [width, actualHeight] = await environment.profile(id, next);
       if (closed) throw failure ?? new Error("A captura terminou.");
@@ -488,6 +495,7 @@ export async function createNativeScreenTrack(
         });
       }
       currentProfile = next;
+      captureBound = height > 0 ? height : undefined;
     },
     release: () => close(),
   });

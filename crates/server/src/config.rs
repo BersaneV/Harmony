@@ -22,6 +22,7 @@ pub struct Config {
     pub p2p_enabled: bool,
     pub p2p_stun_urls: Vec<String>,
     pub media_transport: String,
+    pub screen_sfu_enabled: bool,
     pub call_stun_urls: Vec<String>,
     pub max_upload: i64,
     pub storage_quota: i64,
@@ -80,6 +81,23 @@ impl Config {
         if !matches!(media_transport.as_str(), "p2p" | "livekit") {
             return Err("HARMONY_MEDIA_TRANSPORT deve ser p2p ou livekit".into());
         }
+        let screen_sfu_enabled = match env::var("HARMONY_SCREEN_SFU_ENABLED").as_deref() {
+            Ok("true") => true,
+            Ok("false") | Err(_) => false,
+            _ => return Err("HARMONY_SCREEN_SFU_ENABLED deve ser true ou false".into()),
+        };
+        let livekit_url = env::var("LIVEKIT_URL").ok();
+        let livekit_api_url = env::var("LIVEKIT_API_URL").ok();
+        let livekit_key = env::var("LIVEKIT_API_KEY").ok();
+        let livekit_secret = env::var("LIVEKIT_API_SECRET").ok();
+        screen_sfu_configuration(
+            screen_sfu_enabled,
+            &media_transport,
+            livekit_url.as_deref(),
+            livekit_api_url.as_deref(),
+            livekit_key.as_deref(),
+            livekit_secret.as_deref(),
+        )?;
         let call_stun_urls: Vec<String> = env::var("HARMONY_CALL_STUN_URLS")
             .unwrap_or("stun:stun.l.google.com:19302".into())
             .split(',')
@@ -111,16 +129,17 @@ impl Config {
             p2p_enabled,
             p2p_stun_urls,
             media_transport,
+            screen_sfu_enabled,
             call_stun_urls,
             bind: env::var("HARMONY_BIND").unwrap_or("127.0.0.1:8080".into()),
             public_origin: env::var("HARMONY_PUBLIC_ORIGIN")
                 .unwrap_or("http://localhost:5173".into()),
             jwt_secret,
             instance_name: env::var("HARMONY_INSTANCE_NAME").unwrap_or("Harmony".into()),
-            livekit_url: env::var("LIVEKIT_URL").ok(),
-            livekit_api_url: env::var("LIVEKIT_API_URL").ok(),
-            livekit_key: env::var("LIVEKIT_API_KEY").ok(),
-            livekit_secret: env::var("LIVEKIT_API_SECRET").ok(),
+            livekit_url,
+            livekit_api_url,
+            livekit_key,
+            livekit_secret,
             s3_endpoint: env::var("S3_ENDPOINT").ok(),
             s3_public_endpoint: env::var("S3_PUBLIC_ENDPOINT").ok(),
             s3_region: env::var("S3_REGION").unwrap_or("us-east-1".into()),
@@ -133,6 +152,47 @@ impl Config {
             max_room_participants,
         })
     }
+
+    pub fn livekit_enabled(&self) -> bool {
+        self.media_transport == "livekit" || self.screen_sfu_enabled
+    }
+}
+
+fn screen_sfu_configuration(
+    enabled: bool,
+    transport: &str,
+    url: Option<&str>,
+    api: Option<&str>,
+    key: Option<&str>,
+    secret: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !enabled {
+        return Ok(());
+    }
+    if transport != "p2p" {
+        return Err("HARMONY_SCREEN_SFU_ENABLED exige chamadas P2P".into());
+    }
+    for (value, schemes) in [(url, &["ws", "wss"][..]), (api, &["http", "https"][..])] {
+        let parsed = value.and_then(|value| url::Url::parse(value).ok());
+        if !parsed.is_some_and(|parsed| {
+            schemes.contains(&parsed.scheme())
+                && parsed.host_str().is_some()
+                && parsed.username().is_empty()
+                && parsed.password().is_none()
+                && parsed.query().is_none()
+                && parsed.fragment().is_none()
+                && matches!(parsed.path(), "" | "/")
+        }) {
+            return Err("SFU de tela exige origens LIVEKIT_URL e LIVEKIT_API_URL válidas".into());
+        }
+    }
+    if key
+        .is_none_or(|key| key.is_empty() || key.len() > 256 || key.chars().any(char::is_whitespace))
+        || secret.is_none_or(|secret| secret.len() < 32 || secret.starts_with("CHANGE_ME"))
+    {
+        return Err("SFU de tela exige chave LiveKit e segredo de ao menos 32 bytes".into());
+    }
+    Ok(())
 }
 fn call_limits(
     transport: &str,
@@ -161,6 +221,39 @@ fn number(name: &str, default: i64) -> Result<i64, Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn screen_sfu_is_optional_and_requires_explicit_p2p_credentials() {
+        assert!(screen_sfu_configuration(false, "p2p", None, None, None, None).is_ok());
+        assert!(screen_sfu_configuration(false, "livekit", None, None, None, None).is_ok());
+        let check = |transport, url, api, key, secret| {
+            screen_sfu_configuration(true, transport, url, api, key, secret)
+        };
+        let url = Some("ws://127.0.0.1:7880");
+        let api = Some("http://127.0.0.1:7880");
+        let key = Some("screen-fixture");
+        let secret = Some("fixture-secret-at-least-32-characters");
+        assert!(check("p2p", url, api, key, secret).is_ok());
+        assert!(check("livekit", url, api, key, secret).is_err());
+        assert!(check("p2p", None, api, key, secret).is_err());
+        assert!(check("p2p", url, None, key, secret).is_err());
+        assert!(check("p2p", url, api, None, secret).is_err());
+        assert!(check("p2p", url, api, key, Some("short")).is_err());
+        for invalid in [
+            "https://media.example",
+            "ws://user:pass@media.example",
+            "ws://media.example/?token=x",
+            "ws://media.example/rtc",
+        ] {
+            assert!(check("p2p", Some(invalid), api, key, secret).is_err());
+        }
+        for invalid in [
+            "file:///tmp/media",
+            "http://user:pass@localhost",
+            "http://localhost/#fragment",
+        ] {
+            assert!(check("p2p", url, Some(invalid), key, secret).is_err());
+        }
+    }
     #[test]
     fn p2p_configuration_matches_the_client_admission_limits() {
         for participants in [2, 12] {

@@ -7,7 +7,7 @@ param(
  [ValidateSet(1280,1920,2560)][int]$Width=2560,
  [ValidateSet(720,1080,1440)][int]$Height=1440,
  [ValidateSet(30,60)][int]$Fps=60,
- [ValidateRange(15,180)][int]$DurationSeconds=90
+ [ValidateRange(15,600)][int]$DurationSeconds=90
 )
 $ErrorActionPreference='Stop'
 if ($env:OS -ne 'Windows_NT' -or $env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne 'BersaneV/Harmony' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:GITHUB_RUN_ID -notmatch '^[0-9]+$' -or $Title -cne "HarmonyWAN-$env:GITHUB_RUN_ID") { throw 'Owned disposable Windows runner and exact run title required' }

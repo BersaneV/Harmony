@@ -63,6 +63,12 @@ jobs:
           .local/rtc-venv/bin/pip install livekit==1.2.1 livekit-api==1.2.2
           python3 scripts/configure-media-test.py --output .local/media-ci.json
           CADDY_BIN="$PWD/.local/vendor-ci/caddy" HARMONY_REQUIRE_CADDY=1 python3 -m unittest discover -s scripts -p test_media_proxy.py
+      - name: Install the pinned optional screen SFU for signaling regression tests
+        run: |
+          mkdir -p .local/vendor/bin
+          curl --fail --location --proto '=https' --tlsv1.2 https://github.com/livekit/livekit/releases/download/v1.13.11/livekit_1.13.11_linux_amd64.tar.gz -o .local/livekit-ci.tar.gz
+          echo '1e9ee90ca301e1842b2887fc77cb122759756a9c8aeb4334ee91de3325ec43fb  .local/livekit-ci.tar.gz' | sha256sum -c -
+          tar -xzf .local/livekit-ci.tar.gz -C .local/vendor/bin livekit-server
       - name: Embedded integration through HTTP, WebSocket and real WebRTC
         env:
           HARMONY_TRUST_PROXY: "true"
@@ -71,6 +77,9 @@ jobs:
           HARMONY_CHROME: /usr/bin/google-chrome
         run: |
           cargo build --workspace --locked
+          node scripts/test_screen_sfu.mjs
+          node scripts/test_screen_sfu_livekit.mjs
+          node scripts/test_call_screen_sfu.mjs
           python3 scripts/with-env.py target/debug/harmony-server > .local/server-ci.log 2>&1 &
           server_pid=$!
           node node_modules/vite/bin/vite.js apps/desktop --host 127.0.0.1 --port 1420 --strictPort > .local/vite-ci.log 2>&1 &
@@ -202,8 +211,10 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: node node_modules/vitest/vitest.mjs run tools/theme-review.test.ts
-      - name: Test native update policy
-        run: cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - name: Check Windows capture bridge and guards
+        run: cargo clippy --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
+      - name: Test native update and capture policy
+        run: cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace
       - name: Build without distribution signing on ordinary pushes
         if: github.event_name != 'workflow_dispatch' || !inputs.package
         shell: pwsh
