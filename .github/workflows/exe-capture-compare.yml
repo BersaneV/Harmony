@@ -81,7 +81,7 @@ jobs:
             return $hashes
           }
           function Machine-Context {
-            $processors = @(Get-CimInstance Win32_Processor | ForEach-Object { [ordered]@{model=$_.Name;manufacturer=$_.Manufacturer;cores=$_.NumberOfCores;logical_processors=$_.NumberOfLogicalProcessors;max_clock_mhz=$_.MaxClockSpeed} })
+            $processors = @(Get-CimInstance Win32_Processor | ForEach-Object { [pscustomobject][ordered]@{model=$_.Name;manufacturer=$_.Manufacturer;cores=$_.NumberOfCores;logical_processors=$_.NumberOfLogicalProcessors;max_clock_mhz=$_.MaxClockSpeed} })
             $os = Get-CimInstance Win32_OperatingSystem
             return [ordered]@{cpu=$processors;logical_processors=($processors | Measure-Object -Property logical_processors -Sum).Sum;windows=[ordered]@{caption=$os.Caption;version=$os.Version;build=$os.BuildNumber;architecture=$os.OSArchitecture}}
           }
