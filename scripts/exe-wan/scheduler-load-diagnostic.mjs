@@ -1033,6 +1033,7 @@ async function main() {
               "VOICE_NOT_DECODED",
               "MICROPHONE_CHANGED",
               "SCREEN_SHAPE",
+              "MESH_SCREEN_ACTIVE",
               "SCREEN_NOT_DECODED",
               "SCREEN_NOT_PRODUCED",
               "SCREEN_GEOMETRY_OR_CODEC_CHANGED",
