@@ -1,0 +1,42 @@
+name: Inbox scheduler decoder preflight (synthetic only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: scheduling-decoder-preflight
+  cancel-in-progress: false
+jobs:
+  synthetic:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Parse and check the isolated synthetic decoder
+        shell: pwsh
+        run: |
+          # Future promotion requires copying the reviewed private script here.
+          # No installer, Harmony process, fixture account, network or artifact.
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $false
+          $script = 'scripts/exe-wan/scheduling-preflight.ps1'
+          $failureCode = 'script_fingerprint_unverified'
+          try {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $script).Hash.ToLowerInvariant()
+            if ($hash -ne 'c5aa66a02362a0374c74842de2502a034467759cc31b1a1727d356d35a833249') { throw 'unreviewed_script' }
+            $failureCode = 'powershell_ast_invalid'
+            $tokens = $null
+            $parseErrors = $null
+            [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script), [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count -ne 0) { throw 'parser_not_verified' }
+          } catch {
+            @{ kind='SYNTHETIC_DECODER_CHECK'; status='NOT_VERIFIED'; stage='script_parser_or_fingerprint'; failure_code=$failureCode; last_native_tool='none'; capacity_approval=$false } | ConvertTo-Json -Compress
+            exit 2
+          }
+          & $script -SelfTest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $script
+          exit $LASTEXITCODE
