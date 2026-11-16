@@ -217,11 +217,6 @@ jobs:
         run: cargo clippy --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
       - name: Test native update and capture policy
         run: cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace
-      - name: Measure native CPU copy in release; diagnostic only
-        shell: pwsh
-        run: |
-          cargo test --release --locked --manifest-path apps/desktop/src-tauri/Cargo.toml -p harmony-native-capture full_buffer_copy_timing_diagnostic -- --ignored --nocapture --test-threads=1
-          exit $LASTEXITCODE
       - name: Build without distribution signing on ordinary pushes
         if: github.event_name != 'workflow_dispatch' || !inputs.package
         shell: pwsh

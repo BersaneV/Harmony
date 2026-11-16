@@ -35,11 +35,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo build --release --example capture_probe --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --locked --target-dir "$env:RUNNER_TEMP/harmony-native-target"
           exit $LASTEXITCODE
-      - name: Compare real CPU copy with previous rows in release; diagnostic only
-        shell: pwsh
-        run: |
-          cargo test --release --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --locked --target-dir "$env:RUNNER_TEMP/harmony-native-target" --lib full_buffer_copy_timing_diagnostic -- --ignored --nocapture --test-threads=1
-          exit $LASTEXITCODE
       - name: Capture only our generated native window
         shell: pwsh
         env:
