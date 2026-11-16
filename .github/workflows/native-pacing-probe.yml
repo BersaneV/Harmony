@@ -1,0 +1,112 @@
+name: Native Windows pacing diagnostic
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        type: choice
+        options: ["windows-2022", "windows-2025"]
+        default: "windows-2022"
+      height:
+        type: choice
+        options: ["1080", "1440"]
+        default: "1440"
+permissions:
+  contents: read
+jobs:
+  pacing:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["windows-2022","windows-2025"]'), inputs.image) && contains(fromJSON('["1080","1440"]'), inputs.height)
+    runs-on: ${{ inputs.image }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with: { toolchain: "1.99.1", components: "clippy" }
+      - name: Check the real Windows core and diagnostic
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          cargo fmt --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --all-targets --locked --target-dir "$env:RUNNER_TEMP/harmony-native-pacing-target"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo clippy --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --all-targets --locked --target-dir "$env:RUNNER_TEMP/harmony-native-pacing-target" -- -D warnings
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --release --example pacing_probe --manifest-path apps/desktop/src-tauri/native-capture/Cargo.toml --locked --target-dir "$env:RUNNER_TEMP/harmony-native-pacing-target"
+          exit $LASTEXITCODE
+      - name: Measure A-B-B-A on the same consented native window
+        shell: pwsh
+        env:
+          HARMONY_CAPTURE_HEIGHT: ${{ inputs.height }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $PSNativeCommandUseErrorActionPreference=$false
+          if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne 'BersaneV/Harmony' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:GITHUB_REF -ne 'refs/heads/main' -or $env:GITHUB_RUN_ID -notmatch '^[0-9]+$' -or $env:HARMONY_CAPTURE_HEIGHT -notin @('1080','1440')) { throw 'Owned public-main diagnostic required' }
+          $env:HARMONY_OWNED_WINDOW="HarmonyWAN-$env:GITHUB_RUN_ID"
+          $height=[int]$env:HARMONY_CAPTURE_HEIGHT
+          $width=[int]($height*16/9)
+          $sourceLog="$env:RUNNER_TEMP/native-pacing-source.log"
+          $sourceError="$env:RUNNER_TEMP/native-pacing-source-error.log"
+          $probeLog="$env:RUNNER_TEMP/native-pacing-probe.log"
+          $probeError="$env:RUNNER_TEMP/native-pacing-probe-error.log"
+          $window=$null
+          $probe=$null
+          $probeResult=1
+          try {
+            $cpu=@(Get-CimInstance Win32_Processor | ForEach-Object { [ordered]@{model=$_.Name.Trim();guest_reported_cores=$_.NumberOfCores;logical_processors=$_.NumberOfLogicalProcessors} })
+            [ordered]@{kind='DIAGNOSTIC';capacity_approval=$false;commit=$env:GITHUB_SHA;height=$height;fps=60;cpu=$cpu;scope='Same owned disposable Windows VM; observed CPU metadata only, no encoder attribution'} | ConvertTo-Json -Compress -Depth 4
+            $window=Start-Process powershell.exe -ArgumentList @('-NoProfile','-File',"$PWD/scripts/exe-wan/window-layered.ps1",'-Title',$env:HARMONY_OWNED_WINDOW,'-Width',"$width",'-Height',"$height",'-Fps','60','-DurationSeconds','240') -PassThru -RedirectStandardOutput $sourceLog -RedirectStandardError $sourceError
+            $readyDeadline=[DateTime]::UtcNow.AddSeconds(30)
+            $ready=$null
+            while ([DateTime]::UtcNow -lt $readyDeadline) {
+              $window.Refresh()
+              if ($window.HasExited) { throw 'Owned source exited before its geometry was ready' }
+              if (Test-Path $sourceLog) {
+                $sourceText=Get-Content -Raw $sourceLog
+                if ($null -ne $sourceText) {
+                  $ready=[regex]::Match($sourceText,"(?m)^WINDOW ([0-9]+) ${width}x${height} TARGET 60 SOURCE native-layered-dib(?: |\r?$)")
+                  if ($ready.Success) { break }
+                }
+              }
+              Start-Sleep -Milliseconds 100
+            }
+            if ($null -eq $ready -or -not $ready.Success) { throw 'Owned source did not attest exact physical geometry' }
+            $env:HARMONY_OWNED_HWND=$ready.Groups[1].Value
+            $env:HARMONY_OWNED_PID="$($window.Id)"
+            $probe=Start-Process "$env:RUNNER_TEMP/harmony-native-pacing-target/release/examples/pacing_probe.exe" -PassThru -RedirectStandardOutput $probeLog -RedirectStandardError $probeError
+            powershell.exe -NoProfile -File scripts/exe-wan/native-consent.ps1 -Title $env:HARMONY_OWNED_WINDOW
+            if ($LASTEXITCODE -ne 0) { throw 'Owned native confirmation failed' }
+            $probeDeadline=[DateTime]::UtcNow.AddSeconds(180)
+            while (-not $probe.WaitForExit(250)) {
+              $window.Refresh()
+              if ($window.HasExited) { throw 'Owned source exited during the diagnostic' }
+              if ([DateTime]::UtcNow -ge $probeDeadline) { throw 'Four-phase pacing diagnostic timed out' }
+            }
+            $probeResult=$probe.ExitCode
+            $records=@(Get-Content $probeLog | Where-Object { $_ -match '^HARMONY_NATIVE_PACING_(CONTEXT|PHASE|COMPLETE) ' } | ForEach-Object { ($_ -replace '^HARMONY_NATIVE_PACING_[A-Z]+ ','') | ConvertFrom-Json })
+            $phases=@($records | Where-Object { $null -ne $_.phase })
+            $complete=@($records | Where-Object { $_.completion -eq 'COMPLETE' })
+            if ($phases.Count -ne 4 -or $complete.Count -ne 1 -or @($records | Where-Object { $_.capacity_approval -ne $false }).Count -ne 0) { throw 'Missing or invalid diagnostic completion records' }
+            if (($phases.policy -join ',') -cne 'start-relative,nominal,nominal,start-relative' -or ($phases.phase -join ',') -cne '0,1,2,3') { throw 'Unexpected diagnostic phase order' }
+            if (@($phases | Where-Object { $_.quality_status -notin @('PASS','FAIL') }).Count -ne 0) { throw 'Missing original phase quality status' }
+            $qualityPassed=@($phases | Where-Object { $_.quality_status -ne 'PASS' }).Count -eq 0
+            $expectedQuality=if($qualityPassed){'PASS'}else{'FAIL'}
+            if ($probeResult -notin @(0,1) -or (($probeResult -eq 0) -ne $qualityPassed) -or ($complete[0].quality_status -cne $expectedQuality)) { throw 'Probe exit code contradicts original quality gates' }
+          } finally {
+            $cleanupFailed=$false
+            foreach ($process in @($probe,$window)) {
+              if ($null -ne $process) {
+                try {
+                  $process.Refresh()
+                  if (-not $process.HasExited) {
+                    taskkill /PID $process.Id /T /F | Out-Null
+                    if (-not $process.WaitForExit(10000)) { $cleanupFailed=$true }
+                  }
+                } catch { $cleanupFailed=$true }
+              }
+            }
+            foreach ($path in @($sourceLog,$sourceError,$probeLog,$probeError)) {
+              try { if (Test-Path $path) { Get-Content $path } } catch { $cleanupFailed=$true }
+            }
+            if ($cleanupFailed) { throw 'Owned diagnostic process cleanup or log collection failed' }
+          }
+          exit $probeResult
