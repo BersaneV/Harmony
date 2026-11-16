@@ -1,0 +1,467 @@
+{
+  "schema": 1,
+  "kind": "DIAGNOSTIC_FOLLOWUP",
+  "capacity_approval": false,
+  "scope": "Published 044/046 EXE same-VM preview A/B/A plus separate 046 eight-VM720 repeat; no alteration of source metrics or approval gates",
+  "comparisons": [
+    {
+      "profile": "1080p60",
+      "run": 43858332463,
+      "job": 133268446879,
+      "qa_commit": "75886ed7743ea103ea2d86b5902b18e7f15b29dd",
+      "machine": {
+        "cpu": [
+          {
+            "model": "AMD EPYC 7763 64-Core Processor",
+            "manufacturer": "AuthenticAMD",
+            "cores": 2,
+            "logical_processors": 4,
+            "max_clock_mhz": 2445
+          }
+        ],
+        "logical_processors": 4.0,
+        "windows": {
+          "caption": "Microsoft Windows Server 2022 Datacenter",
+          "version": "10.0.20348",
+          "build": "20348",
+          "architecture": "64-bit"
+        }
+      },
+      "same_vm_within_profile": true,
+      "qa_unchanged_within_profile": true,
+      "observed_conditions_equal": true,
+      "order": [
+        "044-a1",
+        "046-b",
+        "044-a2"
+      ],
+      "phases": [
+        {
+          "phase": "044-a1",
+          "version": "0.4.4",
+          "probe_status": "FAIL",
+          "probe_exit": 1,
+          "error": "Native source marker must advance at the unchanged source FPS gate",
+          "cleanup_verified": true,
+          "source_raw_fps": 56.89317281926129,
+          "source_distinct_fps": 53.29360476742754,
+          "observation_ms": 10001.20000000007,
+          "marker_copy_calls": 569,
+          "marker_copy_total_ms": 68.60000000009313
+        },
+        {
+          "phase": "046-b",
+          "version": "0.4.6",
+          "probe_status": "FAIL",
+          "probe_exit": 1,
+          "error": "Observed source frame rate is below the unchanged profile gate",
+          "cleanup_verified": true,
+          "source_raw_fps": 53.09203619457082,
+          "source_distinct_fps": 50.692396140578914,
+          "observation_ms": 10001.5,
+          "marker_copy_calls": 531,
+          "marker_copy_total_ms": 64.39999999932479
+        },
+        {
+          "phase": "044-a2",
+          "version": "0.4.4",
+          "probe_status": "FAIL",
+          "probe_exit": 1,
+          "error": "Native source marker must advance at the unchanged source FPS gate",
+          "cleanup_verified": true,
+          "source_raw_fps": 56.8954483641306,
+          "source_distinct_fps": 53.69570434365226,
+          "observation_ms": 10000.800000000047,
+          "marker_copy_calls": 569,
+          "marker_copy_total_ms": 61.40000000153668
+        }
+      ],
+      "capture_scope": "Same-VM generated native source preview; no encoder or seven viewers; not a capacity approval"
+    },
+    {
+      "profile": "1440p60",
+      "run": 43858337659,
+      "job": 133268433526,
+      "qa_commit": "75886ed7743ea103ea2d86b5902b18e7f15b29dd",
+      "machine": {
+        "cpu": [
+          {
+            "model": "INTEL(R) XEON(R) PLATINUM 8573C",
+            "manufacturer": "GenuineIntel",
+            "cores": 2,
+            "logical_processors": 4,
+            "max_clock_mhz": 2300
+          }
+        ],
+        "logical_processors": 4.0,
+        "windows": {
+          "caption": "Microsoft Windows Server 2022 Datacenter",
+          "version": "10.0.20348",
+          "build": "20348",
+          "architecture": "64-bit"
+        }
+      },
+      "same_vm_within_profile": true,
+      "qa_unchanged_within_profile": true,
+      "observed_conditions_equal": true,
+      "order": [
+        "044-a1",
+        "046-b",
+        "044-a2"
+      ],
+      "phases": [
+        {
+          "phase": "044-a1",
+          "version": "0.4.4",
+          "probe_status": "FAIL",
+          "probe_exit": 1,
+          "error": "Observed source frame rate is below the unchanged profile gate",
+          "cleanup_verified": true,
+          "source_raw_fps": 37.29216864458461,
+          "source_distinct_fps": 35.19260955199406,
+          "observation_ms": 10002.100000000006,
+          "marker_copy_calls": 373,
+          "marker_copy_total_ms": 62.40000000054715
+        },
+        {
+          "phase": "046-b",
+          "version": "0.4.6",
+          "probe_status": "FAIL",
+          "probe_exit": 1,
+          "error": "Observed source frame rate is below the unchanged profile gate",
+          "cleanup_verified": true,
+          "source_raw_fps": 40.77879502658613,
+          "source_distinct_fps": 38.679886459041256,
+          "observation_ms": 10005.200000000012,
+          "marker_copy_calls": 408,
+          "marker_copy_total_ms": 68.20000000030268
+        },
+        {
+          "phase": "044-a2",
+          "version": "0.4.4",
+          "probe_status": "FAIL",
+          "probe_exit": 1,
+          "error": "Observed source frame rate is below the unchanged profile gate",
+          "cleanup_verified": true,
+          "source_raw_fps": 40.19919601607963,
+          "source_distinct_fps": 38.39923201535965,
+          "observation_ms": 10000.200000000012,
+          "marker_copy_calls": 402,
+          "marker_copy_total_ms": 77.59999999962747
+        }
+      ],
+      "capture_scope": "Same-VM generated native source preview; no encoder or seven viewers; not a capacity approval"
+    }
+  ],
+  "preparation_failures": [
+    {
+      "profile": "1080p60",
+      "run": 43857676065,
+      "execution": "NOT_RUN",
+      "stage": "QA preparation before install",
+      "reason": "Measure-Object failed while collecting machine CPU metadata",
+      "product_failure": false,
+      "observed_installations": 0,
+      "observed_probes": 0
+    },
+    {
+      "profile": "1440p60",
+      "run": 43857680518,
+      "execution": "NOT_RUN",
+      "stage": "QA preparation before install",
+      "reason": "Measure-Object failed while collecting machine CPU metadata",
+      "product_failure": false,
+      "observed_installations": 0,
+      "observed_probes": 0
+    }
+  ],
+  "repeat_720p30": {
+    "profile": "720p30",
+    "run": 43857281633,
+    "qa_commit": "e1df2e114acf3186e6bb9c2e070d8bdb925435b8",
+    "original_report_status": "FAIL",
+    "capacity_approval": false,
+    "product": {
+      "version": "0.4.6",
+      "installed_exe_sha256": "d5527e165f3fab08acea0214e76428f12c0c3849fc851206b650df30a10d6876"
+    },
+    "installer_sha256": "88728ac10107d7d9ca35715af20b96b57c90006157c4082b29a63a42853b0fdd",
+    "voice_execution": "COMPLETED",
+    "voice_original_status": "PASS",
+    "voice_clients_passed": 8,
+    "voice_original_summary": {
+      "pairwise_connections": 28,
+      "confirmed_reverse_pairs": 28,
+      "directed_audio_streams": 56,
+      "screen_receivers": 0,
+      "rtt_samples": 3416,
+      "rtt_p50_ms": 33,
+      "rtt_p95_ms": 51,
+      "rtt_max_ms": 57,
+      "maximum_audio_loss_ratio": 0.0026495915213071318,
+      "maximum_audio_concealment_ratio": 0.0026653785996871835,
+      "minimum_nonconcealed_audio_wall_ratio": 0.9973109479962029,
+      "minimum_audio_rms": 0.37674091351778344,
+      "worst_stream_jitter_p95_ms": 1,
+      "minimum_displayed_fps": null,
+      "maximum_displayed_fps": null,
+      "maximum_freeze_seconds": null,
+      "captured_source_fps_p50": null,
+      "outgoing_video_payload_mbps": null,
+      "outgoing_video_counter_streams": 0
+    },
+    "screen_execution": "NOT_RUN",
+    "screen_original_status": "FAIL",
+    "screen_original_summary": {
+      "pairwise_connections": 0,
+      "confirmed_reverse_pairs": 0,
+      "directed_audio_streams": 0,
+      "screen_receivers": 0,
+      "rtt_samples": 0,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_max_ms": null,
+      "maximum_audio_loss_ratio": null,
+      "maximum_audio_concealment_ratio": null,
+      "minimum_nonconcealed_audio_wall_ratio": null,
+      "minimum_audio_rms": null,
+      "worst_stream_jitter_p95_ms": null,
+      "minimum_displayed_fps": null,
+      "maximum_displayed_fps": null,
+      "maximum_freeze_seconds": null,
+      "captured_source_fps_p50": null,
+      "outgoing_video_payload_mbps": null,
+      "outgoing_video_counter_streams": 0
+    },
+    "screen_samples": 0,
+    "unique_samples": 568,
+    "samples_by_phase": {
+      "voice": 568
+    },
+    "cause": "NOT_VERIFIED",
+    "interpretation": "The screen route/UDP aggregate has no screen observations; it does not negate the verified P2P voice phase. No screen FPS/freeze/capacity result exists.",
+    "followup_047_limit": "A route workaround in 047 is not proof of a universal getDisplayMedia fix.",
+    "owner_failure": {
+      "stage": "capture.preview.wait",
+      "error": "CDP timeout: Runtime.evaluate",
+      "last_command": {
+        "id": 237,
+        "method": "Runtime.evaluate",
+        "stage": "capture.preview.wait",
+        "state": "timeout",
+        "timeout_ms": 30000,
+        "elapsed_ms": 30000.026700000046
+      },
+      "independent_diagnostic_results": {
+        "dom_error": "Error",
+        "captures_error": "Error",
+        "stats_error": "Error",
+        "debugger_error": "TimeoutError",
+        "fresh_browser_error": "Error",
+        "fresh_renderer_error": "Error"
+      },
+      "owned_window_observation": "PARTIAL_OR_UNAVAILABLE",
+      "picker_observation": "No picker identified in the available partial owned-window/UIA enumeration; absence is not proven universally"
+    }
+  },
+  "interpretation": {
+    "1080p60": "On this AMD VM, both044 raw rates are nearly equal and046 is lower between them. All three original quality gates remain FAIL.",
+    "1440p60": "On this Intel VM,046 is above the first044 measurement and close to the final044; this sequence does not establish a large046 regression.",
+    "hardware_limit": "Each profile is internally same-VM. CPU models differ between1080 and1440, so observations do not isolate all CPU/hardware effects across VMs or establish universal causality.",
+    "capacity_limit": "Preview probes contain no encoder/seven receivers;720 has no screen phase. None approves eight-client screen capacity."
+  },
+  "provenance": {
+    "inputs": {
+      "044-046-compare-1080-r2-full.json": {
+        "sha256": "74cc9b01c5b0f5b0e873288da5ff1d8d69d4ee38aa981691f98bb5b797061978",
+        "kind": "original aggregate with all three original probes"
+      },
+      "044-046-compare-1080-r2-full.log": {
+        "sha256": "415572c6a43524a468e1b75165415787374bb876afeab8806f86032e8734ca28",
+        "run": 43858332463,
+        "job": 133268446879,
+        "original_probes": 3,
+        "verified_removals": 3
+      },
+      "044-046-compare-1440-r2-full.json": {
+        "sha256": "f20a345bcf35a33fb998f17a52633c6d60f31030642645afacc234524fee99f9",
+        "kind": "original aggregate with all three original probes"
+      },
+      "044-046-compare-1440-r2-full.log": {
+        "sha256": "1225cac505d55171e4c745b48c9718495389ff0cab8d66375c24d8169c7e1dfd",
+        "run": 43858337659,
+        "job": 133268433526,
+        "original_probes": 3,
+        "verified_removals": 3
+      },
+      "044-046-compare-1080-r1-full.log": {
+        "sha256": "32e49bce5975c984a092037810c0d95674310df5dc6462be033fdf4638a58f63",
+        "run": 43857676065,
+        "status": "NOT_RUN before install"
+      },
+      "044-046-compare-1080-r1-full.json": {
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "observed_records": 0
+      },
+      "044-046-compare-1440-r1-full.log": {
+        "sha256": "0bfb5b9aafe03a65b88f72ff8b9d717c171c7e5deb4454e9d2d20fe6834016df",
+        "run": 43857680518,
+        "status": "NOT_RUN before install"
+      },
+      "044-046-compare-1440-r1-full.json": {
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "observed_records": 0
+      },
+      "046-720-r2.json": {
+        "sha256": "928cb57ce66a568c43a31cd9eb5f5713d131baf83329155b472aa31f0116338c"
+      },
+      "046-720-r2-full-records.log": {
+        "sha256": "4c81bebcd02a56657b78c37c60a23ed8fa7398ac6b717b74ede3510e2257dc76"
+      },
+      "046-720-r2-log-provenance.json": {
+        "sha256": "c9cc5749e12f502600cb7123781d0519c72ba7b2d3270d746bfd525f2bc2097e"
+      }
+    },
+    "repeat_720_logs": [
+      {
+        "index": 0,
+        "job": 133264895673,
+        "job_conclusion": "failure",
+        "path": "046-720-r2-client0.log",
+        "sha256": "0f6e88156c51864c3a5834f4da17b26a6d8330ad5dea8bf0e6b731715fa4d627",
+        "counts": {
+          "HARMONY_EXE_WAN_ATTEST ": 1,
+          "HARMONY_EXE_WAN_SAMPLE ": 71,
+          "HARMONY_EXE_WAN_REPORT ": 1
+        },
+        "phase_sample_counts": {
+          "voice": 71
+        },
+        "hash_verified": true,
+        "counts_verified": true
+      },
+      {
+        "index": 1,
+        "job": 133264895660,
+        "job_conclusion": "failure",
+        "path": "046-720-r2-client1.log",
+        "sha256": "d4e0f11ae1b0d5ff59706f5a38330a0e9a5f9a25eae87e1c0ca5419a7b01da40",
+        "counts": {
+          "HARMONY_EXE_WAN_ATTEST ": 1,
+          "HARMONY_EXE_WAN_SAMPLE ": 71,
+          "HARMONY_EXE_WAN_REPORT ": 1
+        },
+        "phase_sample_counts": {
+          "voice": 71
+        },
+        "hash_verified": true,
+        "counts_verified": true
+      },
+      {
+        "index": 2,
+        "job": 133264895704,
+        "job_conclusion": "failure",
+        "path": "046-720-r2-client2.log",
+        "sha256": "23271a1941249cb86495badf800ca13170c35e65da5fa31534c52e76938b20bf",
+        "counts": {
+          "HARMONY_EXE_WAN_ATTEST ": 1,
+          "HARMONY_EXE_WAN_SAMPLE ": 71,
+          "HARMONY_EXE_WAN_REPORT ": 1
+        },
+        "phase_sample_counts": {
+          "voice": 71
+        },
+        "hash_verified": true,
+        "counts_verified": true
+      },
+      {
+        "index": 3,
+        "job": 133264896007,
+        "job_conclusion": "failure",
+        "path": "046-720-r2-client3.log",
+        "sha256": "ce371e5397e295a9a21bf30502a2f95218fb005eb97fd5cca778453bb6e239d9",
+        "counts": {
+          "HARMONY_EXE_WAN_ATTEST ": 1,
+          "HARMONY_EXE_WAN_SAMPLE ": 71,
+          "HARMONY_EXE_WAN_REPORT ": 1
+        },
+        "phase_sample_counts": {
+          "voice": 71
+        },
+        "hash_verified": true,
+        "counts_verified": true
+      },
+      {
+        "index": 4,
+        "job": 133264895734,
+        "job_conclusion": "failure",
+        "path": "046-720-r2-client4.log",
+        "sha256": "d8965c75f587f61796eae970009f91e22209ffd9d25387fcc2a2c2fb18ecb2ae",
+        "counts": {
+          "HARMONY_EXE_WAN_ATTEST ": 1,
+          "HARMONY_EXE_WAN_SAMPLE ": 71,
+          "HARMONY_EXE_WAN_REPORT ": 1
+        },
+        "phase_sample_counts": {
+          "voice": 71
+        },
+        "hash_verified": true,
+        "counts_verified": true
+      },
+      {
+        "index": 5,
+        "job": 133264895626,
+        "job_conclusion": "failure",
+        "path": "046-720-r2-client5.log",
+        "sha256": "9b0bba604aa45e685a61149ffc34c1aa6f5888bd8e0407c2ee29b669a670b460",
+        "counts": {
+          "HARMONY_EXE_WAN_ATTEST ": 1,
+          "HARMONY_EXE_WAN_SAMPLE ": 71,
+          "HARMONY_EXE_WAN_REPORT ": 1
+        },
+        "phase_sample_counts": {
+          "voice": 71
+        },
+        "hash_verified": true,
+        "counts_verified": true
+      },
+      {
+        "index": 6,
+        "job": 133264895713,
+        "job_conclusion": "failure",
+        "path": "046-720-r2-client6.log",
+        "sha256": "fddd09e464c8afeb5d335ef6aed56ff6e5285e265575e287ad30fa96989e84b3",
+        "counts": {
+          "HARMONY_EXE_WAN_ATTEST ": 1,
+          "HARMONY_EXE_WAN_SAMPLE ": 71,
+          "HARMONY_EXE_WAN_REPORT ": 1
+        },
+        "phase_sample_counts": {
+          "voice": 71
+        },
+        "hash_verified": true,
+        "counts_verified": true
+      },
+      {
+        "index": 7,
+        "job": 133264895856,
+        "job_conclusion": "failure",
+        "path": "046-720-r2-client7.log",
+        "sha256": "56deaf4b61c5b88ed316784583e05ef43435ca9e5ea6464a9953c080574a699e",
+        "counts": {
+          "HARMONY_EXE_WAN_ATTEST ": 1,
+          "HARMONY_EXE_WAN_SAMPLE ": 71,
+          "HARMONY_EXE_WAN_REPORT ": 1
+        },
+        "phase_sample_counts": {
+          "voice": 71
+        },
+        "hash_verified": true,
+        "counts_verified": true
+      }
+    ],
+    "full_records_exact_eight_log_union": true,
+    "unique_720_samples": 568,
+    "raw_inputs_scope": "Hashes of complete job API logs and original private aggregates; public projection omits user IDs, addresses and screenshots"
+  }
+}

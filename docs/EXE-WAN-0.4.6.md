@@ -51,6 +51,25 @@ A [rodada 43851509762](https://github.com/BersaneV/Harmony/actions/runs/43851509
 
 O resumo de rede da exportação reprova a ausência das rotas de tela; isso não apaga os caminhos UDP da fase de voz concluída. O [probe isolado anterior](https://github.com/BersaneV/Harmony/actions/runs/43847588669) passou em 1280×720 e 29,1974 FPS no mesmo pacote. Essa diferença ainda não isola a causa do timeout e não substitui a regressão completa.
 
+## Comparação da captura na mesma VM
+
+Para reduzir a variação entre máquinas, o mesmo Windows executou os instaladores públicos na ordem 0.4.4 → 0.4.6 → 0.4.4, com três remoções verificadas, mesmos runtime, janela, parâmetros e hashes de QA em cada perfil. O diagnóstico observa somente a fonte em prévia, sem encoder ou sete espectadores. [Dados e proveniência](evidence/exe-followup-0.4.6-20261116.json).
+
+| Perfil | 0.4.4 inicial: bruto / distinto | 0.4.6: bruto / distinto | 0.4.4 final: bruto / distinto |
+|---|---:|---:|---:|
+| 1080p60 | 56,8932 / 53,2936 | 53,0920 / 50,6924 | 56,8954 / 53,6957 |
+| 1440p60 | 37,2922 / 35,1926 | 40,7788 / 38,6799 | 40,1992 / 38,3992 |
+
+Todos os seis resultados de qualidade permaneceram FAIL. Em 1080p, a 0.4.6 ficou abaixo dos controles 0.4.4 próximos entre si; em 1440p, a sequência não demonstra uma regressão grande. O perfil 1080p usou AMD EPYC 7763 e o 1440p, Intel Xeon Platinum 8573C, ambos com dois cores físicos e quatro processadores lógicos. Essa diferença entre perfis não isola o efeito de hardware nem permite atribuir uma causa universal.
+
+Execuções completas: [1080p](https://github.com/BersaneV/Harmony/actions/runs/43858332463) e [1440p](https://github.com/BersaneV/Harmony/actions/runs/43858337659), QA 75886ed7743ea103ea2d86b5902b18e7f15b29dd. As primeiras tentativas, 43857676065 e 43857680518, pararam por erro de Measure-Object antes de instalar ou medir: NOT_RUN de preparação QA, sem falha de produto medida.
+
+## Repetição de 720p com diagnóstico limitado
+
+A [segunda rodada](https://github.com/BersaneV/Harmony/actions/runs/43857281633), QA e1df2e114acf3186e6bb9c2e070d8bdb925435b8, confirmou novamente voz PASS 8/8, 28 pares e 56 caminhos, com RTT mediano/p95/máximo de 33/51/57 ms. Seus oito logs contêm 568 amostras únicas, todas de voz. A tela permaneceu NOT_RUN, com resultado geral FAIL preservado.
+
+O comando 237 expirou em capture.preview.wait após 30 segundos. Consultas independentes do WebView também não retornaram DOM, captura ou estatísticas. A enumeração parcial disponível não identificou um picker, sem provar ausência universal. A causa permanece NOT_VERIFIED. O desvio desse caminho pela captura nativa da 0.4.7 precisa de sua própria medição; não comprova uma correção universal de getDisplayMedia. Os resultados e hashes completos dessa repetição estão no mesmo JSON complementar acima.
+
 ## Integridade e alcance
 
 Produto/tag: `420346ede0446d6964d7c1223331aa01670cacba`; harness das três matrizes: `339b58d6cde062ddf4ef524daa092b8532d2d88c`. O [CI completo](https://github.com/BersaneV/Harmony/actions/runs/43840922487), instalação/remoção Windows e 17 verificações do updater, incluindo assinatura, passaram. [Prova do pacote](evidence/package-0.4.6-20261116.json). Esses gates validam o pacote e seus controles, sem aprovar FPS ou recuperação de mídia.
