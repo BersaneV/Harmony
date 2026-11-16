@@ -12,8 +12,8 @@ for(const line of text.split(/\r?\n/))for(const [prefix,kind]of[['HARMONY_EXE_WA
  if(kind==='sample')samples.push(value);else if(kind==='report')clients.set(value.index,value);else if(kind==='attest')attests.set(value.index,value);else{if(!images.has(value.index))images.set(value.index,[]);images.get(value.index).push(value);}
 }
 const identity=[...attests.values()],network={virtual_machines:identity.length,distinct_vm_hashes:new Set(identity.map(a=>a.vm_identity_hash)).size,distinct_public_egress_hashes:new Set(identity.map(a=>a.egress_ip_hash)).size,distinct_main_binary_hashes:new Set(identity.map(a=>a.attestation?.main_sha256)).size,all_expected_main_hash:identity.length===8&&identity.every(a=>a.attestation?.main_sha256===release.main_sha256)};
-const serverFlags=identity.map(a=>a.server?.screen_sfu_enabled),screenSfu=['0.4.3','0.4.4','0.4.5','0.4.6','0.4.7'].includes(version)&&serverFlags.length===8&&serverFlags.every(v=>v===true);
-network.server_screen_route_consistent=!['0.4.3','0.4.4','0.4.5','0.4.6','0.4.7'].includes(version)||serverFlags.length===8&&serverFlags.every(v=>typeof v==='boolean')&&new Set(serverFlags).size===1&&identity.every(a=>a.screen_sfu===screenSfu);
+const serverFlags=identity.map(a=>a.server?.screen_sfu_enabled),screenSfu=['0.4.3','0.4.4','0.4.5','0.4.6','0.4.7','0.4.8'].includes(version)&&serverFlags.length===8&&serverFlags.every(v=>v===true);
+network.server_screen_route_consistent=!['0.4.3','0.4.4','0.4.5','0.4.6','0.4.7','0.4.8'].includes(version)||serverFlags.length===8&&serverFlags.every(v=>typeof v==='boolean')&&new Set(serverFlags).size===1&&identity.every(a=>a.screen_sfu===screenSfu);
 network.screen_sfu_enabled=screenSfu;
 const nativeUdp=Array.from({length:8},(_,index)=>({index,address_hashes:[...new Set(samples.filter(s=>s.index===index&&s.phase==='screen'&&s.segment==='steady').flatMap(s=>s.sample.peers.filter(p=>isMeshPeer(p)&&p.local_candidate?.type==='srflx'&&p.local_candidate.protocol==='udp').map(p=>p.local_candidate.address_hash)).filter(Boolean))]}));
 network.selected_public_udp_addresses_by_client=nativeUdp;
