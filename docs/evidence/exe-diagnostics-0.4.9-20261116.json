@@ -1,0 +1,776 @@
+{
+  "kind": "EXE_DIAGNOSTICS_0_4_9",
+  "schema_version": 1,
+  "status": "DIAGNOSTIC_INCONCLUSIVE",
+  "capacity_approval": false,
+  "release": "0.4.9",
+  "public_main_exe_sha256": "6a1517c44ed45c996ac8d32c08767ea7306e897a4cb73d703d9286b68c86c2cc",
+  "requested_profile": {
+    "width": 2560,
+    "height": 1440,
+    "fps": 60,
+    "video_bitrate_bps": 16000000,
+    "codec": "video/VP8",
+    "content_hint": "detail"
+  },
+  "unchanged_source_fps_gate": 54,
+  "total_verified_logs": 32,
+  "total_reports": 32,
+  "unique_phase_sample_records": 799,
+  "metrics_scope": "PUBLISHER_SOURCE_CPU_COUNTERS_AND_SDK_ENCODER_ONLY",
+  "limitations": [
+    "NO_180S_QUALITY_APPROVAL",
+    "NO_REMOTE_FPS_OR_FREEZE_APPROVAL",
+    "NO_SCHEDULER_CAUSE_PROOF",
+    "NO_EXCLUSIVE_CPU_OR_GPU_CAUSE",
+    "NO_PHYSICAL_ISP_OR_MOS_CLAIM",
+    "COARSE_CPU_COUNTERS_ARE_NOT_WAIT_TIMES",
+    "DIFFERENT_RUNS_ARE_NOT_A_CONTROLLED_AB_COMPARISON"
+  ],
+  "runs": [
+    {
+      "round": 1,
+      "github_run_id": 43964251679,
+      "github_run_conclusion": "failure",
+      "capacity_approval": false,
+      "log_count": 8,
+      "report_count": 8,
+      "verified_log_bytes": 275519,
+      "input_provenance_sha256": "250e10d2ff591fc6a85246dcbb40ca6d9776442256b206e9e282503b47c2e490",
+      "log_inventory_sha256": "bce1a37bdd5ddb21999aa007527a9086c6b81940d8a5d4dc5e10efc1dc64a793",
+      "github_jobs": [
+        {
+          "client_index": 0,
+          "github_job_id": 133640116586,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 1,
+          "github_job_id": 133640116556,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 2,
+          "github_job_id": 133640116602,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 3,
+          "github_job_id": 133640116697,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 4,
+          "github_job_id": 133640116642,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 5,
+          "github_job_id": 133640116750,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 6,
+          "github_job_id": 133640116707,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 7,
+          "github_job_id": 133640116678,
+          "conclusion": "failure"
+        }
+      ],
+      "report_completion_counts": {
+        "FAILED": 8
+      },
+      "report_error_counts": {
+        "MESH_SCREEN_ACTIVE": 1,
+        "READY_TIMEOUT": 7
+      },
+      "publisher_error_code": "MESH_SCREEN_ACTIVE",
+      "publisher_cleanup_error_code": "NONE",
+      "publisher_companion_failure_code": "NONE",
+      "voice_ready_quorum_clients": 8,
+      "screen_ready_quorum_clients": 0,
+      "phases_per_client": [0, 0, 0, 0, 0, 0, 0, 0],
+      "unique_phase_sample_records": 0,
+      "publisher_phase_sample_records": 0,
+      "source_gate": "NOT_RUN",
+      "trace": {
+        "status": "NOT_VERIFIED",
+        "scheduler_events": null,
+        "scheduler_running_ms": null,
+        "scheduler_ready_ms": null,
+        "scheduler_wait_ms": null,
+        "lost_events": null,
+        "lost_buffers": null,
+        "etl_bytes": null,
+        "xml_bytes": null,
+        "cleanup_verification": "NOT_VERIFIED",
+        "failure_code": "NOT_RUN",
+        "integrity": "NOT_VERIFIED",
+        "scheduler_decode_status": "NOT_RUN"
+      },
+      "phases": []
+    },
+    {
+      "round": 2,
+      "github_run_id": 43965746529,
+      "github_run_conclusion": "failure",
+      "capacity_approval": false,
+      "log_count": 8,
+      "report_count": 8,
+      "verified_log_bytes": 427924,
+      "input_provenance_sha256": "ebb7ecc7f73e9a10de23dc9cbecf162230767ecf21ac4817d269662ac9fb7669",
+      "log_inventory_sha256": "7769d09f308eea290a5ea26197a2c4c61fa845d341b56225f8cc422e40173282",
+      "github_jobs": [
+        {
+          "client_index": 0,
+          "github_job_id": 133645384473,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 1,
+          "github_job_id": 133645384492,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 2,
+          "github_job_id": 133645384599,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 3,
+          "github_job_id": 133645384439,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 4,
+          "github_job_id": 133645384446,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 5,
+          "github_job_id": 133645384449,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 6,
+          "github_job_id": 133645384429,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 7,
+          "github_job_id": 133645384460,
+          "conclusion": "failure"
+        }
+      ],
+      "report_completion_counts": {
+        "FAILED": 8
+      },
+      "report_error_counts": {
+        "PS_NOT_VERIFIED": 1,
+        "CALL_CHANGED": 6,
+        "COHORT_ABORTED": 1
+      },
+      "publisher_error_code": "PS_NOT_VERIFIED",
+      "publisher_cleanup_error_code": "COMPANION_CLEANUP",
+      "publisher_companion_failure_code": "window_not_unique",
+      "voice_ready_quorum_clients": 8,
+      "screen_ready_quorum_clients": 8,
+      "phases_per_client": [0, 0, 0, 0, 0, 0, 0, 0],
+      "unique_phase_sample_records": 0,
+      "publisher_phase_sample_records": 0,
+      "source_gate": "NOT_RUN",
+      "trace": {
+        "status": "NOT_VERIFIED",
+        "scheduler_events": null,
+        "scheduler_running_ms": null,
+        "scheduler_ready_ms": null,
+        "scheduler_wait_ms": null,
+        "lost_events": null,
+        "lost_buffers": null,
+        "etl_bytes": null,
+        "xml_bytes": null,
+        "cleanup_verification": "NOT_VERIFIED",
+        "failure_code": "NOT_RUN",
+        "integrity": "NOT_VERIFIED",
+        "scheduler_decode_status": "NOT_RUN"
+      },
+      "phases": []
+    },
+    {
+      "round": 3,
+      "github_run_id": 43968985788,
+      "github_run_conclusion": "success",
+      "capacity_approval": false,
+      "log_count": 8,
+      "report_count": 8,
+      "verified_log_bytes": 2904930,
+      "input_provenance_sha256": "09cd2b2d2b7f2147c0055584e8ab45a8a79cc404c7651d28e7e9b7cf3ad08edd",
+      "log_inventory_sha256": "b2e2faa1230c40226d46aebbab7b7faf5e65487a96fdb38e4888df7927b3a63d",
+      "github_jobs": [
+        {
+          "client_index": 0,
+          "github_job_id": 133656560160,
+          "conclusion": "success"
+        },
+        {
+          "client_index": 1,
+          "github_job_id": 133656560208,
+          "conclusion": "success"
+        },
+        {
+          "client_index": 2,
+          "github_job_id": 133656560103,
+          "conclusion": "success"
+        },
+        {
+          "client_index": 3,
+          "github_job_id": 133656560336,
+          "conclusion": "success"
+        },
+        {
+          "client_index": 4,
+          "github_job_id": 133656560374,
+          "conclusion": "success"
+        },
+        {
+          "client_index": 5,
+          "github_job_id": 133656560133,
+          "conclusion": "success"
+        },
+        {
+          "client_index": 6,
+          "github_job_id": 133656560240,
+          "conclusion": "success"
+        },
+        {
+          "client_index": 7,
+          "github_job_id": 133656560319,
+          "conclusion": "success"
+        }
+      ],
+      "report_completion_counts": {
+        "COMPLETE": 8
+      },
+      "report_error_counts": {
+        "NONE": 8
+      },
+      "publisher_error_code": "NONE",
+      "publisher_cleanup_error_code": "NONE",
+      "publisher_companion_failure_code": "NONE",
+      "voice_ready_quorum_clients": 8,
+      "screen_ready_quorum_clients": 8,
+      "phases_per_client": [3, 3, 3, 3, 3, 3, 3, 3],
+      "unique_phase_sample_records": 441,
+      "publisher_phase_sample_records": 15,
+      "source_gate": "FAIL",
+      "trace": {
+        "status": "NOT_VERIFIED",
+        "scheduler_events": null,
+        "scheduler_running_ms": null,
+        "scheduler_ready_ms": null,
+        "scheduler_wait_ms": null,
+        "lost_events": null,
+        "lost_buffers": null,
+        "etl_bytes": null,
+        "xml_bytes": null,
+        "cleanup_verification": "NOT_VERIFIED",
+        "failure_code": "xml_size_bound",
+        "integrity": "NOT_VERIFIED",
+        "xml_guard_bytes": 268435456,
+        "xml_guard_condition": "NONPOSITIVE_OR_OVER_256_MIB",
+        "xml_size_status": "UNKNOWN_NOT_EXPORTED",
+        "tracerpt_exit_code": 0,
+        "wpr_reported_dropped_events": 0,
+        "scheduler_decode_status": "NOT_VERIFIED",
+        "zero_initialized_metrics": "NOT_OBSERVATIONS"
+      },
+      "phases": [
+        {
+          "phase": "control_before",
+          "capacity_approval": false,
+          "nominal_window_ms": 10000,
+          "publisher_samples": 5,
+          "source_observed_ms": 10021.200000000186,
+          "window_overlap_status": "OBSERVED",
+          "window_overlap_ms": 10021,
+          "source_processor_frame_delta": 463,
+          "source_distinct_frame_delta": 433,
+          "source_raw_fps": 46.20205165050008,
+          "source_distinct_fps": 43.208398195824046,
+          "source_gate": "FAIL",
+          "native_producer_reported_fps": {
+            "minimum": 44.32614507730578,
+            "maximum": 47.41015602583577
+          },
+          "sdk_media_source": {
+            "frame_delta": 463,
+            "observed_ms": 10025.208984375,
+            "fps": 46.1835758956864
+          },
+          "sdk_encoder": {
+            "frame_delta": 463,
+            "observed_ms": 10025.208984375,
+            "fps": 46.1835758956864,
+            "encode_time_delta_ms": 6140.999999999998,
+            "mean_encode_ms_per_frame": 13.26349892008639
+          },
+          "webrtc_quality_reason_counts": {
+            "none": 5
+          },
+          "cpu_role_counters": {
+            "capture": {
+              "status": "OBSERVED",
+              "kernel_ms": 93.75,
+              "user_ms": 468.75,
+              "total_ms": 562.5,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            },
+            "ui": {
+              "status": "OBSERVED",
+              "kernel_ms": 140.625,
+              "user_ms": 468.75,
+              "total_ms": 609.375,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            }
+          },
+          "quorum_start": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "quorum_end": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "ps_reference_window_ms": 10090.8121
+        },
+        {
+          "phase": "instrumented",
+          "capacity_approval": false,
+          "nominal_window_ms": 10000,
+          "publisher_samples": 5,
+          "source_observed_ms": 10027.899999999907,
+          "window_overlap_status": "OBSERVED",
+          "window_overlap_ms": 10027,
+          "source_processor_frame_delta": 459,
+          "source_distinct_frame_delta": 428,
+          "source_raw_fps": 45.77229529612424,
+          "source_distinct_fps": 42.68092023255158,
+          "source_gate": "FAIL",
+          "native_producer_reported_fps": {
+            "minimum": 44.86133361778742,
+            "maximum": 46.99134419439939
+          },
+          "sdk_media_source": {
+            "frame_delta": 459,
+            "observed_ms": 10026.97998046875,
+            "fps": 45.77649510561228
+          },
+          "sdk_encoder": {
+            "frame_delta": 458,
+            "observed_ms": 10026.97998046875,
+            "fps": 45.676764179456256,
+            "encode_time_delta_ms": 6003.0,
+            "mean_encode_ms_per_frame": 13.106986899563319
+          },
+          "webrtc_quality_reason_counts": {
+            "none": 5
+          },
+          "cpu_role_counters": {
+            "capture": {
+              "status": "OBSERVED",
+              "kernel_ms": 140.625,
+              "user_ms": 515.625,
+              "total_ms": 656.25,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            },
+            "ui": {
+              "status": "OBSERVED",
+              "kernel_ms": 93.75,
+              "user_ms": 656.25,
+              "total_ms": 750.0,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            }
+          },
+          "quorum_start": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "quorum_end": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "ps_reference_window_ms": 10071.1214
+        },
+        {
+          "phase": "control_after",
+          "capacity_approval": false,
+          "nominal_window_ms": 10000,
+          "publisher_samples": 5,
+          "source_observed_ms": 10028.899999999907,
+          "window_overlap_status": "OBSERVED",
+          "window_overlap_ms": 10029,
+          "source_processor_frame_delta": 460,
+          "source_distinct_frame_delta": 437,
+          "source_raw_fps": 45.867443089471855,
+          "source_distinct_fps": 43.57407093499826,
+          "source_gate": "FAIL",
+          "native_producer_reported_fps": {
+            "minimum": 44.64212196505494,
+            "maximum": 46.54991354096377
+          },
+          "sdk_media_source": {
+            "frame_delta": 461,
+            "observed_ms": 10058.445068359375,
+            "fps": 45.83213378081244
+          },
+          "sdk_encoder": {
+            "frame_delta": 460,
+            "observed_ms": 10058.445068359375,
+            "fps": 45.73271483551784,
+            "encode_time_delta_ms": 5855.000000000004,
+            "mean_encode_ms_per_frame": 12.728260869565226
+          },
+          "webrtc_quality_reason_counts": {
+            "none": 5
+          },
+          "cpu_role_counters": {
+            "capture": {
+              "status": "OBSERVED",
+              "kernel_ms": 140.625,
+              "user_ms": 546.875,
+              "total_ms": 687.5,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            },
+            "ui": {
+              "status": "OBSERVED",
+              "kernel_ms": 203.125,
+              "user_ms": 468.75,
+              "total_ms": 671.875,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            }
+          },
+          "quorum_start": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "quorum_end": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "ps_reference_window_ms": 10064.017
+        }
+      ]
+    },
+    {
+      "round": 4,
+      "github_run_id": 43972722303,
+      "github_run_conclusion": "failure",
+      "capacity_approval": false,
+      "log_count": 8,
+      "report_count": 8,
+      "verified_log_bytes": 2410370,
+      "input_provenance_sha256": "c685bbf1f55d6b37f719fcb010632027c499ac287e813c721af81cc7bbf8cbab",
+      "log_inventory_sha256": "948efbc70858b402402d981ae779ea6258b0342b3032fca86bbb751a110d8f34",
+      "github_jobs": [
+        {
+          "client_index": 0,
+          "github_job_id": 133669567516,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 1,
+          "github_job_id": 133669567491,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 2,
+          "github_job_id": 133669567520,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 3,
+          "github_job_id": 133669567711,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 4,
+          "github_job_id": 133669567596,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 5,
+          "github_job_id": 133669567620,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 6,
+          "github_job_id": 133669567613,
+          "conclusion": "failure"
+        },
+        {
+          "client_index": 7,
+          "github_job_id": 133669567515,
+          "conclusion": "failure"
+        }
+      ],
+      "report_completion_counts": {
+        "FAILED": 8
+      },
+      "report_error_counts": {
+        "DEADLINE": 1,
+        "COHORT_ABORTED": 7
+      },
+      "publisher_error_code": "DEADLINE",
+      "publisher_cleanup_error_code": "COMPANION_CLEANUP",
+      "publisher_companion_failure_code": "NONE",
+      "voice_ready_quorum_clients": 8,
+      "screen_ready_quorum_clients": 8,
+      "phases_per_client": [3, 3, 3, 3, 3, 3, 3, 3],
+      "unique_phase_sample_records": 358,
+      "publisher_phase_sample_records": 6,
+      "source_gate": "FAIL",
+      "trace": {
+        "status": "NOT_VERIFIED",
+        "scheduler_events": null,
+        "scheduler_running_ms": null,
+        "scheduler_ready_ms": null,
+        "scheduler_wait_ms": null,
+        "lost_events": null,
+        "lost_buffers": null,
+        "etl_bytes": null,
+        "xml_bytes": null,
+        "cleanup_verification": "NOT_VERIFIED",
+        "failure_code": "FINALIZATION_FAILED",
+        "integrity": "NOT_VERIFIED",
+        "scheduler_decode_status": "NOT_VERIFIED"
+      },
+      "phases": [
+        {
+          "phase": "control_before",
+          "capacity_approval": false,
+          "nominal_window_ms": 2000,
+          "publisher_samples": 2,
+          "source_observed_ms": 2034.2999999999884,
+          "window_overlap_status": "OBSERVED",
+          "window_overlap_ms": 2034,
+          "source_processor_frame_delta": 61,
+          "source_distinct_frame_delta": 61,
+          "source_raw_fps": 29.98574448213162,
+          "source_distinct_fps": 29.98574448213162,
+          "source_gate": "FAIL",
+          "native_producer_reported_fps": {
+            "minimum": 29.699080011598483,
+            "maximum": 31.13148450581152
+          },
+          "sdk_media_source": {
+            "frame_delta": 61,
+            "observed_ms": 2036.902099609375,
+            "fps": 29.947438323961773
+          },
+          "sdk_encoder": {
+            "frame_delta": 60,
+            "observed_ms": 2036.902099609375,
+            "fps": 29.45649671209355,
+            "encode_time_delta_ms": 1172.000000000004,
+            "mean_encode_ms_per_frame": 19.533333333333402
+          },
+          "webrtc_quality_reason_counts": {
+            "none": 2
+          },
+          "cpu_role_counters": {
+            "capture": {
+              "status": "OBSERVED",
+              "kernel_ms": 15.625,
+              "user_ms": 171.875,
+              "total_ms": 187.5,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            },
+            "ui": {
+              "status": "OBSERVED",
+              "kernel_ms": 31.25,
+              "user_ms": 203.125,
+              "total_ms": 234.375,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            }
+          },
+          "quorum_start": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "quorum_end": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "ps_reference_window_ms": 2112.159
+        },
+        {
+          "phase": "instrumented",
+          "capacity_approval": false,
+          "nominal_window_ms": 2000,
+          "publisher_samples": 2,
+          "source_observed_ms": 2046.2000000000116,
+          "window_overlap_status": "OBSERVED",
+          "window_overlap_ms": 2046,
+          "source_processor_frame_delta": 62,
+          "source_distinct_frame_delta": 62,
+          "source_raw_fps": 30.300068419509163,
+          "source_distinct_fps": 30.300068419509163,
+          "source_gate": "FAIL",
+          "native_producer_reported_fps": {
+            "minimum": 28.63355916325236,
+            "maximum": 30.625048345590432
+          },
+          "sdk_media_source": {
+            "frame_delta": 62,
+            "observed_ms": 2054.4140625,
+            "fps": 30.178921149202367
+          },
+          "sdk_encoder": {
+            "frame_delta": 61,
+            "observed_ms": 2054.4140625,
+            "fps": 29.692164356473295,
+            "encode_time_delta_ms": 1445.0000000000002,
+            "mean_encode_ms_per_frame": 23.688524590163937
+          },
+          "webrtc_quality_reason_counts": {
+            "none": 2
+          },
+          "cpu_role_counters": {
+            "capture": {
+              "status": "OBSERVED",
+              "kernel_ms": 15.625,
+              "user_ms": 187.5,
+              "total_ms": 203.125,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            },
+            "ui": {
+              "status": "OBSERVED",
+              "kernel_ms": 78.125,
+              "user_ms": 171.875,
+              "total_ms": 250.0,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            }
+          },
+          "quorum_start": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "quorum_end": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "ps_reference_window_ms": 2089.4707
+        },
+        {
+          "phase": "control_after",
+          "capacity_approval": false,
+          "nominal_window_ms": 2000,
+          "publisher_samples": 2,
+          "source_observed_ms": 2037.2000000000116,
+          "window_overlap_status": "OBSERVED",
+          "window_overlap_ms": 2037,
+          "source_processor_frame_delta": 62,
+          "source_distinct_frame_delta": 62,
+          "source_raw_fps": 30.4339289220497,
+          "source_distinct_fps": 30.4339289220497,
+          "source_gate": "FAIL",
+          "native_producer_reported_fps": {
+            "minimum": 29.872090694853703,
+            "maximum": 30.113737644260592
+          },
+          "sdk_media_source": {
+            "frame_delta": 62,
+            "observed_ms": 2040.412841796875,
+            "fps": 30.386007542179623
+          },
+          "sdk_encoder": {
+            "frame_delta": 63,
+            "observed_ms": 2040.412841796875,
+            "fps": 30.87610443802123,
+            "encode_time_delta_ms": 1426.9999999999925,
+            "mean_encode_ms_per_frame": 22.65079365079353
+          },
+          "webrtc_quality_reason_counts": {
+            "none": 2
+          },
+          "cpu_role_counters": {
+            "capture": {
+              "status": "OBSERVED",
+              "kernel_ms": 0,
+              "user_ms": 156.25,
+              "total_ms": 156.25,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            },
+            "ui": {
+              "status": "OBSERVED",
+              "kernel_ms": 15.625,
+              "user_ms": 140.625,
+              "total_ms": 156.25,
+              "dual_api_totals_match": true,
+              "interpretation": "COARSE_THREAD_COUNTER_DELTA_NOT_WAIT_TIME"
+            }
+          },
+          "quorum_start": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "quorum_end": {
+            "clients": 8,
+            "voice_in": 56,
+            "voice_out": 56,
+            "screen_publishers": 1,
+            "screen_receivers": 7
+          },
+          "ps_reference_window_ms": 2081.9503
+        }
+      ]
+    }
+  ]
+}
