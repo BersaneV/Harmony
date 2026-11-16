@@ -7,13 +7,65 @@ use windows_sys::Win32::{
     Foundation::*,
     Graphics::Gdi::*,
     System::Threading::{
-        CreateWaitableTimerExW, GetCurrentProcessId, SetWaitableTimer, WaitForSingleObject,
-        CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS,
+        CreateEventW, CreateWaitableTimerExW, GetCurrentProcessId, SetEvent, SetWaitableTimer,
+        WaitForMultipleObjects, WaitForSingleObject, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+        TIMER_ALL_ACCESS,
     },
     UI::WindowsAndMessaging::*,
 };
 #[path = "wgc.rs"]
 mod wgc;
+
+/// One auto-reset notification owned by a run. It carries no frame/ACK credit.
+/// Arc keeps the kernel handle alive through every worker wait and UI signal.
+#[derive(Clone)]
+pub struct ProducerWake(std::sync::Arc<WakeHandle>);
+struct WakeHandle {
+    handle: std::os::windows::io::OwnedHandle,
+    failed: std::sync::atomic::AtomicBool,
+}
+impl ProducerWake {
+    pub fn new() -> Option<Self> {
+        use std::os::windows::io::FromRawHandle;
+        let handle = unsafe { CreateEventW(std::ptr::null(), 0, 0, std::ptr::null()) };
+        if handle.is_null() {
+            return None;
+        }
+        Some(Self(std::sync::Arc::new(WakeHandle {
+            handle: unsafe { std::os::windows::io::OwnedHandle::from_raw_handle(handle) },
+            failed: std::sync::atomic::AtomicBool::new(false),
+        })))
+    }
+    fn usable(&self) -> bool {
+        !self.0.failed.load(std::sync::atomic::Ordering::Acquire)
+    }
+    fn disable(&self) {
+        self.0
+            .failed
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+    fn raw(&self) -> HANDLE {
+        use std::os::windows::io::AsRawHandle;
+        self.0.handle.as_raw_handle()
+    }
+    /// API failure only disables the optimization; authoritative state is untouched.
+    pub fn signal(&self) -> bool {
+        if !self.usable() {
+            return false;
+        }
+        if unsafe { SetEvent(self.raw()) } == 0 {
+            self.disable();
+            return false;
+        }
+        true
+    }
+}
+#[derive(Debug, PartialEq, Eq)]
+enum WakeWait {
+    Progress,
+    Timer,
+    Fallback,
+}
 
 /// Per-producer high resolution wait. No process-wide timer resolution change,
 /// spin loop or catch-up queue. Dropped frames are never replayed.
@@ -47,6 +99,45 @@ impl FramePacer {
             return;
         }
         std::thread::sleep(duration);
+    }
+    /// Worker-only, bounded wait for the original deadline OR lease progress.
+    /// A wake is only a hint: the producer must re-read all capture predicates.
+    pub fn sleep_or_wake(&self, duration: std::time::Duration, wake: Option<&ProducerWake>) {
+        self.wait_progress(duration, wake);
+    }
+    fn wait_progress(
+        &self,
+        duration: std::time::Duration,
+        wake: Option<&ProducerWake>,
+    ) -> WakeWait {
+        let duration = duration.min(std::time::Duration::from_millis(250));
+        let Some(wake) = wake.filter(|w| w.usable()) else {
+            self.sleep(duration);
+            return WakeWait::Fallback;
+        };
+        if duration.is_zero() {
+            return WakeWait::Timer;
+        }
+        let start = std::time::Instant::now();
+        let due = -(duration.as_nanos().div_ceil(100).max(1) as i64);
+        if !self.0.is_null()
+            && unsafe { SetWaitableTimer(self.0, &due, 0, None, std::ptr::null(), 0) } != 0
+        {
+            // Progress first consumes a sticky/coalesced notification when both
+            // handles are signaled. No reset gap and no queued frame credits.
+            let handles = [wake.raw(), self.0];
+            let result = unsafe { WaitForMultipleObjects(2, handles.as_ptr(), 0, 300) };
+            if result == WAIT_OBJECT_0 {
+                return WakeWait::Progress;
+            }
+            if result == WAIT_OBJECT_0 + 1 {
+                return WakeWait::Timer;
+            }
+        }
+        wake.disable();
+        // Failure does not restart a full timer after time already spent waiting.
+        self.sleep(duration.saturating_sub(start.elapsed()));
+        WakeWait::Fallback
     }
 }
 impl Drop for FramePacer {
@@ -585,5 +676,68 @@ mod tests {
                 output
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod producer_wake_tests {
+    use super::*;
+    use std::time::Duration;
+    #[test]
+    fn progress_before_wait_is_sticky_coalesces_and_does_not_replay() {
+        let wake = ProducerWake::new().expect("real Windows auto-reset event");
+        let pacer = FramePacer::new();
+        assert!(wake.signal());
+        assert!(wake.signal());
+        assert_eq!(
+            pacer.wait_progress(Duration::from_millis(200), Some(&wake)),
+            WakeWait::Progress
+        );
+        assert_eq!(
+            pacer.wait_progress(Duration::from_millis(1), Some(&wake)),
+            WakeWait::Timer
+        );
+    }
+    #[test]
+    fn progress_during_wait_wakes_without_closing_the_shared_handle() {
+        fn send_sync<T: Send + Sync>() {}
+        send_sync::<ProducerWake>();
+        let wake = ProducerWake::new().expect("real Windows auto-reset event");
+        let signal = wake.clone();
+        let thread = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(10));
+            assert!(signal.signal());
+        });
+        let pacer = FramePacer::new();
+        let started = std::time::Instant::now();
+        assert_eq!(
+            pacer.wait_progress(Duration::from_millis(200), Some(&wake)),
+            WakeWait::Progress
+        );
+        assert!(
+            started.elapsed() < Duration::from_millis(200),
+            "early wake before the original timer was not observed"
+        );
+        thread.join().unwrap();
+        assert_eq!(std::sync::Arc::strong_count(&wake.0), 1);
+        assert_eq!(
+            pacer.wait_progress(Duration::from_millis(1), Some(&wake)),
+            WakeWait::Timer
+        );
+    }
+    #[test]
+    fn missing_or_disabled_event_uses_original_bounded_sleep() {
+        let pacer = FramePacer::new();
+        assert_eq!(
+            pacer.wait_progress(Duration::ZERO, None),
+            WakeWait::Fallback
+        );
+        let wake = ProducerWake::new().expect("real Windows auto-reset event");
+        wake.disable();
+        assert!(!wake.signal());
+        assert_eq!(
+            pacer.wait_progress(Duration::from_millis(1), Some(&wake)),
+            WakeWait::Fallback
+        );
     }
 }

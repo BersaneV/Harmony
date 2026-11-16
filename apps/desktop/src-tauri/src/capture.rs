@@ -68,13 +68,14 @@ impl CaptureState {
 /// One UI transaction. The copy operation must return only metadata, after
 /// releasing pixel/TLS borrows. No worker deadline or second queue is involved.
 #[cfg(any(windows, test))]
-fn copy_and_publish<T>(
+fn copy_and_publish_notifying<T>(
     lease: &harmony_native_capture::pipeline::FrameLease,
     sequence: u64,
     copy: impl FnOnce() -> Result<T, String>,
     before_send: impl FnOnce() -> Result<bool, String>,
     send: impl FnOnce(T) -> Result<(), String>,
     clock: impl FnOnce() -> std::time::Duration,
+    mut progress: impl FnMut(),
 ) -> Result<bool, String> {
     if !lease.is_current(sequence) || lease.pixels_available() {
         return Err("Sequência da captura inválida.".into());
@@ -83,6 +84,7 @@ fn copy_and_publish<T>(
     if !lease.finish_copy(sequence) {
         return Err("Sequência da cópia inválida.".into());
     }
+    progress();
     if !before_send()? {
         return Ok(false);
     }
@@ -93,8 +95,33 @@ fn copy_and_publish<T>(
     if !lease.finish_send(sequence, clock()) {
         return Err("Conclusão da publicação inválida.".into());
     }
+    progress();
     Ok(true)
 }
+#[cfg(test)]
+fn copy_and_publish<T>(
+    lease: &harmony_native_capture::pipeline::FrameLease,
+    sequence: u64,
+    copy: impl FnOnce() -> Result<T, String>,
+    before_send: impl FnOnce() -> Result<bool, String>,
+    send: impl FnOnce(T) -> Result<(), String>,
+    clock: impl FnOnce() -> std::time::Duration,
+) -> Result<bool, String> {
+    copy_and_publish_notifying(lease, sequence, copy, before_send, send, clock, || {})
+}
+#[cfg(any(windows, test))]
+fn acknowledge_and_notify(
+    lease: &harmony_native_capture::pipeline::FrameLease,
+    sequence: u64,
+    notify: impl FnOnce(),
+) -> bool {
+    if !lease.ack(sequence) {
+        return false;
+    }
+    notify();
+    true
+}
+
 #[tauri::command]
 pub async fn native_capture_available(window: WebviewWindow) -> Result<bool, String> {
     owned(&window)?;
@@ -217,7 +244,7 @@ mod platform {
     use harmony_native_capture::{
         byte_len,
         pipeline::{FrameLease, FramePipeline, ProfileEpoch},
-        Capture, FramePacer, Profile as CaptureProfile, Source,
+        Capture, FramePacer, ProducerWake, Profile as CaptureProfile, Source,
     };
     use std::{
         cell::RefCell,
@@ -250,7 +277,15 @@ mod platform {
         stop: AtomicBool,
         done: AtomicBool,
         lease: FrameLease,
+        wake: Option<ProducerWake>,
         pixels: Mutex<Vec<u8>>,
+    }
+    impl Run {
+        fn notify(&self) {
+            if let Some(wake) = &self.wake {
+                let _ = wake.signal();
+            }
+        }
     }
     struct Shared {
         buffer: ICoreWebView2SharedBuffer,
@@ -263,6 +298,7 @@ mod platform {
             if let Ok(runs) = self.runs.lock() {
                 for run in runs.values() {
                     run.stop.store(true, Ordering::Release);
+                    run.notify();
                 }
             }
         }
@@ -335,6 +371,7 @@ mod platform {
             stop: AtomicBool::new(false),
             done: AtomicBool::new(false),
             lease: FrameLease::default(),
+            wake: ProducerWake::new(),
             pixels: Mutex::new(Vec::new()),
         });
         {
@@ -357,6 +394,7 @@ mod platform {
                 impl Drop for Finish {
                     fn drop(&mut self) {
                         self.run.stop.store(true, Ordering::Release);
+                        self.run.notify();
                         self.run.done.store(true, Ordering::Release);
                         close_buffer(&self.window, self.run.id.clone());
                     }
@@ -415,6 +453,7 @@ mod platform {
             });
         if launched.is_err() {
             failure.stop.store(true, Ordering::Release);
+            failure.notify();
             failure.done.store(true, Ordering::Release);
             return Err("Não foi possível iniciar a captura.".into());
         }
@@ -442,7 +481,7 @@ mod platform {
                         .take()
                         .unwrap_or_else(|| "A janela compartilhada foi fechada.".into()));
                 }
-                pacer.sleep(Duration::from_micros(500));
+                pacer.sleep_or_wake(Duration::from_micros(500), run.wake.as_ref());
                 continue;
             }
             let reserved = {
@@ -503,7 +542,7 @@ mod platform {
                     Err(error) => deferred_error = Some(error),
                 }
             } else {
-                pacer.sleep(pipeline.wait(now, profile, &run.lease));
+                pacer.sleep_or_wake(pipeline.wait(now, profile, &run.lease), run.wake.as_ref());
             }
         }
         Ok(())
@@ -523,7 +562,7 @@ mod platform {
             let result=(||->Result<bool,String> {
                 owned(&page)?;
                 if run.stop.load(Ordering::Acquire) {return Ok(false);}
-                copy_and_publish(&run.lease,sequence,|| {
+                copy_and_publish_notifying(&run.lease,sequence,|| {
                     let mut meta=meta;
                     let pixels=locked(&run.pixels)?;
                     let len=byte_len(meta.width,meta.height)?;
@@ -558,10 +597,10 @@ mod platform {
                     if run.stop.load(Ordering::Acquire) {return Ok(false);}
                     owned(&page)?;
                     Ok(!run.stop.load(Ordering::Acquire))
-                },|frame|frames.send(frame).map_err(|_|"A prévia da captura foi encerrada.".into()),||clock_start.elapsed())
+                },|frame|frames.send(frame).map_err(|_|"A prévia da captura foi encerrada.".into()),||clock_start.elapsed(),||run.notify())
             })();
             if let Err(error)=result {
-                run.stop.store(true,Ordering::Release);
+                run.stop.store(true,Ordering::Release); run.notify();
                 let _=frames.send(Frame{error:Some(error),..error_meta});
             }
         }).map_err(|_|"A janela do Harmony foi encerrada.".into())
@@ -577,7 +616,7 @@ mod platform {
     }
     pub fn ack(store: &Store, id: &str, sequence: u64) -> Result<(), String> {
         let run = active(store, id)?;
-        run.lease.ack(sequence);
+        acknowledge_and_notify(&run.lease, sequence, || run.notify());
         Ok(())
     }
     pub fn profile(store: &Store, id: &str, p: Profile) -> Result<(u32, u32), String> {
@@ -586,12 +625,14 @@ mod platform {
         let (w, h) = *locked(&run.bounds)?;
         let size = p.size(w, h)?;
         locked(&run.profile)?.replace(p)?;
+        run.notify();
         Ok(size)
     }
     pub fn stop(store: &Store, id: &str) {
         if let Ok(runs) = store.runs.lock() {
             for run in runs.values().filter(|run| run.id == id || run.client == id) {
                 run.stop.store(true, Ordering::Release);
+                run.notify();
             }
         }
     }
@@ -599,6 +640,7 @@ mod platform {
         if let Ok(runs) = store.runs.lock() {
             for run in runs.values() {
                 run.stop.store(true, Ordering::Release);
+                run.notify();
             }
         }
     }
@@ -925,5 +967,127 @@ mod frame_callback_tests {
         .unwrap());
         assert!(!l.waiting());
         assert!(p.poll(ms(5005), &l).is_err());
+    }
+
+    #[test]
+    fn progress_notifies_after_unlock_and_only_after_confirmed_copy_and_send() {
+        let (mut p, l, seq) = reserve();
+        let events = RefCell::new(Vec::new());
+        let calls = Cell::new(0);
+        let pixels = Mutex::new(vec![1u8]);
+        let ok = super::copy_and_publish_notifying(
+            &l,
+            seq,
+            || {
+                let _guard = pixels.lock().unwrap();
+                events.borrow_mut().push("copy");
+                Ok(())
+            },
+            || {
+                assert_eq!(calls.get(), 1);
+                assert!(!l.ack(seq));
+                events.borrow_mut().push("guard");
+                Ok(true)
+            },
+            |_| {
+                events.borrow_mut().push("send");
+                assert!(super::acknowledge_and_notify(&l, seq, || events
+                    .borrow_mut()
+                    .push("ack")));
+                assert!(l.waiting());
+                Ok(())
+            },
+            || {
+                events.borrow_mut().push("clock");
+                ms(8)
+            },
+            || {
+                assert!(pixels.try_lock().is_ok());
+                assert!(l.pixels_available());
+                calls.set(calls.get() + 1);
+                if calls.get() == 1 {
+                    assert!(l.waiting());
+                    events.borrow_mut().push("copy-ready");
+                } else {
+                    assert!(!l.waiting());
+                    events.borrow_mut().push("sent-complete");
+                }
+            },
+        )
+        .unwrap();
+        assert!(ok);
+        assert_eq!(calls.get(), 2);
+        assert_eq!(
+            *events.borrow(),
+            [
+                "copy",
+                "copy-ready",
+                "guard",
+                "send",
+                "ack",
+                "clock",
+                "sent-complete"
+            ]
+        );
+        p.poll(ms(9), &l).unwrap();
+    }
+    #[test]
+    fn early_wrong_and_duplicate_ack_are_quiet_and_never_release_the_lease() {
+        let (_, l, seq) = reserve();
+        let wakes = Cell::new(0);
+        for wrong in [0, seq, seq + 1] {
+            assert!(!super::acknowledge_and_notify(&l, wrong, || wakes.set(wakes.get() + 1)));
+        }
+        assert_eq!(wakes.get(), 0);
+        assert!(!l.pixels_available());
+        assert!(l.waiting());
+        assert!(l.finish_copy(seq));
+        assert!(!super::acknowledge_and_notify(&l, seq, || wakes.set(wakes.get() + 1)));
+        assert!(l.begin_send(seq));
+        assert!(super::acknowledge_and_notify(&l, seq, || wakes.set(wakes.get() + 1)));
+        assert_eq!(wakes.get(), 1);
+        assert!(l.waiting());
+        assert!(!super::acknowledge_and_notify(&l, seq, || wakes.set(wakes.get() + 1)));
+        assert_eq!(wakes.get(), 1);
+        assert!(l.finish_send(seq, ms(8)));
+        assert!(!l.waiting());
+    }
+    #[test]
+    fn failed_copy_guard_or_send_never_signal_a_successful_send() {
+        for failure in 0..3 {
+            let (_, l, seq) = reserve();
+            let wakes = Cell::new(0);
+            let result = super::copy_and_publish_notifying(
+                &l,
+                seq,
+                || {
+                    if failure == 0 {
+                        Err("copy".into())
+                    } else {
+                        Ok(())
+                    }
+                },
+                || Ok(failure != 1),
+                |_| Err("send".into()),
+                || ms(8),
+                || wakes.set(wakes.get() + 1),
+            );
+            assert_eq!(wakes.get(), u32::from(failure != 0));
+            assert_eq!(result.is_ok(), failure == 1);
+            assert!(l.waiting());
+        }
+        let (_, l, seq) = reserve();
+        let wakes = Cell::new(0);
+        assert!(super::copy_and_publish_notifying(
+            &l,
+            seq + 1,
+            || Ok(()),
+            || Ok(true),
+            |_| Ok(()),
+            || ms(8),
+            || wakes.set(wakes.get() + 1)
+        )
+        .is_err());
+        assert_eq!(wakes.get(), 0);
     }
 }

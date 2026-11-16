@@ -46,7 +46,7 @@ pub fn byte_len(width: u32, height: u32) -> Result<usize, String> {
 #[cfg(windows)]
 mod win;
 #[cfg(windows)]
-pub use win::{Capture, FramePacer, Source};
+pub use win::{Capture, FramePacer, ProducerWake, Source};
 
 /// Numeric-only diagnostics compiled out of ordinary capture builds. No image
 /// storage, publication, environment switch or runtime IPC belongs here.
