@@ -220,6 +220,7 @@ mod platform {
         done: AtomicBool,
         lease: FrameLease,
         pixels: Mutex<Vec<u8>>,
+        copied_frame: Mutex<Option<Frame>>,
     }
     struct Shared {
         buffer: ICoreWebView2SharedBuffer,
@@ -305,6 +306,7 @@ mod platform {
             done: AtomicBool::new(false),
             lease: FrameLease::default(),
             pixels: Mutex::new(Vec::new()),
+            copied_frame: Mutex::new(None),
         });
         {
             let mut runs = locked(&store.runs)?;
@@ -403,6 +405,19 @@ mod platform {
             if pipeline.expired(start.elapsed(), &run.lease) {
                 return Err("A prévia da captura deixou de responder.".into());
             }
+            // A committed copy still needs publication if its source closes or
+            // a later prefetch fails. Pump it before teardown and GPU readback.
+            if let Some(send) = pipeline.queue_send(start.elapsed(), &run.lease)? {
+                let mut frame = locked(&run.copied_frame)?
+                    .take()
+                    .ok_or("Metadados da captura indisponíveis.")?;
+                if frame.sequence != send.sequence {
+                    return Err("Sequência da captura inválida.".into());
+                }
+                frame.fps = send.fps;
+                post_send(window, run.clone(), frames.clone(), frame, start)?;
+                continue;
+            }
             // A prefetch error must not close the SharedBuffer still leased to
             // JS. Preserve that lease until its ACK (or the original watchdog).
             if deferred_error.is_some() || capture.is_closed() {
@@ -414,11 +429,11 @@ mod platform {
                 pacer.sleep(Duration::from_micros(500));
                 continue;
             }
-            let posted = {
+            let reserved = {
                 // Revision check and lease reservation share the profile lock.
                 // A later profile command sees an already in-flight old frame.
                 let profile = locked(&run.profile)?;
-                pipeline.reserve_post(
+                pipeline.reserve_copy(
                     start.elapsed(),
                     *profile,
                     &run.lease,
@@ -426,8 +441,8 @@ mod platform {
                     run.stop.load(Ordering::Acquire),
                 )?
             };
-            if let Some(frame) = posted {
-                post(
+            if let Some(frame) = reserved {
+                post_copy(
                     window,
                     run.clone(),
                     frames.clone(),
@@ -438,11 +453,10 @@ mod platform {
                         width: frame.width,
                         height: frame.height,
                         timestamp_us: frame.captured_at.as_micros() as u64,
-                        fps: frame.fps,
+                        fps: None,
                         error: None,
                         backend: capture.backend(),
                     },
-                    start,
                 )?;
                 continue;
             }
@@ -477,18 +491,18 @@ mod platform {
         }
         Ok(())
     }
-    fn post(
+    fn post_copy(
         window: &WebviewWindow,
         run: Arc<Run>,
         frames: Channel<Frame>,
         mut meta: Frame,
-        clock_start: Instant,
     ) -> Result<(), String> {
         let page = window.clone();
         window.with_webview(move|view|{
             if run.stop.load(Ordering::Acquire){return;}
             let result=(||->Result<(),String>{
                 owned(&page)?;
+                if !run.lease.is_current(meta.sequence)||run.lease.pixels_available(){return Err("Sequência da captura inválida.".into());}
                 let pixels=locked(&run.pixels)?;let len=byte_len(meta.width,meta.height)?;if pixels.len()!=len{return Err("Quadro de captura inválido.".into());}
                 SHARED.with(|state|->Result<(),String>{
                     let mut buffers=state.borrow_mut();let capacity=len.next_power_of_two().min(harmony_native_capture::MAX_BYTES);
@@ -509,18 +523,55 @@ mod platform {
                     unsafe{std::ptr::copy_nonoverlapping(pixels.as_ptr(),destination,len);}
                     meta.allocation=shared.allocation;Ok(())
                 })?;
-                // Mutex exclusion alone is insufficient: the asynchronous UI
-                // closure might not have read the Vec yet. Publish copy-ready
-                // only after its last read/unlock AND the metadata send.
+                // Release the Vec after its last read, independently of the
+                // publication deadline. The one Shared lease stays reserved.
                 drop(pixels);
-                frames.send(meta.clone()).map_err(|_|"A prévia da captura foi encerrada.".to_string())?;
-                // Send completion and capture metadata share producer time;
-                // this completion paces the next UI send, never the watchdog.
-                run.lease.finish_copy(meta.sequence,clock_start.elapsed());
+                let mut next=locked(&run.copied_frame)?;
+                if next.is_some(){return Err("Metadados da captura ainda estão em uso.".into());}
+                *next=Some(meta.clone());drop(next);
+                if !run.lease.finish_copy(meta.sequence){return Err("Sequência da cópia inválida.".into());}
                 Ok(())
             })();
             if let Err(error)=result{run.stop.store(true,Ordering::Release);let _=frames.send(Frame{error:Some(error),..meta});}
         }).map_err(|_|"A janela do Harmony foi encerrada.".into())
+    }
+    fn post_send(
+        window: &WebviewWindow,
+        run: Arc<Run>,
+        frames: Channel<Frame>,
+        meta: Frame,
+        clock_start: Instant,
+    ) -> Result<(), String> {
+        let page = window.clone();
+        window
+            .with_webview(move |_| {
+                if run.stop.load(Ordering::Acquire) {
+                    return;
+                }
+                let result = (|| -> Result<(), String> {
+                    owned(&page)?;
+                    if !run.lease.begin_send(meta.sequence) {
+                        return Err("Sequência da publicação inválida.".into());
+                    }
+                    frames
+                        .send(meta.clone())
+                        .map_err(|_| "A prévia da captura foi encerrada.")?;
+                    // A reentrant ACK may already have arrived. Shared reuse still
+                    // requires this completion, published on the producer clock.
+                    if !run.lease.finish_send(meta.sequence, clock_start.elapsed()) {
+                        return Err("Conclusão da publicação inválida.".into());
+                    }
+                    Ok(())
+                })();
+                if let Err(error) = result {
+                    run.stop.store(true, Ordering::Release);
+                    let _ = frames.send(Frame {
+                        error: Some(error),
+                        ..meta
+                    });
+                }
+            })
+            .map_err(|_| "A janela do Harmony foi encerrada.".into())
     }
     fn close_buffer(window: &WebviewWindow, id: String) {
         let _ = window.with_webview(move |_| {
