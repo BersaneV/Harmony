@@ -9,6 +9,8 @@ import type {
 } from "livekit-client";
 
 interface RoomContract {
+  remoteParticipants: Map<string, unknown>;
+  emit(name: string, ...args: unknown[]): boolean;
   localParticipant: {
     trackPublications: Map<string, LocalTrackPublication>;
     publishTrack: ReturnType<typeof vi.fn>;
@@ -44,6 +46,16 @@ vi.mock("livekit-client", async (original) => {
     kind: string;
     source: string = sdk.Track.Source.Unknown;
     isMuted = false;
+    sender = {
+      getStats: vi.fn(async () => new Map() as unknown as RTCStatsReport),
+      getParameters: vi.fn(() => ({ encodings: [{ maxBitrate: 2_000_000 }] })),
+    };
+    getRTCStatsReport() {
+      // Exercise the pinned SDK's delegation to this source's sender.getStats.
+      return sdk.LocalVideoTrack.prototype.getRTCStatsReport.call(
+        this as unknown as LocalTrack,
+      );
+    }
     constructor(raw: MediaStreamTrack) {
       super();
       this.mediaStreamTrack = raw;
@@ -125,7 +137,12 @@ vi.mock("livekit-client", async (original) => {
   };
 });
 
-import { LocalParticipant as RealParticipant } from "livekit-client";
+import {
+  LocalParticipant as RealParticipant,
+  RemoteVideoTrack,
+  RoomEvent,
+  Track,
+} from "livekit-client";
 import { ScreenRelay, type ScreenRelayAuthority } from "./screen-relay";
 
 const uuid = (value: number) =>
@@ -135,11 +152,15 @@ afterEach(async () => {
   for (const relay of relays) await relay.close();
   relays.clear();
   contract.rooms.length = 0;
+  vi.useRealTimers();
 });
 async function connected() {
   const onLocalPublication = vi.fn();
+  const onStats = vi.fn();
+  const onAck = vi.fn();
   const relay = new ScreenRelay({
-    onAck: vi.fn(),
+    onAck,
+    onStats,
     onTrack: vi.fn(),
     onLocalPublication,
   });
@@ -166,6 +187,7 @@ async function connected() {
     authority,
   );
   const raw = {
+    id: "raw-screen",
     kind: "video",
     readyState: "live",
     getSettings: () => ({ width: 2560, height: 1440 }),
@@ -188,10 +210,263 @@ async function connected() {
     profile,
     before: before!,
     onLocalPublication,
+    onStats,
+    onAck,
+    authority,
   };
 }
 
 describe("ScreenRelay: contrato real de republicação do SDK fixado", () => {
+  it("mede apenas RTP da fonte e RTT ICE do transporte vinculado, lendo o teto ativo do sender SDK", async () => {
+    vi.useFakeTimers();
+    const f = await connected();
+    const wrapped = [...f.room.localParticipant.trackPublications.values()][0]
+      .track!;
+    const sender = wrapped.sender!;
+    const getStats = vi.mocked(sender.getStats);
+    vi.mocked(sender.getParameters).mockReturnValue({
+      encodings: [
+        { maxBitrate: 2_000_000 },
+        { active: false, maxBitrate: 50_000_000 },
+      ],
+    } as RTCRtpSendParameters);
+    const report = (
+      timestamp: number,
+      bytesSent: number,
+      framesEncoded: number,
+    ) =>
+      new Map([
+        [
+          "voice",
+          {
+            id: "voice",
+            type: "outbound-rtp",
+            kind: "audio",
+            timestamp,
+            bytesSent: 9e9,
+          },
+        ],
+        [
+          "other-video",
+          {
+            id: "other-video",
+            type: "outbound-rtp",
+            kind: "video",
+            trackIdentifier: "other-source",
+            timestamp,
+            bytesSent: 8e9,
+            framesEncoded: 800,
+          },
+        ],
+        [
+          "video",
+          {
+            id: "video",
+            type: "outbound-rtp",
+            kind: "video",
+            mediaSourceId: "source",
+            timestamp,
+            bytesSent,
+            framesEncoded,
+            frameWidth: 2560,
+            frameHeight: 1440,
+            transportId: "video-transport",
+            remoteId: "remote",
+          },
+        ],
+        [
+          "source",
+          { id: "source", type: "media-source", trackIdentifier: f.raw.id },
+        ],
+        [
+          "remote",
+          {
+            id: "remote",
+            type: "remote-inbound-rtp",
+            localId: "video",
+            packetsLost: 4,
+            jitter: 0.006,
+            roundTripTime: 9,
+          },
+        ],
+        [
+          "video-transport",
+          {
+            id: "video-transport",
+            type: "transport",
+            selectedCandidatePairId: "video-pair",
+          },
+        ],
+        [
+          "video-pair",
+          {
+            id: "video-pair",
+            type: "candidate-pair",
+            currentRoundTripTime: 0.042,
+          },
+        ],
+        [
+          "voice-pair",
+          { id: "voice-pair", type: "candidate-pair", currentRoundTripTime: 8 },
+        ],
+      ]) as unknown as RTCStatsReport;
+    getStats.mockResolvedValue(report(1000, 1000, 30));
+    await vi.advanceTimersByTimeAsync(500);
+    getStats.mockResolvedValue(report(2000, 201000, 90));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(getStats).toHaveBeenCalledTimes(2);
+    expect(f.onStats).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        direction: "sent",
+        source: "screen",
+        ref: f.before,
+        stats: expect.objectContaining({
+          bitrate: 1_600_000,
+          fps: 60,
+          width: 2560,
+          height: 1440,
+          maxBitrate: 2_000_000,
+          iceRttMs: 42,
+          packetsLost: 4,
+          jitterMs: 6,
+          timestamp: 2000,
+        }),
+      }),
+    );
+    getStats.mockResolvedValue(new Map() as unknown as RTCStatsReport);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(f.onStats).toHaveBeenLastCalledWith(
+      expect.objectContaining({ stats: null }),
+    );
+    expect(f.raw.stop).not.toHaveBeenCalled();
+  });
+
+  it("usa receiver.getStats da tela, descarta await de track substituída e não mistura a voz", async () => {
+    vi.useFakeTimers();
+    const f = await connected();
+    const raw = {
+      id: "received-screen",
+      kind: "video",
+      readyState: "live",
+    } as MediaStreamTrack;
+    const report = (
+      timestamp: number,
+      bytesReceived: number,
+      framesDecoded: number,
+    ) =>
+      new Map([
+        [
+          "voice",
+          {
+            id: "voice",
+            type: "inbound-rtp",
+            kind: "audio",
+            timestamp,
+            bytesReceived: 9e9,
+          },
+        ],
+        [
+          "screen",
+          {
+            id: "screen",
+            type: "inbound-rtp",
+            kind: "video",
+            trackIdentifier: raw.id,
+            timestamp,
+            bytesReceived,
+            framesDecoded,
+            frameWidth: 1920,
+            frameHeight: 1080,
+            packetsLost: 2,
+            jitter: 0.003,
+            transportId: "transport",
+          },
+        ],
+        [
+          "transport",
+          {
+            id: "transport",
+            type: "transport",
+            selectedCandidatePairId: "pair",
+          },
+        ],
+        [
+          "pair",
+          { id: "pair", type: "candidate-pair", currentRoundTripTime: 0.057 },
+        ],
+      ]) as unknown as RTCStatsReport;
+    const receiver = { getStats: vi.fn(async () => report(1000, 1000, 30)) };
+    const track = {
+      mediaStreamTrack: raw,
+      receiver,
+      getRTCStatsReport() {
+        return RemoteVideoTrack.prototype.getRTCStatsReport.call(
+          this as unknown as RemoteVideoTrack,
+        );
+      },
+    };
+    const publication = {
+      trackSid: "TR_remote",
+      trackName: "harmony-screen:capture_h1440_a0",
+      source: Track.Source.ScreenShare,
+      dimensions: { width: 1920, height: 1080 },
+      isMuted: false,
+      track,
+      setSubscribed: vi.fn(),
+    };
+    f.room.remoteParticipants.set("remote", {
+      identity: `${uuid(4)}:${uuid(6)}`,
+      metadata: JSON.stringify({ harmony_peer_id: uuid(2) }),
+      trackPublications: new Map([[publication.trackSid, publication]]),
+    });
+    f.authority.peers = [
+      {
+        peer_id: uuid(2),
+        user_id: uuid(4),
+        screen_sfu: true,
+        can_publish: true,
+        media: { screen: true, screen_audio: false },
+      },
+    ];
+    f.relay.updateAuthority(f.authority);
+    await vi.advanceTimersByTimeAsync(500);
+    receiver.getStats.mockResolvedValue(report(2000, 101000, 90));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(receiver.getStats).toHaveBeenCalledTimes(2);
+    expect(f.onStats).toHaveBeenCalledWith(
+      expect.objectContaining({
+        direction: "received",
+        peer_id: uuid(2),
+        publication_sid: "TR_remote",
+        stats: expect.objectContaining({
+          bitrate: 800_000,
+          fps: 60,
+          width: 1920,
+          height: 1080,
+          iceRttMs: 57,
+          packetsLost: 2,
+          jitterMs: 3,
+        }),
+      }),
+    );
+    let resolve!: (value: RTCStatsReport) => void;
+    receiver.getStats.mockReturnValueOnce(
+      new Promise((yes) => {
+        resolve = yes;
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(500);
+    publication.track = {
+      ...track,
+      mediaStreamTrack: { ...raw, id: "new-screen" } as MediaStreamTrack,
+    };
+    f.room.emit(RoomEvent.TrackSubscribed);
+    f.onStats.mockClear();
+    resolve(report(3000, 301000, 150));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.onStats).not.toHaveBeenCalled();
+  });
+
   it("acompanha o novo SID após o SDK limpar a publicação antiga e republicar a mesma track", async () => {
     const f = await connected();
     const original = [...f.room.localParticipant.trackPublications.values()][0];

@@ -21,6 +21,7 @@ import type {
   ScreenRelayCallbacks,
   ScreenRelayGrant,
   ScreenRelayRef,
+  ScreenRelayMediaStats,
 } from "./screen-relay";
 
 /** Stable m-line order. A track ID supplied by another client is never an identity. */
@@ -50,8 +51,13 @@ export interface CallMediaStats {
   audioLevel: number | null;
   packetsLost: number | null;
   jitterMs: number | null;
+  /** Present for SDK media; binds the displayed sample to its publication. */
+  sourceRef?: ScreenRelayRef;
+  publicationSid?: string;
+  timestamp?: number;
 }
 export interface CallStats {
+  /** ICE for the P2P connection carrying voice/camera, never the SDK video. */
   iceRttMs: number | null;
   route: "direct" | "relay" | "unknown";
   sent: Partial<Record<CallSource, CallMediaStats>>;
@@ -65,6 +71,16 @@ export interface CallPeerSnapshot extends CallParticipant {
   receiveHeight: number;
   /** ICE statistics still describe P2P voice; SFU video has separate transport. */
   screenTransport: "p2p" | "sfu";
+  screenIceRttMs: number | null;
+}
+export interface CallScreenUpload {
+  /** Video only: one SDK publisher plus each attached P2P screen sender. */
+  connections: { sfu: number; p2p: number };
+  bitrate: number | null;
+  partial: boolean;
+  /** Sum of maxBitrate actually returned by the active RTP senders. */
+  maxBitrate: number | null;
+  maxBitratePartial: boolean;
 }
 export interface CallSnapshot {
   state: "idle" | "connecting" | "connected" | "closed" | "failed";
@@ -75,6 +91,7 @@ export interface CallSnapshot {
   maxVideoBitrate: number;
   maxParticipants: number;
   profile: StreamProfile;
+  screenUpload: CallScreenUpload;
 }
 /** The injected boundary is also used by tests; production uses api.ts and browsers. */
 export interface CallEnvironment {
@@ -122,7 +139,17 @@ const browserEnvironment: CallEnvironment = {
   },
 };
 type StatsRow = RTCStats & Record<string, unknown>;
-type Observation = { bytes: number; timestamp: number; frames: number | null };
+type Observation = {
+  bytes: number;
+  timestamp: number;
+  frames: number | null;
+  source: CallSource;
+  outbound: boolean;
+};
+type RelayMeasurement = ScreenRelayMediaStats & {
+  sourceRef: ScreenRelayRef;
+  publicationSid: string;
+};
 const relayOpaque = /^[A-Za-z0-9_-]{1,128}$/;
 function sameRelayRef(
   a: ScreenRelayRef | undefined,
@@ -163,6 +190,9 @@ interface Peer {
   receivedRelayRef?: ScreenRelayRef;
   remoteRelayRef?: ScreenRelayRef;
   stats: CallStats;
+  relayStats: Partial<Record<"screen" | "screen_audio", RelayMeasurement>>;
+  sampledScreenTrack?: MediaStreamTrack | null;
+  screenStatsEpoch: number;
   observations: Map<string, Observation>;
   queue: Promise<void>;
   makingOffer: boolean;
@@ -389,6 +419,13 @@ export class P2PCall {
     maxVideoBitrate: 8_000_000,
     maxParticipants: 12,
     profile: { ...defaultProfile },
+    screenUpload: {
+      connections: { sfu: 0, p2p: 0 },
+      bitrate: null,
+      partial: false,
+      maxBitrate: 0,
+      maxBitratePartial: false,
+    },
   };
   private generation = 0;
   private publicationEpoch = 0;
@@ -419,6 +456,9 @@ export class P2PCall {
   private relayLocalRef?: ScreenRelayRef;
   private relayTrack?: MediaStreamTrack;
   private relayBound?: { max_height: number };
+  private relaySentStats: Partial<
+    Record<"screen" | "screen_audio", RelayMeasurement>
+  > = {};
 
   constructor(
     private options: { channelId: string },
@@ -441,6 +481,7 @@ export class P2PCall {
       localTracks: { ...this.local },
       profile: { ...this.data.profile },
       participants: [...this.peers.values()].map((peer) => {
+        this.screenSenderChanged(peer);
         const tracks: CallTracks = {};
         for (const source of callSources) {
           const track = peer.tracks[source];
@@ -478,8 +519,11 @@ export class P2PCall {
         }
         if (receivingRelay) {
           // A past P2P sample is not a measurement of the selected SFU track.
-          delete stats.received.screen;
-          delete stats.received.screen_audio;
+          for (const source of ["screen", "screen_audio"] as const) {
+            delete stats.received[source];
+            if (tracks[source] && peer.relayStats[source])
+              stats.received[source] = { ...peer.relayStats[source]! };
+          }
         }
         return {
           ...peer.member,
@@ -490,10 +534,72 @@ export class P2PCall {
           error: peer.error,
           receiveHeight: peer.receiveHeight,
           screenTransport: receivingRelay ? ("sfu" as const) : ("p2p" as const),
+          screenIceRttMs: receivingRelay
+            ? (peer.relayStats.screen?.iceRttMs ?? null)
+            : peer.stats.iceRttMs,
         };
       }),
+      screenUpload: this.screenUpload(),
     };
     for (const listener of this.listeners) listener(this.data);
+  }
+  private screenSenderChanged(peer: Peer) {
+    const track = peer.pc.getTransceivers()[2]?.sender.track ?? null;
+    if (peer.sampledScreenTrack === track) return;
+    peer.sampledScreenTrack = track;
+    peer.screenStatsEpoch++;
+    delete peer.stats.sent.screen;
+    for (const [key, observation] of peer.observations)
+      if (observation.outbound && observation.source === "screen")
+        peer.observations.delete(key);
+  }
+  private screenUpload(): CallScreenUpload {
+    const measurements: (number | null)[] = [],
+      caps: (number | null)[] = [];
+    const connections = { sfu: 0, p2p: 0 };
+    const track = this.local.screen;
+    if (this.mayPublish() && track?.enabled && track.readyState === "live") {
+      if (this.relay && this.relayReady && this.relayLocalRef) {
+        connections.sfu = 1;
+        measurements.push(this.relaySentStats.screen?.bitrate ?? null);
+        caps.push(this.relaySentStats.screen?.maxBitrate ?? null);
+      }
+      for (const peer of this.peers.values()) {
+        const sender = peer.pc.getTransceivers()[2]?.sender;
+        if (!this.current(peer) || sender?.track !== track) continue;
+        connections.p2p++;
+        measurements.push(peer.stats.sent.screen?.bitrate ?? null);
+        try {
+          const encodings = sender.getParameters().encodings;
+          const active = encodings.filter(
+            (encoding) => encoding.active !== false,
+          );
+          caps.push(
+            !encodings.length ||
+              active.some((encoding) => finite(encoding.maxBitrate) === null)
+              ? null
+              : active.reduce((sum, encoding) => sum + encoding.maxBitrate!, 0),
+          );
+        } catch {
+          caps.push(null);
+        }
+      }
+    }
+    const sum = (values: (number | null)[]) => {
+      const measured = values.filter(
+        (value): value is number => value !== null,
+      );
+      return measured.length
+        ? measured.reduce((total, value) => total + value, 0)
+        : null;
+    };
+    return {
+      connections,
+      bitrate: sum(measurements),
+      partial: measurements.some((value) => value === null),
+      maxBitrate: caps.length ? sum(caps) : 0,
+      maxBitratePartial: caps.some((value) => value === null),
+    };
   }
   private live(run = this.generation) {
     return (
@@ -556,6 +662,8 @@ export class P2PCall {
         );
   }
   private relayPublication(ref: ScreenRelayRef | null) {
+    if (!sameRelayRef(this.relayLocalRef, ref ?? undefined))
+      this.relaySentStats = {};
     this.relayLocalRef = ref ?? undefined;
     for (const peer of this.peers.values())
       if (!sameRelayRef(peer.remoteRelayRef, this.relayLocalRef))
@@ -567,6 +675,7 @@ export class P2PCall {
     for (const track of Object.values(peer.relayTracks)) track.enabled = false;
     peer.relayTracks = {};
     peer.relayTracksRef = undefined;
+    peer.relayStats = {};
   }
   private stopRelay(quiet = false) {
     const relay = this.relay;
@@ -574,6 +683,7 @@ export class P2PCall {
     this.relayReady = false;
     this.relayTrack = undefined;
     this.relayBound = undefined;
+    this.relaySentStats = {};
     if (quiet) this.relayLocalRef = undefined;
     else this.relayPublication(null);
     for (const peer of this.peers.values()) {
@@ -617,6 +727,53 @@ export class P2PCall {
         this.relay === relay &&
         this.screenSfuEnabled;
       relay = await this.environment.relayFactory!({
+        onStats: ({
+          direction,
+          source,
+          ref,
+          peer_id,
+          publication_sid,
+          stats,
+        }) => {
+          if (!current()) return;
+          if (source === "screen" && publication_sid !== ref.track_sid) return;
+          if (direction === "sent") {
+            if (
+              peer_id ||
+              !this.mayPublish() ||
+              !sameRelayRef(this.relayLocalRef, ref)
+            )
+              return;
+            const previous = this.relaySentStats[source];
+            if (!stats) delete this.relaySentStats[source];
+            else if (!previous || stats.timestamp >= previous.timestamp)
+              this.relaySentStats[source] = {
+                ...stats,
+                sourceRef: { ...ref },
+                publicationSid: publication_sid,
+              };
+          } else {
+            const peer = peer_id ? this.peers.get(peer_id) : undefined;
+            if (
+              !peer ||
+              !this.current(peer) ||
+              !peer.member.can_publish ||
+              !peer.member.media[source] ||
+              !peer.relayTracks[source] ||
+              !sameRelayRef(peer.relayTracksRef, ref)
+            )
+              return;
+            const previous = peer.relayStats[source];
+            if (!stats) delete peer.relayStats[source];
+            else if (!previous || stats.timestamp >= previous.timestamp)
+              peer.relayStats[source] = {
+                ...stats,
+                sourceRef: { ...ref },
+                publicationSid: publication_sid,
+              };
+          }
+          this.emit();
+        },
         onLocalPublication: (ref) => {
           if (current()) this.relayPublication(ref);
         },
@@ -785,6 +942,7 @@ export class P2PCall {
           : null,
       );
     await this.parameters(peer, "screen_audio");
+    if (this.current(peer)) this.emit();
   }
 
   connect(): Promise<void> {
@@ -1222,6 +1380,8 @@ export class P2PCall {
       tracks: {},
       relayTracks: {},
       stats: emptyStats(),
+      relayStats: {},
+      screenStatsEpoch: 0,
       observations: new Map(),
       queue: Promise.resolve(),
       makingOffer: false,
@@ -1961,6 +2121,8 @@ export class P2PCall {
         sampled
           .map(async (peer) => {
             if (!this.current(peer)) return;
+            this.screenSenderChanged(peer);
+            const screenStatsEpoch = peer.screenStatsEpoch;
             const report = await peer.pc.getStats();
             if (!this.live(run) || !this.current(peer)) return;
             const rows = new Map<string, StatsRow>();
@@ -2025,6 +2187,13 @@ export class P2PCall {
                 );
               }
               if (!source) continue;
+              if (
+                outbound &&
+                source === "screen" &&
+                (peer.screenStatsEpoch !== screenStatsEpoch ||
+                  !peer.pc.getTransceivers()[2]?.sender.track)
+              )
+                continue;
               const bytes = finite(
                 outbound ? row.bytesSent : row.bytesReceived,
               );
@@ -2051,7 +2220,13 @@ export class P2PCall {
                   ? ((frames - previous.frames) * 1000) / duration
                   : null);
               if (bytes !== null && time !== null)
-                observations.set(row.id, { bytes, timestamp: time, frames });
+                observations.set(row.id, {
+                  bytes,
+                  timestamp: time,
+                  frames,
+                  source,
+                  outbound,
+                });
               const jitter = finite(row.jitter);
               const level =
                 finite(row.audioLevel) ??

@@ -68,6 +68,24 @@
         "SFU loss preserves all eight original P2P microphones and connected calls",
         "No unhandled browser errors during hybrid switching"
       ]
+    },
+    {
+      "name": "eight-browser-routing-and-effective-statistics",
+      "status": "PASS",
+      "scope": "Eight isolated real Chromium engines, real Harmony/SQLite/LiveKit, generated sources; transport, lifecycle and effective RTP telemetry",
+      "checks": [
+        "Eight real Chromium engines retain their original P2P voice tracks",
+        "All fifty-six incoming P2P microphone paths receive and decode generated audio",
+        "Eight screen-only SDK rooms connect using production HTTP and RTC gateway",
+        "After confirmed SFU ACK only screen senders retire; original voice remains P2P",
+        "Seven SFU viewers count the single measured publisher upload exactly once",
+        "All seven decoded SDK screens expose real RTP dimensions/FPS/bitrate and their own ICE RTT with source SID/generation",
+        "One capped recipient falls back independently without moving the other six",
+        "Mixed screen upload sums the single SDK publisher plus one real P2P sender and their applied caps",
+        "SFU loss removes its telemetry and the applied video ceiling follows seven real P2P senders",
+        "SFU loss preserves all eight original P2P microphones and connected calls",
+        "No unhandled browser errors during hybrid switching"
+      ]
     }
   ],
   "source_sha256": {
@@ -76,17 +94,25 @@
     "crates/server/src/media.rs": "6d2304b864ba3090749c7912eda21d2f77a078b524a4efe1d4660299bb6c2c93",
     "crates/server/src/rtc.rs": "f9596e50fad1140e747729cbb216de0896e4730f1b1422dbb306ba24a12df987",
     "crates/server/src/lib.rs": "d9ec2179044887ee06759e3c08d4959736c6266192ef7e18a319a91be2ff918f",
-    "apps/desktop/src/lib/call.ts": "4d131c1e9dc6d4cf5a8039ac03610d2d8e4df4e881074cd79f563487614356c8",
-    "apps/desktop/src/lib/screen-relay.ts": "2c9949b2011752946bdae5bae2d13e1009a2afc1553632a8636e9c517e9423da",
+    "apps/desktop/src/lib/call.ts": "8e9ef83053893afd9afd537c72e6523144f99bef985a5931166b551328976fb9",
+    "apps/desktop/src/lib/screen-relay.ts": "819e2547a57e359b0fbeed039962f92df2eddcf887c8905c4c71029804fa95b2",
     "apps/desktop/src/lib/capture-track.ts": "31baa203b0d450aa64c4a91bd3755b4560cd941e013eeaeda4896e7da4752db3",
-    "scripts/test_call_screen_sfu.mjs": "493ef330827b6d3d55c805a5bde0b6e777b892a3715d46a0d6044f0b944c61a3",
+    "scripts/test_call_screen_sfu.mjs": "24d75fcfe2d533e662ce80c2c3f12f04baced1b1b996739599b14659ac52acb0",
     "scripts/test_screen_sfu.mjs": "164c7d11fc2be72d8735885200def00c97d8d48e5e521030745e41b9b4990f64",
-    "scripts/test_screen_sfu_livekit.mjs": "38ac74dec6dc59c3dc736c44d7d6ab0fb63149e43b148d8d7d2b7cbe10901513"
+    "scripts/test_screen_sfu_livekit.mjs": "38ac74dec6dc59c3dc736c44d7d6ab0fb63149e43b148d8d7d2b7cbe10901513",
+    "apps/desktop/src/components/P2PCallPanel.tsx": "6c3c989b302d92c1e134fa4e2064beed0e3056c6878876f3e6ab3d61ffb89a8c"
   },
   "preserved_failure": {
     "source_commit": "73a3cf19eb5e64421fb2d81a59b6c19962304686",
     "finding": "Optional capability HTTP request could outlast the call deadline and prevent opening a healthy WebSocket. Reproduced with zero sockets after15s; fixed with separate1.5s discovery budget and cancellation.",
     "verify_run": "43782347693",
     "verify_conclusion": "cancelled before packaging to correct the reproduced availability issue"
+  },
+  "source_notes": "The capability fault-injection case preceded telemetry-only changes; the final eight-browser statistics case records the current engine, SDK adapter and panel. Backend sources are unchanged.",
+  "preserved_statistics_failure": {
+    "source_commit": "22eba8dc89ed08a3996606d29667ac434974eafb",
+    "finding": "The new relay path omitted effective UI statistics and counted the upload ceiling as seven screen sends. Fixed with source-bound SDK RTP measurements and one shared upload plus actual direct senders.",
+    "verify_run": "43783727151",
+    "verify_conclusion": "cancelled before packaging to preserve effective quality indicators"
   }
 }

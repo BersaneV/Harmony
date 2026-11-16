@@ -23,6 +23,8 @@ Tokens de tela permitem apenas `screen_share` e `screen_share_audio`, sem public
 
 A descoberta dessa capacidade tem orçamento próprio de 1,5 segundo: se o HTTP atrasar, a chamada tenta P2P. A requisição é abortada, respostas tardias são ignoradas e o WebSocket preserva seus 15 segundos de conexão. O teste de falha real abriu P2P em 1.507,2 ms enquanto a consulta estava deliberadamente pendente.
 
+Os indicadores da tela usam os contadores RTP da conexão selecionada, vinculados à publicação atual. O upload agrega um envio compartilhado e os envios diretos adicionais, sem multiplicar a publicação pelos espectadores. O teto vem dos parâmetros efetivos dos senders; a primeira amostra e as transições indicam medição parcial. Latências de vídeo e voz aparecem separadas.
+
 ## Evidência disponível
 
 Na [calibração do núcleo nativo](evidence/native-capture-0.4.3-calibration-20261116.json), em Windows 2022 descartável, os dois perfis entregaram a imagem inteira e ultrapassaram o gate de 54 quadros novos/s. A janela gerada tem resolução nativa; conteúdo fora da área visível também é conferido. Foram 5 segundos de acomodação e 10 segundos de medida.

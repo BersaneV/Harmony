@@ -50,12 +50,51 @@ export interface RelayDecodeSample {
   bytesReceived: number;
   width: number;
   height: number;
+  stats?: RelayRtpSample;
 }
 export interface RelayAudioSample {
   bytesReceived: number;
   totalSamplesReceived: number;
   totalSamplesDuration: number;
   concealedSamples: number;
+  stats?: RelayRtpSample;
+}
+/** Raw source-scoped SDK counters. Time is the RTCStats timestamp in ms. */
+export interface RelayRtpSample {
+  rowId: string;
+  timestamp: number;
+  bytes: number | null;
+  frames: number | null;
+  width: number | null;
+  height: number | null;
+  audioLevel: number | null;
+  packetsLost: number | null;
+  jitterMs: number | null;
+  iceRttMs: number | null;
+  maxBitrate: number | null;
+}
+export interface ScreenRelayMediaStats {
+  /** Bits/s and frames/s derived from consecutive SDK counter observations. */
+  bitrate: number | null;
+  fps: number | null;
+  width: number | null;
+  height: number | null;
+  audioLevel: number | null;
+  packetsLost: number | null;
+  jitterMs: number | null;
+  iceRttMs: number | null;
+  maxBitrate: number | null;
+  timestamp: number;
+}
+export interface ScreenRelayStatsEvent {
+  direction: "sent" | "received";
+  source: RelaySource;
+  /** Logical screen reference; audio also remains tied to this video generation. */
+  ref: ScreenRelayRef;
+  /** Actual source publication SID, which differs for screen audio. */
+  publication_sid: string;
+  peer_id?: string;
+  stats: ScreenRelayMediaStats | null;
 }
 export interface RelayPublication {
   sid: string;
@@ -78,6 +117,7 @@ export interface RelayParticipant {
 export interface RelayLocalPublication {
   sid: string;
   track: MediaStreamTrack;
+  sampleStats?(): Promise<RelayRtpSample | null>;
 }
 export type RelayPublishOptions = Omit<TrackPublishOptions, "source"> & {
   source: RelaySource;
@@ -108,6 +148,7 @@ interface RelayEnvironment {
   interval?: number;
 }
 export interface ScreenRelayCallbacks {
+  onStats?(event: ScreenRelayStatsEvent): void;
   /** P2P must stay enabled until the matching remote SID/generation is ready. */
   onAck(value: { peer_id: string; screen_sfu: ScreenRelayRef | null }): void;
   onTrack(value: {
@@ -177,6 +218,114 @@ const relayError = (error: unknown) =>
     ? error
     : new Error("A conexão de tela com o servidor foi interrompida.");
 
+type StatsRow = RTCStats & Record<string, unknown>;
+const number = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+const counter = (value: unknown): number | null => {
+  const result = number(value);
+  return result !== null && result >= 0 ? result : null;
+};
+const dimension = (value: unknown): number | null => {
+  const result = number(value);
+  return result !== null && result > 0 ? result : null;
+};
+function reportRows(report: RTCStatsReport | undefined): Map<string, StatsRow> {
+  const rows = new Map<string, StatsRow>();
+  report?.forEach((row) => rows.set(row.id, row as StatsRow));
+  return rows;
+}
+function sourceRow(
+  rows: Map<string, StatsRow>,
+  direction: "sent" | "received",
+  source: RelaySource,
+  trackId: string,
+): StatsRow | undefined {
+  const kind = source === "screen" ? "video" : "audio";
+  const eligible = [...rows.values()].filter(
+    (row) =>
+      row.type === (direction === "sent" ? "outbound-rtp" : "inbound-rtp") &&
+      !row.isRemote &&
+      (row.kind ?? row.mediaType) === kind &&
+      !String(rows.get(String(row.codecId))?.mimeType ?? "")
+        .toLowerCase()
+        .endsWith("/rtx"),
+  );
+  const identity = (row: StatsRow) =>
+    row.trackIdentifier ??
+    rows.get(String(row.mediaSourceId))?.trackIdentifier ??
+    rows.get(String(row.trackId))?.trackIdentifier;
+  const matching = eligible.filter((row) => identity(row) === trackId);
+  if (matching.length === 1) return matching[0];
+  // Sender/receiver.getStats is source-scoped. Do not guess if an SDK/browser
+  // returns several unidentifiable sources, or explicitly identifies another.
+  return matching.length === 0 &&
+    eligible.length === 1 &&
+    identity(eligible[0]) === undefined
+    ? eligible[0]
+    : undefined;
+}
+function rtpSample(
+  rows: Map<string, StatsRow>,
+  row: StatsRow | undefined,
+  direction: "sent" | "received",
+  source: RelaySource,
+  maxBitrate: number | null = null,
+): RelayRtpSample | null {
+  const timestamp = counter(row?.timestamp);
+  if (!row || timestamp === null) return null;
+  const linkedRemote = rows.get(String(row.remoteId));
+  const remote =
+    linkedRemote?.type === "remote-inbound-rtp"
+      ? linkedRemote
+      : [...rows.values()].find(
+          (value) =>
+            value.type === "remote-inbound-rtp" && value.localId === row.id,
+        );
+  const loss = direction === "received" ? row : remote;
+  const transport = rows.get(String(row.transportId));
+  const pair =
+    transport?.type === "transport"
+      ? rows.get(String(transport.selectedCandidatePairId))
+      : undefined;
+  const rtt =
+    pair?.type === "candidate-pair" ? counter(pair.currentRoundTripTime) : null;
+  const jitter = counter(loss?.jitter);
+  const audioLevel =
+    source === "screen_audio"
+      ? counter(
+          row.audioLevel ?? rows.get(String(row.mediaSourceId))?.audioLevel,
+        )
+      : null;
+  return {
+    rowId: row.id,
+    timestamp,
+    bytes: counter(direction === "sent" ? row.bytesSent : row.bytesReceived),
+    frames:
+      source === "screen"
+        ? counter(direction === "sent" ? row.framesEncoded : row.framesDecoded)
+        : null,
+    width: source === "screen" ? dimension(row.frameWidth) : null,
+    height: source === "screen" ? dimension(row.frameHeight) : null,
+    audioLevel: audioLevel !== null && audioLevel <= 1 ? audioLevel : null,
+    packetsLost: number(loss?.packetsLost),
+    jitterMs: jitter === null ? null : jitter * 1000,
+    iceRttMs: rtt === null ? null : rtt * 1000,
+    maxBitrate,
+  };
+}
+function senderBitrate(sender: RTCRtpSender | undefined): number | null {
+  try {
+    const encodings = sender?.getParameters().encodings;
+    if (!encodings?.length) return null;
+    const active = encodings.filter((encoding) => encoding.active !== false);
+    if (active.some((encoding) => counter(encoding.maxBitrate) === null))
+      return null;
+    return active.reduce((sum, encoding) => sum + encoding.maxBitrate!, 0);
+  } catch {
+    return null;
+  }
+}
+
 function liveKitRoom(): RelayRoom {
   const room = new Room({
     adaptiveStream: false,
@@ -205,12 +354,33 @@ function liveKitRoom(): RelayRoom {
           track: {
             media: publication.track.mediaStreamTrack,
             sample: async () => {
-              const report = await publication.track?.getRTCStatsReport();
+              const track = publication.track,
+                sid = publication.trackSid;
+              if (!track) return null;
+              const receiver = track.receiver,
+                media = track.mediaStreamTrack;
+              const report = await track.getRTCStatsReport();
+              if (
+                publication.track !== track ||
+                publication.trackSid !== sid ||
+                track.receiver !== receiver ||
+                track.mediaStreamTrack !== media
+              )
+                return null;
+              const source =
+                publication.source === Track.Source.ScreenShare
+                  ? "screen"
+                  : publication.source === Track.Source.ScreenShareAudio
+                    ? "screen_audio"
+                    : undefined;
+              if (!source) return null;
+              const rows = reportRows(report),
+                row = sourceRow(rows, "received", source, media.id);
+              const stats = rtpSample(rows, row, "received", source);
               let sample: RelayDecodeSample | RelayAudioSample | null = null;
-              report?.forEach((row) => {
+              if (row) {
                 if (
-                  row.type === "inbound-rtp" &&
-                  (row.kind === "audio" || row.mediaType === "audio") &&
+                  source === "screen_audio" &&
                   !row.isRemote &&
                   typeof row.bytesReceived === "number" &&
                   typeof row.totalSamplesReceived === "number" &&
@@ -222,10 +392,10 @@ function liveKitRoom(): RelayRoom {
                     totalSamplesReceived: row.totalSamplesReceived,
                     totalSamplesDuration: row.totalSamplesDuration,
                     concealedSamples: row.concealedSamples,
+                    ...(stats ? { stats } : {}),
                   };
                 if (
-                  row.type === "inbound-rtp" &&
-                  (row.kind === "video" || row.mediaType === "video") &&
+                  source === "screen" &&
                   !row.isRemote &&
                   typeof row.framesDecoded === "number" &&
                   typeof row.bytesReceived === "number" &&
@@ -237,8 +407,9 @@ function liveKitRoom(): RelayRoom {
                     bytesReceived: row.bytesReceived,
                     width: row.frameWidth,
                     height: row.frameHeight,
+                    ...(stats ? { stats } : {}),
                   };
-              });
+              }
               return sample;
             },
           },
@@ -314,6 +485,27 @@ function liveKitRoom(): RelayRoom {
           );
         },
         track,
+        sampleStats: async () => {
+          const sid = owned.sid,
+            sender = wrapped.sender,
+            media = wrapped.mediaStreamTrack;
+          const report = await wrapped.getRTCStatsReport();
+          if (
+            !sid ||
+            owned.sid !== sid ||
+            wrapped.sender !== sender ||
+            wrapped.mediaStreamTrack !== media
+          )
+            return null;
+          const rows = reportRows(report);
+          return rtpSample(
+            rows,
+            sourceRow(rows, "sent", options.source, media.id),
+            "sent",
+            options.source,
+            senderBitrate(sender),
+          );
+        },
       };
       local.set(owned, wrapped);
       return owned;
@@ -352,6 +544,10 @@ interface LocalScreen {
   key: string;
   profile: StreamProfile;
 }
+interface Measurement {
+  event: Omit<ScreenRelayStatsEvent, "stats">;
+  baseline?: RelayRtpSample;
+}
 
 /** Optional screen-only relay. It never captures devices and cannot disable P2P.
  * Callers retain P2P until onAck supplies this exact publication reference. */
@@ -372,6 +568,9 @@ export class ScreenRelay {
   private announcedLocal?: string;
   private retiring = false;
   private closing: Promise<void> = Promise.resolve();
+  private measurements = new Map<string, Measurement>();
+  private publisherSampling = new Set<RelayLocalPublication>();
+  private audioRetiring = false;
 
   constructor(
     private callbacks: ScreenRelayCallbacks,
@@ -630,11 +829,18 @@ export class ScreenRelay {
         if (this.audio?.track === track) return;
         const old = this.audio;
         if (old) {
+          this.audioRetiring = true;
+          this.clearMeasurements(
+            (event) =>
+              event.direction === "sent" && event.source === "screen_audio",
+          );
           try {
             await room.unpublish(old);
           } catch (error) {
             if (this.room === room) void this.close();
             throw error;
+          } finally {
+            this.audioRetiring = false;
           }
         }
         if (this.audio === old) this.audio = undefined;
@@ -801,6 +1007,13 @@ export class ScreenRelay {
     }
   }
   private withdraw(candidate: Candidate) {
+    this.clearMeasurements(
+      (event) =>
+        event.direction === "received" &&
+        event.peer_id === candidate.peer_id &&
+        event.ref.track_sid === candidate.ref.track_sid &&
+        event.ref.generation === candidate.ref.generation,
+    );
     candidate.video.subscribe(false);
     candidate.audio?.subscribe(false);
     const emitted = candidate.emitted;
@@ -831,6 +1044,7 @@ export class ScreenRelay {
       !sid ||
       !opaque.test(sid)
     ) {
+      this.clearMeasurements((event) => event.direction === "sent");
       if (this.announcedLocal) {
         this.announcedLocal = undefined;
         this.callbacks.onLocalPublication?.(null);
@@ -841,6 +1055,7 @@ export class ScreenRelay {
       screen.ref = { track_sid: sid, generation: screen.ref.generation };
     const key = `${sid}:${screen.ref.generation}`;
     if (key !== this.announcedLocal) {
+      this.clearMeasurements((event) => event.direction === "sent");
       this.announcedLocal = key;
       this.callbacks.onLocalPublication?.(screen.ref);
     }
@@ -863,8 +1078,11 @@ export class ScreenRelay {
     }
   }
   private sample() {
+    this.samplePublisher();
     for (const candidate of this.candidates.values()) {
-      const track = candidate.video.track;
+      const video = candidate.video,
+        track = video.track,
+        ref = { ...candidate.ref };
       if (candidate.sampling || candidate.blocked || !track) continue;
       candidate.sampling = true;
       void track
@@ -872,10 +1090,15 @@ export class ScreenRelay {
         .then(async (sample) => {
           if (
             this.candidates.get(candidate.peer_id) !== candidate ||
+            candidate.video.sid !== video.sid ||
+            candidate.video.track?.media !== track.media ||
+            candidate.ref.track_sid !== ref.track_sid ||
+            candidate.ref.generation !== ref.generation ||
             !this.room?.connected() ||
             !this.connected
-          )
+          ) {
             return;
+          }
           if (track.media.readyState !== "live") {
             this.withdraw(candidate);
             candidate.blocked = true;
@@ -892,8 +1115,16 @@ export class ScreenRelay {
             sample.width <= 0 ||
             !Number.isFinite(sample.height) ||
             sample.height <= 0
-          )
+          ) {
+            this.clearMeasurements(
+              (event) =>
+                event.direction === "received" &&
+                event.peer_id === candidate.peer_id &&
+                event.ref.track_sid === ref.track_sid &&
+                event.ref.generation === ref.generation,
+            );
             return;
+          }
           const limit = this.heights.get(candidate.peer_id) ?? 0;
           if (
             limit &&
@@ -908,12 +1139,17 @@ export class ScreenRelay {
             );
             return;
           }
+          let audioStats: RelayRtpSample | undefined;
+          let audioSid: string | undefined;
           if (candidate.audioRequired) {
-            const audio = candidate.audio?.track;
+            const publication = candidate.audio,
+              audio = publication?.track;
             const sample =
               audio?.media.readyState === "live" ? await audio.sample() : null;
             if (
               this.candidates.get(candidate.peer_id) !== candidate ||
+              candidate.audio?.sid !== publication?.sid ||
+              candidate.audio?.track?.media !== audio?.media ||
               !this.room?.connected()
             )
               return;
@@ -933,6 +1169,8 @@ export class ScreenRelay {
               if (candidate.ready) this.withdraw(candidate);
               return;
             }
+            audioStats = sample.stats;
+            audioSid = publication?.sid;
           }
           if (!candidate.ready) {
             candidate.ready = true;
@@ -946,6 +1184,33 @@ export class ScreenRelay {
                 screen_sfu: candidate.ref,
               });
           }
+          if (
+            this.candidates.get(candidate.peer_id) === candidate &&
+            candidate.ready &&
+            this.room?.connected()
+          ) {
+            this.recordMeasurement(
+              {
+                direction: "received",
+                source: "screen",
+                peer_id: candidate.peer_id,
+                ref,
+                publication_sid: video.sid,
+              },
+              sample.stats ?? null,
+            );
+            if (candidate.audioRequired && audioSid)
+              this.recordMeasurement(
+                {
+                  direction: "received",
+                  source: "screen_audio",
+                  peer_id: candidate.peer_id,
+                  ref,
+                  publication_sid: audioSid,
+                },
+                audioStats ?? null,
+              );
+          }
         })
         .catch((error) => {
           if (this.candidates.get(candidate.peer_id) !== candidate) return;
@@ -957,11 +1222,146 @@ export class ScreenRelay {
         });
     }
   }
+  private notifyStats(event: ScreenRelayStatsEvent) {
+    // Observing stats must never change capture, ACK, publication or fallback.
+    try {
+      this.callbacks.onStats?.(event);
+    } catch {
+      /* observer isolation */
+    }
+  }
+  private clearMeasurements(
+    predicate: (event: Measurement["event"]) => boolean,
+  ) {
+    for (const [key, measurement] of this.measurements)
+      if (predicate(measurement.event)) {
+        this.measurements.delete(key);
+        this.notifyStats({ ...measurement.event, stats: null });
+      }
+  }
+  private recordMeasurement(
+    event: Measurement["event"],
+    sample: RelayRtpSample | null,
+  ) {
+    const key = `${event.direction}:${event.peer_id ?? "local"}:${event.source}`;
+    let previous = this.measurements.get(key);
+    if (
+      previous &&
+      (previous.event.publication_sid !== event.publication_sid ||
+        previous.event.ref.track_sid !== event.ref.track_sid ||
+        previous.event.ref.generation !== event.ref.generation)
+    ) {
+      this.clearMeasurements((value) => value === previous!.event);
+      previous = undefined;
+    }
+    const measurement: Measurement = {
+      event: { ...event, ref: { ...event.ref } },
+    };
+    this.measurements.set(key, measurement);
+    if (!sample || counter(sample.timestamp) === null) {
+      this.notifyStats({ ...measurement.event, stats: null });
+      return;
+    }
+    const before = previous?.baseline;
+    const delta =
+      before &&
+      sample.timestamp > before.timestamp &&
+      before.rowId === sample.rowId &&
+      !(
+        sample.bytes !== null &&
+        before.bytes !== null &&
+        sample.bytes < before.bytes
+      ) &&
+      !(
+        sample.frames !== null &&
+        before.frames !== null &&
+        sample.frames < before.frames
+      )
+        ? sample.timestamp - before.timestamp
+        : null;
+    const bitrate =
+      delta && sample.bytes !== null && before?.bytes != null
+        ? ((sample.bytes - before.bytes) * 8000) / delta
+        : null;
+    const fps =
+      delta && sample.frames !== null && before?.frames != null
+        ? ((sample.frames - before.frames) * 1000) / delta
+        : null;
+    measurement.baseline = { ...sample };
+    this.notifyStats({
+      ...measurement.event,
+      stats: {
+        bitrate,
+        fps,
+        width: sample.width,
+        height: sample.height,
+        audioLevel: sample.audioLevel,
+        packetsLost: sample.packetsLost,
+        jitterMs: sample.jitterMs,
+        iceRttMs: sample.iceRttMs,
+        maxBitrate: sample.maxBitrate,
+        timestamp: sample.timestamp,
+      },
+    });
+  }
+  private samplePublisher() {
+    const room = this.room,
+      screen = this.screen,
+      run = this.run;
+    if (!room?.connected() || !this.connected || this.retiring || !screen)
+      return;
+    const ref = { ...screen.ref };
+    for (const [source, publication] of [
+      ["screen", screen.publication],
+      ["screen_audio", this.audio],
+    ] as const) {
+      if (
+        !publication ||
+        (source === "screen_audio" && this.audioRetiring) ||
+        this.publisherSampling.has(publication)
+      )
+        continue;
+      const sid = publication.sid;
+      if (!sid) continue;
+      this.publisherSampling.add(publication);
+      const current = () =>
+        this.run === run &&
+        this.room === room &&
+        room.connected() &&
+        this.connected &&
+        !this.retiring &&
+        this.screen === screen &&
+        this.screen.ref.track_sid === ref.track_sid &&
+        this.screen.ref.generation === ref.generation &&
+        publication.sid === sid &&
+        (source === "screen"
+          ? this.screen.publication === publication
+          : this.audio === publication && !this.audioRetiring);
+      void Promise.resolve()
+        .then(() => publication.sampleStats?.() ?? null)
+        .then((sample) => {
+          if (current())
+            this.recordMeasurement(
+              { direction: "sent", source, ref, publication_sid: sid },
+              sample,
+            );
+        })
+        .catch(() => {
+          if (current())
+            this.recordMeasurement(
+              { direction: "sent", source, ref, publication_sid: sid },
+              null,
+            );
+        })
+        .finally(() => this.publisherSampling.delete(publication));
+    }
+  }
   close(): Promise<void> {
     this.run++;
     this.publicationEpoch++;
     this.connected = false;
     this.retiring = false;
+    this.clearMeasurements(() => true);
     clearInterval(this.timer);
     this.timer = undefined;
     this.unlisten?.();

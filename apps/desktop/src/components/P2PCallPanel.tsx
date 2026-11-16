@@ -240,10 +240,14 @@ function RemoteTile({
         <small>
           {stats?.height
             ? `${stats.width ?? "?"}×${stats.height} · ${stats.fps == null ? "FPS indisponível" : `${Math.round(stats.fps)} FPS`} · ${stats.bitrate == null ? "bitrate indisponível" : `${(stats.bitrate / 1e6).toFixed(2)} Mb/s`}`
-            : "Aguardando mídia"}
-          {peer.stats.iceRttMs != null
-            ? ` · ${Math.round(peer.stats.iceRttMs)} ms`
-            : ""}
+            : track
+              ? "Vídeo ativo · estatísticas indisponíveis"
+              : "Aguardando mídia"}
+          {source === "screen" && peer.screenTransport === "sfu"
+            ? ` · Vídeo: ${peer.screenIceRttMs == null ? "indisponível" : `${Math.round(peer.screenIceRttMs)} ms`} · Voz: ${peer.stats.iceRttMs == null ? "indisponível" : `${Math.round(peer.stats.iceRttMs)} ms`}`
+            : peer.stats.iceRttMs != null
+              ? ` · Vídeo: ${Math.round(peer.stats.iceRttMs)} ms · Voz: ${Math.round(peer.stats.iceRttMs)} ms`
+              : ""}
         </small>
         {peer.error && <small role="status">{peer.error}</small>}
       </div>
@@ -690,21 +694,21 @@ export default function P2PCallPanel({
     );
   }
   const peerVolume = (id: string) => volumes[id] || { voice: 1, screen: 1 };
-  const requestedBitrate = state.profile.bitrate
-    ? state.profile.bitrate * 1e6
-    : Math.min(state.maxVideoBitrate, 8e6);
-  const outgoing = state.participants
-    .map((p) => p.stats.sent.screen)
-    .filter((s) => s?.bitrate != null);
-  const measuredUpload = outgoing.length
-    ? `${(outgoing.reduce((total, s) => total + s!.bitrate!, 0) / 1e6).toFixed(2)} Mb/s${outgoing.length < state.participants.length ? " (parcial)" : ""}`
-    : "aguardando medição";
+  const upload = state.screenUpload;
+  const measuredUpload =
+    upload.bitrate != null
+      ? `${(upload.bitrate / 1e6).toFixed(2)} Mb/s${upload.partial ? " (parcial)" : ""}`
+      : "aguardando medição";
+  const uploadCeiling =
+    upload.maxBitrate == null
+      ? "indisponível"
+      : `${(upload.maxBitrate / 1e6).toFixed(1)} Mb/s${upload.maxBitratePartial ? " (parcial)" : ""}`;
   const screenSettings = screenTrack
     ? getCaptureSettings(screenTrack)
     : undefined;
   const status =
     state.state === "connected"
-      ? "Chamada direta"
+      ? "Em chamada"
       : state.state === "connecting"
         ? "Conectando"
         : "Desconectado";
@@ -736,8 +740,9 @@ export default function P2PCallPanel({
       {expanded && (
         <>
           <p className="call-permission-note">
-            Voz e tela vão diretamente entre os participantes. Os endereços de
-            rede podem ficar visíveis entre vocês. Microfone e câmera começam
+            Voz e câmera vão diretamente entre os participantes. A tela pode
+            passar pelo servidor ou usar conexões diretas. Os endereços de rede
+            podem ficar visíveis entre vocês. Microfone e câmera começam
             desligados.
           </p>
           {state.state === "connecting" ? (
@@ -785,7 +790,7 @@ export default function P2PCallPanel({
                     <small>
                       Solicitado: {state.profile.height || "Auto"}p /{" "}
                       {state.profile.fps || "Auto"} FPS /{" "}
-                      {state.profile.bitrate || "Auto"} Mb/s por espectador
+                      {state.profile.bitrate || "Auto"} Mb/s por envio
                     </small>
                     <small>
                       Captura: {screenSettings?.width ?? "?"}×
@@ -795,12 +800,13 @@ export default function P2PCallPanel({
                         : `${Math.round(screenSettings.frameRate)} FPS`}
                     </small>
                     <small>
-                      Upload de vídeo medido: {measuredUpload} · teto estimado:{" "}
-                      {(
-                        (requestedBitrate * state.participants.length) /
-                        1e6
-                      ).toFixed(1)}{" "}
-                      Mb/s
+                      Upload de vídeo medido: {measuredUpload} · teto dos
+                      envios: {uploadCeiling} · {upload.connections.sfu}{" "}
+                      {upload.connections.sfu === 1
+                        ? "envio compartilhado"
+                        : "envios compartilhados"}{" "}
+                      + {upload.connections.p2p}{" "}
+                      {upload.connections.p2p === 1 ? "direto" : "diretos"}
                     </small>
                   </div>
                 )}
@@ -1067,7 +1073,7 @@ export default function P2PCallPanel({
               </select>
             </Field>
             <Field
-              label={`Bitrate por espectador (até ${state.maxVideoBitrate / 1e6} Mb/s)`}
+              label={`Bitrate por envio (até ${state.maxVideoBitrate / 1e6} Mb/s)`}
             >
               <select
                 disabled={busy}
@@ -1129,9 +1135,10 @@ export default function P2PCallPanel({
           </label>
           <p className="small-note">
             O áudio depende da fonte e do suporte do navegador/Windows. Evite
-            compartilhar o som da própria chamada. Cada espectador recebe uma
-            conexão: o upload total aumenta com a quantidade de pessoas. O
-            bitrate é um teto, com áudio e protocolo adicionais.
+            compartilhar o som da própria chamada. A tela pode usar um envio
+            compartilhado pelo servidor. Cada envio direto adicional aumenta seu
+            upload. O bitrate é um teto de vídeo, com áudio e protocolo
+            adicionais.
             {nativeAvailable &&
               " Em 60 FPS sem áudio da tela, o modo automático usa captura nativa de janela. Para outra fonte ou se ela falhar, escolha Navegador. Com áudio da tela, a seleção usa o navegador."}
           </p>

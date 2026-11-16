@@ -8,6 +8,7 @@ import {
   type RelayDecodeSample,
   type RelayLocalPublication,
   type RelayAudioSample,
+  type RelayRtpSample,
 } from "./screen-relay";
 import type { StreamProfile } from "./stream";
 
@@ -129,6 +130,7 @@ function fixture() {
     unpublish: vi.fn(async () => {}),
   };
   const callbacks = {
+    onStats: vi.fn(),
     onAck: vi.fn(),
     onTrack: vi.fn(),
     onFallback: vi.fn(),
@@ -172,6 +174,282 @@ afterEach(() => vi.useRealTimers());
 async function tick() {
   await vi.advanceTimersByTimeAsync(100);
 }
+function counters(
+  timestamp: number,
+  bytes: number,
+  frames: number | null = 30,
+): RelayRtpSample {
+  return {
+    rowId: "rtp-source",
+    timestamp,
+    bytes,
+    frames,
+    width: frames === null ? null : 2560,
+    height: frames === null ? null : 1440,
+    audioLevel: frames === null ? 0.2 : null,
+    packetsLost: 3,
+    jitterMs: 2,
+    iceRttMs: 39,
+    maxBitrate: 8_000_000,
+  };
+}
+
+describe("ScreenRelay: medições por fonte SDK", () => {
+  it("mede um único upload por SID/geração e limpa a amostra ao encerrar", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    await f.connect();
+    const sampleStats = vi.fn(async () => counters(1000, 1000));
+    vi.mocked(f.room.publish).mockImplementationOnce(async (track) => ({
+      sid: "TR_local",
+      track,
+      sampleStats,
+    }));
+    const ref = await f.relay.setScreen(
+      media(),
+      { ...profile, audio: false },
+      8_000_000,
+    );
+    await tick();
+    sampleStats.mockResolvedValue(counters(2000, 201000, 90));
+    await tick();
+    expect(sampleStats).toHaveBeenCalledTimes(2);
+    expect(f.callbacks.onStats).toHaveBeenLastCalledWith({
+      direction: "sent",
+      source: "screen",
+      ref,
+      publication_sid: "TR_local",
+      stats: expect.objectContaining({
+        bitrate: 1_600_000,
+        fps: 60,
+        width: 2560,
+        height: 1440,
+        iceRttMs: 39,
+        maxBitrate: 8_000_000,
+        timestamp: 2000,
+      }),
+    });
+    await f.relay.close();
+    expect(f.callbacks.onStats).toHaveBeenLastCalledWith(
+      expect.objectContaining({ direction: "sent", stats: null }),
+    );
+  });
+
+  it("reutiliza a coleta de ACK para vídeo e áudio, sem misturar SIDs ou duplicar leituras", async () => {
+    vi.useFakeTimers();
+    const f = fixture(),
+      video = publication(),
+      audio = publication("screen_audio"),
+      roster = authority();
+    roster.peers[0].media.screen_audio = true;
+    const videoSample = (timestamp: number, bytes: number, frames: number) => ({
+      framesDecoded: frames,
+      bytesReceived: bytes,
+      width: 2560,
+      height: 1440,
+      stats: counters(timestamp, bytes, frames),
+    });
+    vi.mocked(video.track!.sample).mockResolvedValue(
+      videoSample(1000, 1000, 30),
+    );
+    vi.mocked(audio.track!.sample).mockResolvedValue({
+      ...decodedAudio(),
+      stats: counters(1000, 1000, null),
+    });
+    f.remote.publications = [video, audio];
+    await f.connect(roster);
+    await tick();
+    vi.mocked(video.track!.sample).mockResolvedValue(
+      videoSample(2000, 201000, 90),
+    );
+    vi.mocked(audio.track!.sample).mockResolvedValue({
+      ...decodedAudio(),
+      stats: counters(2000, 17000, null),
+    });
+    await tick();
+    expect(video.track!.sample).toHaveBeenCalledTimes(2);
+    expect(audio.track!.sample).toHaveBeenCalledTimes(2);
+    expect(f.callbacks.onStats).toHaveBeenCalledWith(
+      expect.objectContaining({
+        direction: "received",
+        peer_id: peerB,
+        source: "screen",
+        publication_sid: video.sid,
+        stats: expect.objectContaining({ bitrate: 1_600_000, fps: 60 }),
+      }),
+    );
+    expect(f.callbacks.onStats).toHaveBeenCalledWith(
+      expect.objectContaining({
+        direction: "received",
+        peer_id: peerB,
+        source: "screen_audio",
+        publication_sid: audio.sid,
+        ref: { track_sid: video.sid, generation: "video-1" },
+        stats: expect.objectContaining({
+          bitrate: 128_000,
+          fps: null,
+          audioLevel: 0.2,
+        }),
+      }),
+    );
+    await f.relay.close();
+  });
+
+  it("não publica uma leitura que termina depois do fechamento", async () => {
+    vi.useFakeTimers();
+    const f = fixture(),
+      held = deferred<RelayRtpSample | null>();
+    await f.connect();
+    vi.mocked(f.room.publish).mockImplementationOnce(async (track) => ({
+      sid: "TR_local",
+      track,
+      sampleStats: () => held.promise,
+    }));
+    await f.relay.setScreen(media(), profile, 8_000_000);
+    await tick();
+    await f.relay.close();
+    held.resolve(counters(2000, 1000));
+    await tick();
+    expect(
+      f.callbacks.onStats.mock.calls.filter(([event]) => event.stats !== null),
+    ).toHaveLength(0);
+  });
+
+  it("reinicia deltas quando counters ou relógio voltam, sem bitrate/FPS negativos", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    await f.connect();
+    const sampleStats = vi.fn(async () => counters(1000, 1000));
+    vi.mocked(f.room.publish).mockImplementationOnce(async (track) => ({
+      sid: "TR_local",
+      track,
+      sampleStats,
+    }));
+    await f.relay.setScreen(media(), profile, 8_000_000);
+    await tick();
+    sampleStats.mockResolvedValue(counters(2000, 500, 1));
+    await tick();
+    expect(f.callbacks.onStats).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        stats: expect.objectContaining({ bitrate: null, fps: null }),
+      }),
+    );
+    sampleStats.mockResolvedValue(counters(2000, 600, 2));
+    await tick();
+    expect(f.callbacks.onStats).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        stats: expect.objectContaining({ bitrate: null, fps: null }),
+      }),
+    );
+    await f.relay.close();
+  });
+
+  it("descarta a coleta do receiver antigo sem apagar métricas da fonte substituta", async () => {
+    vi.useFakeTimers();
+    const f = fixture(),
+      old = publication();
+    const held = deferred<RelayDecodeSample | null>();
+    vi.mocked(old.track!.sample).mockReturnValueOnce(held.promise);
+    f.remote.publications = [old];
+    await f.connect();
+    await tick();
+    const next = publication("screen", "new_h1440_a0");
+    next.sid = "new-screen";
+    vi.mocked(next.track!.sample).mockResolvedValue({
+      framesDecoded: 30,
+      bytesReceived: 1000,
+      width: 2560,
+      height: 1440,
+      stats: counters(1000, 1000),
+    });
+    f.remote.publications = [next];
+    f.change();
+    await tick();
+    expect(f.callbacks.onStats).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        ref: { track_sid: next.sid, generation: "new_h1440_a0" },
+        stats: expect.any(Object),
+      }),
+    );
+    f.callbacks.onStats.mockClear();
+    held.resolve({
+      framesDecoded: 200,
+      bytesReceived: 500000,
+      width: 2560,
+      height: 1440,
+      stats: counters(4000, 500000, 200),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.callbacks.onStats).not.toHaveBeenCalled();
+    await f.relay.close();
+  });
+
+  it("reinicia deltas por SSRC/row, ausência de stats e SID novo após reconexão", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    await f.connect();
+    const sampleStats = vi.fn<() => Promise<RelayRtpSample | null>>(async () =>
+      counters(1000, 1000),
+    );
+    const owned = { sid: "before", track: media(), sampleStats };
+    vi.mocked(f.room.publish).mockResolvedValueOnce(owned);
+    await f.relay.setScreen(owned.track, profile, 8_000_000);
+    await tick();
+    sampleStats.mockResolvedValue({
+      ...counters(2000, 200000, 60),
+      rowId: "new-ssrc",
+    });
+    await tick();
+    expect(f.callbacks.onStats).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        stats: expect.objectContaining({ bitrate: null, fps: null }),
+      }),
+    );
+    sampleStats.mockResolvedValue(null);
+    await tick();
+    expect(f.callbacks.onStats).toHaveBeenLastCalledWith(
+      expect.objectContaining({ stats: null }),
+    );
+    f.disconnect();
+    owned.sid = "after";
+    f.reconnect();
+    sampleStats.mockResolvedValue(counters(3000, 400000, 120));
+    await tick();
+    expect(f.callbacks.onStats).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        publication_sid: "after",
+        ref: expect.objectContaining({ track_sid: "after" }),
+        stats: expect.objectContaining({ bitrate: null, fps: null }),
+      }),
+    );
+    await f.relay.close();
+  });
+
+  it("isola falhas do observador das provas de mídia e do ACK existente", async () => {
+    vi.useFakeTimers();
+    const f = fixture(),
+      video = publication();
+    f.callbacks.onStats.mockImplementation(() => {
+      throw new Error("observer only");
+    });
+    vi.mocked(video.track!.sample).mockResolvedValue({
+      framesDecoded: 30,
+      bytesReceived: 1000,
+      width: 2560,
+      height: 1440,
+      stats: counters(1000, 1000),
+    });
+    f.remote.publications = [video];
+    await f.connect();
+    await tick();
+    expect(f.callbacks.onAck).toHaveBeenLastCalledWith({
+      peer_id: peerB,
+      screen_sfu: { track_sid: video.sid, generation: "video-1" },
+    });
+    expect(f.callbacks.onError).not.toHaveBeenCalled();
+    await f.relay.close();
+  });
+});
 
 describe("ScreenRelay: tela opcional sobre SFU", () => {
   it("aguarda intenção de áudio da geração mesmo quando o roster ainda não anunciou a nova fonte", async () => {

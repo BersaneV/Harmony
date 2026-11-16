@@ -10,6 +10,7 @@ import type {
   ScreenRelayCallbacks,
   ScreenRelayCaptureBound,
   ScreenRelayRef,
+  ScreenRelayMediaStats,
 } from "./screen-relay";
 import type { Session } from "./types";
 import * as browserApi from "./api";
@@ -203,6 +204,7 @@ class Peer {
   ondatachannel: ((event: unknown) => void) | null = null;
   report = new Map<string, unknown>();
   statsFailure = false;
+  statsGate?: Promise<void>;
   addTransceiver(
     value: string | MediaStreamTrack,
     options?: RTCRtpTransceiverInit,
@@ -248,6 +250,7 @@ class Peer {
     this.onnegotiationneeded?.();
   }
   async getStats() {
+    await this.statsGate;
     if (this.statsFailure) throw new Error("Stats unavailable");
     return this.report;
   }
@@ -291,6 +294,21 @@ const active: P2PCall[] = [];
 const capable = (peer: string): CallParticipant => ({
   ...roster(peer),
   screen_sfu: true,
+});
+const relaySample = (
+  values: Partial<ScreenRelayMediaStats> = {},
+): ScreenRelayMediaStats => ({
+  timestamp: 1000,
+  bitrate: 2_000_000,
+  width: 2560,
+  height: 1440,
+  fps: 58,
+  audioLevel: null,
+  packetsLost: 3,
+  jitterMs: 4,
+  iceRttMs: 37,
+  maxBitrate: 16_000_000,
+  ...values,
 });
 function boundedScreen() {
   const track = new Track("video");
@@ -1092,6 +1110,239 @@ describe("optional screen relay integrated with real P2P engine", () => {
     expect(test.call.snapshot.participants[0].tracks.screen).toBe(fallback);
     expect(test.call.snapshot.participants[0].screenTransport).toBe("p2p");
     expect(fallback.readyState).toBe("live");
+  });
+
+  it("reports selected SFU samples with their own RTT and fences stale or unavailable measurements", async () => {
+    const test = setup({ screenSfu: true });
+    const remote = capable("b");
+    remote.media.screen = true;
+    const socket = await test.connect([capable("a"), remote]);
+    await description(socket, "b");
+    test.peers[0].report.set("pair", {
+      id: "pair",
+      type: "candidate-pair",
+      nominated: true,
+      state: "succeeded",
+      currentRoundTripTime: 0.011,
+    });
+    await vi.advanceTimersByTimeAsync(1500);
+    const ref = { track_sid: "TR_remote", generation: "remote_h1440_a0" };
+    test.relay.callbacks.onTrack({
+      peer_id: "b",
+      source: "screen",
+      track: new Track("video").media(),
+      ref,
+    });
+    test.relay.callbacks.onAck({ peer_id: "b", screen_sfu: ref });
+    const event = {
+      direction: "received" as const,
+      peer_id: "b",
+      source: "screen" as const,
+      publication_sid: ref.track_sid,
+      ref,
+      stats: relaySample(),
+    };
+    test.relay.callbacks.onStats!(event);
+    let peer = test.call.snapshot.participants[0];
+    expect(peer.stats.received.screen).toMatchObject({
+      height: 1440,
+      fps: 58,
+      bitrate: 2_000_000,
+      sourceRef: ref,
+      publicationSid: ref.track_sid,
+    });
+    expect(peer.stats.iceRttMs).toBe(11);
+    expect(peer.screenIceRttMs).toBe(37);
+    test.relay.callbacks.onStats!({
+      ...event,
+      publication_sid: "TR_wrong",
+      stats: relaySample({ bitrate: 9_000_000 }),
+    });
+    expect(
+      test.call.snapshot.participants[0].stats.received.screen?.bitrate,
+    ).toBe(2_000_000);
+    test.relay.callbacks.onStats!({
+      ...event,
+      stats: relaySample({ timestamp: 500, bitrate: 9_000_000 }),
+    });
+    expect(
+      test.call.snapshot.participants[0].stats.received.screen?.bitrate,
+    ).toBe(2_000_000);
+    test.relay.callbacks.onStats!({
+      ...event,
+      ref: { ...ref, generation: "older_h1440_a0" },
+      stats: null,
+    });
+    expect(
+      test.call.snapshot.participants[0].stats.received.screen?.height,
+    ).toBe(1440);
+    test.relay.callbacks.onStats!({ ...event, stats: null });
+    peer = test.call.snapshot.participants[0];
+    expect(peer.stats.received.screen).toBeUndefined();
+    expect(peer.screenIceRttMs).toBeNull();
+    expect(peer.stats.iceRttMs).toBe(11);
+    test.relay.callbacks.onStats!(event);
+    test.relay.callbacks.onAck({ peer_id: "b", screen_sfu: null });
+    test.relay.callbacks.onStats!(event);
+    expect(test.call.snapshot.participants[0].screenTransport).toBe("p2p");
+    expect(
+      test.call.snapshot.participants[0].stats.received.screen,
+    ).toBeUndefined();
+    socket.receive({ type: "roster", participants: [capable("a")] });
+    test.relay.callbacks.onStats!(event);
+    expect(test.call.snapshot.participants).toHaveLength(0);
+    test.call.close();
+    test.relay.callbacks.onStats!(event);
+    expect(test.call.snapshot.state).toBe("closed");
+  });
+
+  it("counts one SFU upstream plus actual P2P senders and their applied caps through handoff and fallback", async () => {
+    const test = setup({ screenSfu: true, maxBitrate: 32_000_000 });
+    const members = ["a", "b", "c", "d", "e", "f", "g", "h"].map(capable);
+    const socket = await test.connect(members);
+    for (const member of members.slice(1))
+      await description(socket, member.peer_id);
+    const screen = boundedScreen();
+    await test.call.setScreenProfile({ ...screenProfile, bitrate: 16 });
+    await test.call.setTrack("screen", screen.media());
+    const ref = test.relay.ref!;
+    const event = {
+      direction: "sent" as const,
+      source: "screen" as const,
+      publication_sid: ref.track_sid,
+      ref,
+      stats: relaySample(),
+    };
+    test.relay.callbacks.onStats!(event);
+    expect(test.call.snapshot.screenUpload).toMatchObject({
+      connections: { sfu: 1, p2p: 7 },
+      maxBitrate: 128_000_000,
+      partial: true,
+    });
+    for (const member of members.slice(1))
+      socket.receive({
+        type: "signal",
+        from: member.peer_id,
+        data: { receive: { screen_height: 0, screen_sfu: ref } },
+      });
+    await flush();
+    expect(test.call.snapshot.screenUpload).toEqual({
+      connections: { sfu: 1, p2p: 0 },
+      bitrate: 2_000_000,
+      maxBitrate: 16_000_000,
+      partial: false,
+      maxBitratePartial: false,
+    });
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 360, screen_sfu: null } },
+    });
+    await flush();
+    expect(test.call.snapshot.screenUpload).toMatchObject({
+      connections: { sfu: 1, p2p: 1 },
+      maxBitrate: 32_000_000,
+      partial: true,
+    });
+    const p2p = test.peers[0];
+    p2p.report.set("screen-out", {
+      id: "screen-out",
+      type: "outbound-rtp",
+      mid: "2",
+      timestamp: 1000,
+      bytesSent: 1000,
+      framesSent: 10,
+    });
+    await vi.advanceTimersByTimeAsync(1500);
+    p2p.report.set("screen-out", {
+      id: "screen-out",
+      type: "outbound-rtp",
+      mid: "2",
+      timestamp: 2500,
+      bytesSent: 151000,
+      framesSent: 55,
+    });
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(test.call.snapshot.screenUpload).toMatchObject({
+      bitrate: 2_800_000,
+      partial: false,
+    });
+    p2p.slots[2].sender.parameters.encodings[0].maxBitrate = 1_000_000;
+    test.relay.callbacks.onStats!(event);
+    expect(test.call.snapshot.screenUpload.maxBitrate).toBe(17_000_000);
+    p2p.slots[2].sender.parameters.encodings = [{}];
+    test.relay.callbacks.onStats!(event);
+    expect(test.call.snapshot.screenUpload).toMatchObject({
+      maxBitrate: 16_000_000,
+      maxBitratePartial: true,
+    });
+    test.relay.callbacks.onStats!({ ...event, stats: null });
+    expect(test.call.snapshot.screenUpload).toMatchObject({
+      bitrate: 800_000,
+      partial: true,
+    });
+    const old = event;
+    await test.call.setScreenProfile({ ...screenProfile, bitrate: 8 });
+    test.relay.callbacks.onStats!(old);
+    expect(test.call.snapshot.screenUpload).toMatchObject({
+      bitrate: 800_000,
+      partial: true,
+    });
+    test.call.setTrackEnabled("screen", false);
+    expect(test.call.snapshot.screenUpload.connections).toEqual({
+      sfu: 0,
+      p2p: 0,
+    });
+  });
+
+  it("does not reuse a pending P2P sample across detach and reattach of the same screen", async () => {
+    const test = setup({ screenSfu: true });
+    const socket = await test.connect([capable("a"), capable("b")]);
+    await description(socket, "b");
+    const screen = boundedScreen();
+    await test.call.setTrack("screen", screen.media());
+    const ref = test.relay.ref!,
+      peer = test.peers[0];
+    peer.report.set("out", {
+      id: "out",
+      type: "outbound-rtp",
+      mid: "2",
+      timestamp: 1000,
+      bytesSent: 1000,
+    });
+    await vi.advanceTimersByTimeAsync(1500);
+    let release!: () => void;
+    peer.statsGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    peer.report.set("out", {
+      id: "out",
+      type: "outbound-rtp",
+      mid: "2",
+      timestamp: 2500,
+      bytesSent: 151000,
+    });
+    await vi.advanceTimersByTimeAsync(1500);
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 0, screen_sfu: ref } },
+    });
+    await flush();
+    expect(peer.slots[2].sender.track).toBeNull();
+    socket.receive({
+      type: "signal",
+      from: "b",
+      data: { receive: { screen_height: 360, screen_sfu: null } },
+    });
+    await flush();
+    expect(peer.slots[2].sender.track).toBe(screen);
+    release();
+    await flush();
+    expect(test.call.snapshot.screenUpload.bitrate).toBeNull();
+    expect(
+      test.call.snapshot.participants[0].stats.sent.screen,
+    ).toBeUndefined();
   });
 
   it("keeps voice alive on relay failure and rejects callbacks after close or authoritative removal", async () => {

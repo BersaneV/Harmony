@@ -219,7 +219,7 @@ async function browser(index) {
  qa.tone=f=>{const o=qa.audio.createOscillator(),g=qa.audio.createGain(),d=qa.audio.createMediaStreamDestination();o.frequency.value=f;g.gain.value=.1;o.connect(g).connect(d);o.start();qa.resources.push(o);return d.stream.getAudioTracks()[0];};
  qa.render=s=>{qa.latest=s;const active=new Set();for(const peer of s.participants)for(const[source,track]of Object.entries(peer.tracks)){if(!track)continue;const key=peer.peer_id+':'+source;active.add(key);let old=qa.elements.get(key);if(old?.track===track)continue;if(old)old.element.remove();const element=document.createElement(track.kind==='video'?'video':'audio');element.autoplay=true;element.muted=track.kind==='video';element.srcObject=new MediaStream([track]);document.body.append(element);element.play().catch(()=>{});qa.elements.set(key,{track,element});}for(const[key,old]of qa.elements)if(!active.has(key)){old.element.remove();qa.elements.delete(key);}};
  qa.decodedMics=async()=>Promise.all([...rtcCall.peers.values()].map(async p=>{const stats=await p.pc.getStats();return [...stats.values()].some(r=>r.type==='inbound-rtp'&&r.kind==='audio'&&r.mid==='0'&&r.bytesReceived>0&&r.totalAudioEnergy>0);}));
- qa.serial=()=>({state:rtcCall.snapshot.state,participants:rtcCall.snapshot.participants.map(p=>({id:p.peer_id,user:p.user_id,connection:p.connection,screenTransport:p.screenTransport,sources:Object.keys(p.tracks)})),local:Object.keys(rtcCall.snapshot.localTracks),relay:!!rtcCall.relay,relayRef:rtcCall.relayLocalRef??null,p2p:[...rtcCall.peers.values()].map(p=>({id:p.member.peer_id,mic:p.pc.getTransceivers()[0]?.sender.track?.id??null,screen:p.pc.getTransceivers()[2]?.sender.track?.id??null,audio:p.pc.getTransceivers()[3]?.sender.track?.id??null})),mic:qa.mic?.id,errors:qa.errors});
+ qa.serial=()=>({state:rtcCall.snapshot.state,participants:rtcCall.snapshot.participants.map(p=>({id:p.peer_id,user:p.user_id,connection:p.connection,screenTransport:p.screenTransport,screenIceRttMs:p.screenIceRttMs,stats:p.stats,sources:Object.keys(p.tracks)})),screenUpload:rtcCall.snapshot.screenUpload,relayPublisherStats:rtcCall.relaySentStats,local:Object.keys(rtcCall.snapshot.localTracks),relay:!!rtcCall.relay,relayRef:rtcCall.relayLocalRef??null,p2p:[...rtcCall.peers.values()].map(p=>({id:p.member.peer_id,mic:p.pc.getTransceivers()[0]?.sender.track?.id??null,screen:p.pc.getTransceivers()[2]?.sender.track?.id??null,audio:p.pc.getTransceivers()[3]?.sender.track?.id??null,screenEncodings:p.pc.getTransceivers()[2]?.sender.getParameters().encodings??[]})),mic:qa.mic?.id,errors:qa.errors});
  true;`,
     true,
   );
@@ -248,6 +248,7 @@ for (const name of [
   "apps/desktop/src/lib/call.ts",
   "apps/desktop/src/lib/screen-relay.ts",
   "apps/desktop/src/lib/capture-track.ts",
+  "apps/desktop/src/components/P2PCallPanel.tsx",
   "scripts/test_call_screen_sfu.mjs",
 ])
   evidence.source_hashes[name] = await digest(resolve(root, name));
@@ -456,6 +457,48 @@ try {
       all[0].p2p.every((p) => p.screen === null && p.audio === null),
     "After confirmed SFU ACK only screen senders retire; original voice remains P2P",
   );
+  await until(
+    async () => {
+      const all = await snapshots();
+      return (
+        all[0].screenUpload?.connections.sfu === 1 &&
+        all[0].screenUpload.connections.p2p === 0 &&
+        all[0].screenUpload.bitrate > 0 &&
+        !all[0].screenUpload.partial &&
+        all[0].screenUpload.maxBitrate === 2_000_000 &&
+        !all[0].screenUpload.maxBitratePartial &&
+        all.slice(1).every((s) => {
+          const peer = s.participants.find((p) => p.user === owner.user.id),
+            stats = peer?.stats.received.screen;
+          return (
+            peer?.screenTransport === "sfu" &&
+            stats?.width > 0 &&
+            stats.height > 0 &&
+            stats.fps > 0 &&
+            stats.bitrate > 0 &&
+            stats.sourceRef?.track_sid === all[0].relayRef.track_sid &&
+            stats.sourceRef.generation === all[0].relayRef.generation &&
+            stats.publicationSid === stats.sourceRef.track_sid &&
+            Number.isFinite(peer.screenIceRttMs) &&
+            Number.isFinite(peer.stats.iceRttMs) &&
+            peer.stats.route === "direct"
+          );
+        })
+      );
+    },
+    "Seven real SFU receivers report RTP dimensions/FPS/bitrate and separate video/voice ICE; one measured upstream with one applied cap",
+    15000,
+  );
+  all = await snapshots();
+  evidence.telemetry_sfu = all;
+  check(
+    all[0].screenUpload.bitrate === all[0].relayPublisherStats.screen.bitrate,
+    "Seven SFU viewers count the single measured publisher upload exactly once",
+  );
+  check(
+    true,
+    "All seven decoded SDK screens expose real RTP dimensions/FPS/bitrate and their own ICE RTT with source SID/generation",
+  );
   const ownerPeer = all[0].participants.find(
     (p) => p.user === accounts[1].user.id,
   )?.id;
@@ -481,6 +524,40 @@ try {
     true,
     "One capped recipient falls back independently without moving the other six",
   );
+  await until(
+    async () => {
+      const all = await snapshots(),
+        upload = all[0].screenUpload,
+        sender = all[0].participants.find((p) => p.id === ownerPeer),
+        receiver = all[1].participants.find((p) => p.user === owner.user.id);
+      return (
+        upload.connections.sfu === 1 &&
+        upload.connections.p2p === 1 &&
+        !upload.partial &&
+        !upload.maxBitratePartial &&
+        upload.maxBitrate === 4_000_000 &&
+        sender?.stats.sent.screen?.bitrate > 0 &&
+        receiver?.stats.received.screen?.bitrate > 0 &&
+        upload.bitrate ===
+          all[0].relayPublisherStats.screen.bitrate +
+            sender.stats.sent.screen.bitrate &&
+        all
+          .slice(2)
+          .every(
+            (s) =>
+              s.participants.find((p) => p.user === owner.user.id)
+                ?.screenTransport === "sfu",
+          )
+      );
+    },
+    "Mixed upload sums one SDK publisher and one measured P2P fallback, with two applied caps",
+    15000,
+  );
+  evidence.telemetry_mixed = await snapshots();
+  check(
+    true,
+    "Mixed screen upload sums the single SDK publisher plus one real P2P sender and their applied caps",
+  );
   await stop(lk);
   await until(
     async () => {
@@ -501,6 +578,13 @@ try {
   );
   all = await snapshots();
   check(
+    all[0].screenUpload.connections.sfu === 0 &&
+      all[0].screenUpload.connections.p2p === 7 &&
+      all[0].screenUpload.maxBitrate === 14_000_000,
+    "SFU loss removes its telemetry and the applied video ceiling follows seven real P2P senders",
+  );
+  evidence.telemetry_p2p = all;
+  check(
     all.every(
       (s) =>
         s.state === "connected" &&
@@ -516,7 +600,7 @@ try {
     status: "PASS",
     checks,
     scope:
-      "Eight isolated real Chromium engines, real Harmony/SQLite/LiveKit, generated sources; transport and lifecycle only",
+      "Eight isolated real Chromium engines, real Harmony/SQLite/LiveKit, generated sources; transport, lifecycle and effective RTP telemetry",
     not_run: [
       "Physical capture",
       "Windows WebView2",
