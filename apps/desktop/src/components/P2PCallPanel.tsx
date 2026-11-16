@@ -560,7 +560,7 @@ export default function P2PCallPanel({
       const useNative =
         nativeAvailable &&
         captureMethod === "auto" &&
-        profile.fps === 60 &&
+        [15, 24, 30, 60].includes(profile.fps) &&
         !profile.audio;
       if (useNative) {
         const sources = await nativeScreenSources();
@@ -1060,7 +1060,7 @@ export default function P2PCallPanel({
                   }
                 >
                   <option value="auto">
-                    Automático: janela nativa em 60 FPS sem áudio
+                    Automático: janela nativa sem áudio e FPS definido
                   </option>
                   <option value="browser">
                     Navegador: tela, janela ou aba
@@ -1168,7 +1168,7 @@ export default function P2PCallPanel({
             upload. O bitrate é um teto de vídeo, com áudio e protocolo
             adicionais.
             {nativeAvailable &&
-              " Em 60 FPS sem áudio da tela, o modo automático usa captura nativa de janela. Para outra fonte ou se ela falhar, escolha Navegador. Com áudio da tela, a seleção usa o navegador."}
+              " Com 15, 24, 30 ou 60 FPS e sem áudio da tela, o modo automático usa captura nativa de janela. Com FPS Automático ou áudio da tela, a seleção usa o navegador. Para outra fonte ou se a captura nativa falhar, escolha Navegador."}
           </p>
           {preview?.getVideoTracks()[0] && (
             <div className="share-preview">

@@ -14,7 +14,13 @@ const end = source.indexOf("  async function stopSharing()", start);
 if (start < 0 || end <= start) throw new Error("Capture handler not found");
 const handler = stripTypeScriptTypes(source.slice(start, end));
 
-function fixture({ native = false, height = 720, fps = 30 } = {}) {
+function fixture({
+  native = false,
+  height = 720,
+  fps = 30,
+  screenAudio = false,
+  method = "auto",
+} = {}) {
   class Track extends EventTarget {
     kind = "video";
     readyState = "live";
@@ -42,7 +48,7 @@ function fixture({ native = false, height = 720, fps = 30 } = {}) {
     DOMException,
     allowed: { current: true },
     mounted: { current: true },
-    profile: { height, fps, bitrate: 4, audio: false, content: "motion" },
+    profile: { height, fps, bitrate: 4, audio: screenAudio, content: "motion" },
     state: { maxVideoBitrate: 32e6 },
     validateProfile: vi.fn(),
     stopPreview: vi.fn(),
@@ -50,7 +56,7 @@ function fixture({ native = false, height = 720, fps = 30 } = {}) {
     previewRef: { current: null },
     nativeCaptureAbort: { current: null },
     nativeAvailable: native,
-    captureMethod: "auto",
+    captureMethod: method,
     nativeSelection: { current: null },
     nativeScreenSources: vi.fn(async () => [{ key: "owned", title: "Window" }]),
     setNativeSources: vi.fn(() => {
@@ -163,6 +169,154 @@ describe("compiled screen preview capture handler", () => {
       expect(f.audio.stop).toHaveBeenCalledOnce();
       expect(f.applyCaptureConstraints).not.toHaveBeenCalled();
       expect(f.setPreview).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("automatic Windows capture path without screen audio", () => {
+  it.each([15, 24, 30, 60])(
+    "uses the normal native source picker and requested constraints at %i explicit FPS",
+    async (fps) => {
+      const f = fixture({ native: true, height: 720, fps });
+      await f.run();
+      expect(f.context.nativeScreenSources).toHaveBeenCalledOnce();
+      expect(f.context.setNativeSources).toHaveBeenCalledWith([
+        { key: "owned", title: "Window" },
+      ]);
+      expect(f.context.createNativeScreenTrack).toHaveBeenCalledExactlyOnceWith(
+        "owned",
+        f.context.profile,
+        { signal: f.context.nativeCaptureAbort.current.signal },
+      );
+      expect(f.applyCaptureConstraints).toHaveBeenCalledExactlyOnceWith(
+        f.video,
+        {
+          height: { ideal: 720, max: 720 },
+          frameRate: { ideal: fps, max: fps },
+        },
+      );
+      expect(f.getDisplayMedia).not.toHaveBeenCalled();
+      expect(f.resolveCaptureSettings).not.toHaveBeenCalled();
+      expect(f.setPreview).toHaveBeenCalledOnce();
+      expect(f.video.stop).not.toHaveBeenCalled();
+    },
+  );
+  it.each([30, 60])(
+    "preserves browser and system audio when screen audio is requested at %i FPS",
+    async (fps) => {
+      const f = fixture({ native: true, fps, screenAudio: true });
+      await f.run();
+      expect(f.getDisplayMedia).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          audio: true,
+          systemAudio: "include",
+          video: {
+            height: { ideal: 720, max: 720 },
+            frameRate: { ideal: fps, max: fps },
+          },
+        }),
+      );
+      expect(f.context.nativeScreenSources).not.toHaveBeenCalled();
+      expect(f.context.createNativeScreenTrack).not.toHaveBeenCalled();
+      expect(f.setPreview).toHaveBeenCalledWith(f.stream);
+      expect(f.audio.stop).not.toHaveBeenCalled();
+    },
+  );
+  it.each([30, 60])(
+    "preserves explicit browser capture with native available at %i FPS",
+    async (fps) => {
+      const f = fixture({ native: true, fps, method: "browser" });
+      await f.run();
+      expect(f.getDisplayMedia).toHaveBeenCalledOnce();
+      expect(f.resolveCaptureSettings).toHaveBeenCalledOnce();
+      expect(f.context.nativeScreenSources).not.toHaveBeenCalled();
+      expect(f.context.createNativeScreenTrack).not.toHaveBeenCalled();
+    },
+  );
+  it.each([30, 60])(
+    "keeps browser capture when native is unavailable at %i FPS",
+    async (fps) => {
+      const f = fixture({ native: false, fps });
+      await f.run();
+      expect(f.getDisplayMedia).toHaveBeenCalledOnce();
+      expect(f.context.nativeScreenSources).not.toHaveBeenCalled();
+      expect(f.context.createNativeScreenTrack).not.toHaveBeenCalled();
+    },
+  );
+  it("keeps automatic FPS on the existing browser path with its effective30 FPS cap", async () => {
+    const f = fixture({ native: true, fps: 0 });
+    await f.run();
+    expect(f.getDisplayMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: {
+          height: { ideal: 720, max: 720 },
+          frameRate: { ideal: 30, max: 30 },
+        },
+      }),
+    );
+    expect(f.context.createNativeScreenTrack).not.toHaveBeenCalled();
+  });
+  it.each([30, 60])(
+    "cancels native picker without starting any capture or browser fallback at %i FPS",
+    async (fps) => {
+      const f = fixture({ native: true, fps });
+      f.context.setNativeSources.mockImplementationOnce(() => {
+        queueMicrotask(() => f.context.nativeSelection.current?.(null));
+      });
+      await f.run();
+      expect(f.context.nativeScreenSources).toHaveBeenCalledOnce();
+      expect(f.context.createNativeScreenTrack).not.toHaveBeenCalled();
+      expect(f.getDisplayMedia).not.toHaveBeenCalled();
+      expect(f.applyCaptureConstraints).not.toHaveBeenCalled();
+      expect(f.setPreview).not.toHaveBeenCalled();
+    },
+  );
+  it.each([30, 60])(
+    "native consent rejection at %i FPS never opens a browser capture automatically",
+    async (fps) => {
+      const f = fixture({ native: true, fps });
+      f.context.createNativeScreenTrack.mockRejectedValueOnce(
+        new DOMException("cancelled", "NotAllowedError"),
+      );
+      await expect(f.run()).rejects.toThrow(
+        "A seleção foi cancelada ou a captura não foi autorizada.",
+      );
+      expect(f.getDisplayMedia).not.toHaveBeenCalled();
+      expect(f.setPreview).not.toHaveBeenCalled();
+    },
+  );
+  it.each(
+    [30, 60].flatMap((fps) =>
+      ["abort", "revocation", "unmount", "replacement"].map((cause) => ({
+        fps,
+        cause,
+      })),
+    ),
+  )(
+    "releases a late native track at $fps FPS after $cause without changing the path",
+    async ({ fps, cause }) => {
+      const f = fixture({ native: true, fps });
+      let complete;
+      f.context.createNativeScreenTrack.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            complete = resolve;
+          }),
+      );
+      const pending = f.run();
+      await vi.waitFor(() =>
+        expect(f.context.createNativeScreenTrack).toHaveBeenCalledOnce(),
+      );
+      if (cause === "abort") f.context.nativeCaptureAbort.current.abort();
+      else if (cause === "revocation") f.context.allowed.current = false;
+      else if (cause === "unmount") f.context.mounted.current = false;
+      else f.context.previewGeneration.current++;
+      complete(f.video);
+      await pending;
+      expect(f.video.stop).toHaveBeenCalledOnce();
+      expect(f.audio.stop).not.toHaveBeenCalled();
+      expect(f.setPreview).not.toHaveBeenCalled();
+      expect(f.getDisplayMedia).not.toHaveBeenCalled();
     },
   );
 });

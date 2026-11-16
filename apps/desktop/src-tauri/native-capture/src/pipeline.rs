@@ -257,8 +257,8 @@ impl FramePipeline {
             return Err("A prévia da captura deixou de responder.".into());
         }
         // The UI may finish Sending between this snapshot and lease.reserve.
-        // A missing prior completion must force a retry, never due=now. Once
-        // confirmed, its time is immutable until this sole worker reserves.
+        // A missing prior completion must force a retry before any deadline
+        // advances. Once confirmed, its time is immutable until this worker reserves.
         if self.sequence != 0 && previous_sent.is_none() {
             return Ok(None);
         }
@@ -276,7 +276,14 @@ impl FramePipeline {
         self.prepared = None;
         self.sequence = sequence;
         self.last_reservation = Some(now);
-        self.send_due = Some(previous_sent.map_or(now, |sent| sent + epoch.settings().period()));
+        // FPS paces captures and nominal deadlines, not the interval between
+        // actual UI callbacks. Adding UI dispatch cost to every next deadline
+        // would accumulate drift. A late reservation starts a fresh deadline
+        // at now instead of retaining missed slots for a catch-up queue.
+        self.send_due = Some(
+            self.send_due
+                .map_or(now, |due| (due + epoch.settings().period()).max(now)),
+        );
         self.send_queued = false;
         Ok(Some(ReservedFrame {
             sequence,
@@ -376,6 +383,7 @@ mod tests {
         assert!(!l.ack(a.sequence));
         assert!(!l.begin_send(a.sequence));
         assert!(!l.pixels_available());
+        assert!(p.queue_send(ms(20), &l).unwrap().is_none());
         assert!(!p.can_capture(ms(20), e, &l, true, false));
         copy(&l, a);
         assert!(!l.ack(a.sequence));
@@ -435,14 +443,19 @@ mod tests {
         assert_eq!(p.rate_start, Some(ms(21)));
         assert_eq!(p.observed_sent, a.sequence);
         copy(&l, b);
-        assert!(p.queue_send(ms(21), &l).unwrap().is_none());
-        assert_eq!(
-            send(&mut p, &l, ms(21) + e.settings().period()).sequence,
-            b.sequence
-        );
+        assert!(!l.ack(b.sequence));
+        // A's actual completion is still required and counted exactly once,
+        // but it no longer pushes B's nominal deadline out by another period.
+        assert_eq!(send(&mut p, &l, ms(21)).sequence, b.sequence);
+        assert!(l.ack(b.sequence));
+        p.queue_send(ms(22), &l).unwrap();
+        p.queue_send(ms(23), &l).unwrap();
+        assert_eq!(p.observed_sent, b.sequence);
+        assert_eq!(p.rate_start, Some(ms(21)));
+        assert_eq!(p.rate_count, 1);
     }
     #[test]
-    fn copy_is_early_and_actual_ui_metadata_sends_stay_one_period_apart() {
+    fn late_ui_send_reanchors_nominal_deadline_without_replaying_missed_slots() {
         let (mut p, l, e) = (FramePipeline::default(), FrameLease::default(), epoch());
         capture(&mut p, &l, 0, e);
         let a = reserve(&mut p, &l, 4, e);
@@ -452,15 +465,26 @@ mod tests {
         capture(&mut p, &l, 101, e);
         let b = reserve(&mut p, &l, 105, e);
         copy(&l, b);
-        assert!(p.queue_send(ms(109), &l).unwrap().is_none());
+        assert_eq!(p.send_due, Some(ms(105)));
         assert!(!l.ack(b.sequence));
-        let due = ms(100) + e.settings().period();
-        assert_eq!(p.wait(ms(109), e, &l), due - ms(109));
+        assert_eq!(p.wait(ms(109), e, &l), Duration::from_micros(500));
+        assert_eq!(send(&mut p, &l, ms(109)).sequence, b.sequence);
+        assert!(l.ack(b.sequence));
+        let next_capture = ms(101) + e.settings().period();
+        assert!(!p.can_capture(next_capture - Duration::from_nanos(1), e, &l, true, false));
+        p.captured(next_capture, next_capture + ms(4), 2560, 1440, e, &l)
+            .unwrap();
+        let c = p
+            .reserve_copy(next_capture + ms(4), e, &l, true, false)
+            .unwrap()
+            .unwrap();
+        copy(&l, c);
+        let due = ms(105) + e.settings().period();
         assert!(p
             .queue_send(due - Duration::from_nanos(1), &l)
             .unwrap()
             .is_none());
-        assert_eq!(send(&mut p, &l, due).sequence, b.sequence);
+        assert_eq!(send(&mut p, &l, due).sequence, c.sequence);
         assert_eq!(b.captured_at, ms(105));
     }
     #[test]
@@ -475,8 +499,7 @@ mod tests {
         let b = reserve(&mut p, &l, 105, e);
         copy(&l, b);
         assert!(!p.can_capture(ms(118), e, &l, true, false));
-        let due = ms(100) + e.settings().period();
-        p.queue_send(due, &l).unwrap().unwrap();
+        p.queue_send(ms(109), &l).unwrap().unwrap();
         assert!(p.can_capture(ms(118), e, &l, true, false));
     }
     #[test]
@@ -580,7 +603,10 @@ mod tests {
         copy(&l, a);
         send(&mut p, &l, ms(4));
         capture(&mut p, &l, 17, e);
-        assert!(!p.can_capture(ms(4000), e, &l, true, false));
+        for at in 21..=4000 {
+            assert!(!p.can_capture(ms(at), e, &l, true, false));
+            assert_eq!(p.prepared.unwrap().captured_at, ms(21));
+        }
         l.ack(a.sequence);
         assert!(p
             .reserve_copy(ms(4000), e, &l, true, false)
@@ -590,6 +616,52 @@ mod tests {
         let b = reserve(&mut p, &l, 4004, e);
         assert_eq!(b.sequence, 2);
         assert_eq!(b.captured_at, ms(4004));
+        assert_eq!(p.send_due, Some(ms(4004)));
+        copy(&l, b);
+        send(&mut p, &l, ms(4004));
+        assert!(l.ack(b.sequence));
+        assert!(p.queue_send(ms(4005), &l).unwrap().is_none());
+        assert_eq!(p.fps, Some(0.25));
+        assert!(!p.can_capture(ms(4005), e, &l, true, false));
+        assert!(p.prepared.is_none());
+    }
+    #[test]
+    fn profile_change_uses_the_current_capture_period_and_discards_old_pixels() {
+        let (mut p, l, mut e) = (FramePipeline::default(), FrameLease::default(), epoch());
+        capture(&mut p, &l, 0, e);
+        let a = reserve(&mut p, &l, 4, e);
+        copy(&l, a);
+        send(&mut p, &l, ms(15));
+        capture(&mut p, &l, 17, e);
+        e.replace(Profile {
+            height: 720,
+            fps: 15,
+        })
+        .unwrap();
+        assert!(l.ack(a.sequence));
+        assert!(p
+            .reserve_copy(ms(21), e, &l, true, false)
+            .unwrap()
+            .is_none());
+        let start = ms(17) + e.settings().period();
+        assert!(!p.can_capture(start - Duration::from_nanos(1), e, &l, true, false));
+        p.captured(start, start + ms(4), 1280, 720, e, &l).unwrap();
+        let b = p
+            .reserve_copy(start + ms(4), e, &l, true, false)
+            .unwrap()
+            .unwrap();
+        assert_eq!((b.width, b.height), (1280, 720));
+        copy(&l, b);
+        assert!(!l.ack(b.sequence));
+        assert_eq!(send(&mut p, &l, start + ms(8)).sequence, b.sequence);
+        assert!(l.ack(b.sequence));
+        assert!(!p.can_capture(
+            start + e.settings().period() - Duration::from_nanos(1),
+            e,
+            &l,
+            true,
+            false
+        ));
     }
     #[test]
     fn geometry_stop_wrong_ids_and_duplicate_ui_callbacks_fail_closed() {
@@ -597,6 +669,8 @@ mod tests {
         p.captured(ms(0), ms(4), 1280, 720, e, &l).unwrap();
         assert!(p.reserve_copy(ms(4), e, &l, true, true).unwrap().is_none());
         assert_eq!(l.pending_sequence(), 0);
+        assert!(!p.can_capture(ms(17), e, &l, true, true));
+        assert!(!p.can_capture(ms(17), e, &l, false, false));
         p.captured(ms(17), ms(21), 1280, 720, e, &l).unwrap();
         let a = reserve(&mut p, &l, 21, e);
         assert_eq!((a.width, a.height), (1280, 720));
@@ -614,7 +688,7 @@ mod tests {
         assert!(!l.finish_send(a.sequence, ms(9999)));
     }
     #[test]
-    fn actual_send_pacing_has_no_copy_cost_tax_or_fps_rounding() {
+    fn nominal_deadlines_and_capture_period_do_not_round_fps_up() {
         for fps in [15, 24, 30, 60] {
             let e = ProfileEpoch::new(Profile { height: 1440, fps }).unwrap();
             let period = e.settings().period();
@@ -673,6 +747,69 @@ mod tests {
                 assert_eq!(s.fps, Some(1.0));
             }
             l.ack(f.sequence);
+        }
+    }
+    #[test]
+    fn constant_ui_overhead_does_not_accumulate_into_nominal_capture_or_send_rate() {
+        for fps in [15, 24, 30, 60] {
+            let e = ProfileEpoch::new(Profile { height: 1440, fps }).unwrap();
+            let (mut p, l) = (FramePipeline::default(), FrameLease::default());
+            let mut readback: Option<Duration> = None;
+            let mut ui_copy: Option<(Duration, u64)> = None;
+            let mut ui_send: Option<(Duration, u64)> = None;
+            let mut captures = Vec::new();
+            let mut sends = Vec::new();
+            // Deterministic worker/UI clocks: 4 ms GPU readback, 4 ms UI copy,
+            // and 2 ms metadata callback dispatch. These are independent of
+            // the nominal period; only completed sends count as output.
+            for tick in 0..30_000 {
+                let now = Duration::from_micros(tick * 100);
+                if let Some((at, sequence)) = ui_copy.filter(|(at, _)| now >= *at) {
+                    assert_eq!(at, now);
+                    assert!(l.finish_copy(sequence));
+                    ui_copy = None;
+                }
+                if let Some((_, sequence)) = ui_send.filter(|(at, _)| now >= *at) {
+                    assert!(l.begin_send(sequence));
+                    assert!(l.finish_send(sequence, now));
+                    assert!(l.ack(sequence));
+                    sends.push(now);
+                    ui_send = None;
+                }
+                if let Some(started) = readback {
+                    if now < started + ms(4) {
+                        continue;
+                    }
+                    p.captured(started, now, 2560, 1440, e, &l).unwrap();
+                    readback = None;
+                }
+                if let Some(frame) = p.queue_send(now, &l).unwrap() {
+                    assert!(ui_send.replace((now + ms(2), frame.sequence)).is_none());
+                }
+                if let Some(frame) = p.reserve_copy(now, e, &l, true, false).unwrap() {
+                    assert!(ui_copy.replace((now + ms(4), frame.sequence)).is_none());
+                }
+                if p.can_capture(now, e, &l, true, false) {
+                    captures.push(now);
+                    readback = Some(now);
+                }
+            }
+            assert!(captures
+                .windows(2)
+                .all(|w| w[1] - w[0] >= e.settings().period()));
+            let actual_rate = (sends.len() - 1) as f64
+                / (sends.last().unwrap().saturating_sub(sends[0])).as_secs_f64();
+            eprintln!(
+                "fixed UI overhead: requested={fps} capture_count={} sent_count={} actual_rate={actual_rate:.6}",
+                captures.len(),
+                sends.len()
+            );
+            assert!(
+                actual_rate > f64::from(fps) * 0.985,
+                "{fps} fps capture with fixed UI overhead produced {actual_rate} fps"
+            );
+            assert!(actual_rate <= f64::from(fps));
+            assert!((p.fps.unwrap() - actual_rate).abs() < 0.1);
         }
     }
 }
