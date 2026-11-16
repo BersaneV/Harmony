@@ -31,6 +31,7 @@ import {
   applyCaptureConstraints,
   getCaptureSettings,
   releaseCaptureTrack,
+  resolveCaptureSettings,
 } from "../lib/capture-track";
 import {
   createNativeScreenTrack,
@@ -600,16 +601,44 @@ export default function P2PCallPanel({
       }
       const video = stream.getVideoTracks()[0];
       if (!video) throw new Error("A captura não forneceu vídeo.");
-      // Initial browser dimensions may describe the desktop before the first
-      // window frame. Let the source preserve its natural aspect ratio.
-      await applyCaptureConstraints(video, {
-        ...(profile.height
-          ? { height: { ideal: profile.height, max: profile.height } }
-          : {}),
-        frameRate: { ideal: profile.fps || 30, max: profile.fps || 30 },
-      });
+      if (useNative) {
+        await applyCaptureConstraints(video, {
+          ...(profile.height
+            ? { height: { ideal: profile.height, max: profile.height } }
+            : {}),
+          frameRate: { ideal: profile.fps || 30, max: profile.fps || 30 },
+        });
+      } else {
+        // Browser defaults can cap width; use a current frame's aspect ratio.
+        const frame = await resolveCaptureSettings(video, {
+          signal: controller.signal,
+        });
+        if (
+          controller.signal.aborted ||
+          !mounted.current ||
+          !allowed.current ||
+          attempt !== previewGeneration.current
+        ) {
+          stream.getTracks().forEach(releaseCaptureTrack);
+          return;
+        }
+        await applyCaptureConstraints(video, {
+          ...(profile.height
+            ? {
+                width: {
+                  max: Math.round(
+                    (profile.height * frame.width) / frame.height,
+                  ),
+                },
+                height: { max: profile.height },
+              }
+            : {}),
+          frameRate: { max: profile.fps || 30 },
+        });
+      }
       video.contentHint = profile.content === "text" ? "detail" : "motion";
       if (
+        controller.signal.aborted ||
         !mounted.current ||
         !allowed.current ||
         attempt !== previewGeneration.current
