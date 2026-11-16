@@ -6,7 +6,7 @@ Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes
 Add-Type @'
 using System;using System.Runtime.InteropServices;
 public class HarmonyNativeConsent {
- [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern IntPtr FindWindow(string cls,string title);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern IntPtr FindWindow(IntPtr cls,string title);
  [DllImport("user32.dll")]public static extern IntPtr GetDlgItem(IntPtr dialog,int id);
  [DllImport("user32.dll")]public static extern IntPtr SendMessage(IntPtr window,uint message,IntPtr w,IntPtr l);
  [DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr window);
@@ -21,7 +21,7 @@ public class HarmonyNativeConsent {
 $deadline=[DateTime]::UtcNow.AddSeconds(45)
 while ([DateTime]::UtcNow -lt $deadline) {
  $exactTitle='Harmony '+[char]0x2014+' autorizar captura'
- $handle=[HarmonyNativeConsent]::FindWindow($null,$exactTitle)
+ $handle=[HarmonyNativeConsent]::FindWindow([IntPtr]::Zero,$exactTitle)
  $dialog=if($handle -ne [IntPtr]::Zero){[Windows.Automation.AutomationElement]::FromHandle($handle)}else{$null}
  if ($dialog) {
   $text=$dialog.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
@@ -41,7 +41,7 @@ while ([DateTime]::UtcNow -lt $deadline) {
 }
 $windows=[Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Children,[Windows.Automation.Condition]::TrueCondition)
 $windows | Where-Object {$_.Current.Name -like '*Harmony*'} | ForEach-Object {[ordered]@{name=$_.Current.Name;handle=$_.Current.NativeWindowHandle;type=$_.Current.ControlType.ProgrammaticName}} | ConvertTo-Json -Compress
-$main=[HarmonyNativeConsent]::FindWindow($null,'Harmony')
+$main=[HarmonyNativeConsent]::FindWindow([IntPtr]::Zero,'Harmony')
 if($main -ne [IntPtr]::Zero){
  [uint32]$ownerPid=0;$null=[HarmonyNativeConsent]::GetWindowThreadProcessId($main,[ref]$ownerPid)
  $names=@();foreach($thread in [Diagnostics.Process]::GetProcessById($ownerPid).Threads){
