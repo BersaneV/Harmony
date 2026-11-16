@@ -7,7 +7,7 @@ import {observe} from './observe.mjs';
 const profile=getProfile('1440p60');
 const native=()=>({index:0,kind:'native',ready:'live',label:'native-window:42',backend:'native-wgc',settings_source:'native-frame-metadata',settings:{width:2560,height:1440},track_settings:{},track_id:'actual-generator'});
 
-test('legacy releases retain browser capture, while only the explicit new 60 FPS release uses layered WGC',()=>{
+test('legacy releases retain their original browser and 60 FPS capture paths',()=>{
  for(const release of ['0.4.1','0.4.2']){assert.equal(captureMode(release,profile),'browser');assert.equal(fixtureScript(release,profile),'window.ps1');}
  assert.equal(captureMode('0.4.3',getProfile('720p30')),'browser');
  assert.equal(captureMode('0.4.3',profile),'native');assert.equal(fixtureScript('0.4.3',profile),'window-layered.ps1');
@@ -17,7 +17,7 @@ test('legacy releases retain browser capture, while only the explicit new 60 FPS
  assert.equal(captureMode('0.4.5',getProfile('720p30')),'browser');
  assert.equal(captureMode('0.4.6',profile),'native');
  assert.equal(captureMode('0.4.6',getProfile('720p30')),'browser');
- assert.throws(()=>captureMode('0.4.7',profile),/Unsupported pinned/);
+ assert.throws(()=>captureMode('0.4.8',profile),/Unsupported pinned/);
 });
 test('capture identity rejects another HWND, backend, missing live track and reduced dimensions',()=>{
  assertOwnedCapture(native(),42,profile,'native');
@@ -74,4 +74,21 @@ test('fixture readiness accepts the real native lifetime suffix and preserves ex
  assert.equal(fixtureReady(line,p,'native'),true);
  for(const bad of [line.replace('1920x1080','960x540'),line.replace('TARGET 60','TARGET 30'),line.replace('LIFETIME_SECONDS 600','LIFETIME_SECONDS 60'),line.replace(' SOURCE native-layered-dib',' SOURCE other')])assert.equal(fixtureReady(bad,p,'native'),false);
  assert.equal(fixtureReady('PHYSICAL_WINDOW 1280x720 DWM 1280x720\r\nWINDOW 197048 1280x720 TARGET 30\r\n',getProfile('720p30'),'browser'),true);
+});
+
+
+test('pinned 047 uses the existing consented WGC path and layered fixture for all three unchanged requests',()=>{
+ for(const id of ['720p30','1080p60','1440p60']){
+  const p=getProfile(id);
+  assert.equal(captureMode('0.4.7',p),'native');
+  assert.equal(fixtureScript('0.4.7',p),'window-layered.ps1');
+  assert.equal(fixtureReady(`WINDOW 42 ${p.width}x${p.height} TARGET ${p.fps} SOURCE native-layered-dib LIFETIME_SECONDS 600\r\n`,p,'native'),true);
+ }
+ assert.equal(captureMode('0.4.7',{...getProfile('720p30'),fps:0}),'browser');
+});
+test('unpublished 048 is refused for every named request, including fixture selection',()=>{
+ for(const id of ['720p30','1080p60','1440p60']){
+  assert.throws(()=>captureMode('0.4.8',getProfile(id)),/Unsupported pinned/);
+  assert.throws(()=>fixtureScript('0.4.8',getProfile(id)),/Unsupported pinned/);
+ }
 });

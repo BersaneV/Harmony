@@ -10,7 +10,7 @@ on:
       release:
         description: Pinned published Windows package to test
         type: choice
-        options: ['0.4.1', '0.4.2', '0.4.3', '0.4.4', '0.4.5', '0.4.6']
+        options: ['0.4.1', '0.4.2', '0.4.3', '0.4.4', '0.4.5', '0.4.6', '0.4.7']
         default: '0.4.2'
       encoder_probe:
         description: Diagnostic only; compare native adaptation on one owned connection, never a capacity PASS
