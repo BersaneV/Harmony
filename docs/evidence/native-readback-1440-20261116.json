@@ -1,0 +1,150 @@
+{
+  "run": 43979126187,
+  "head": "8da81cc703ec19748fc8a4fdd43e79372deec5b9",
+  "scope": "one Windows VM core only; no encoder, IPC, voice or capacity approval",
+  "log_sha256": "78b1703d535e69776361ac040dcae088907d93d3b9bf70ee72133ba3f79b822b",
+  "phases": [
+    {
+      "phase": 0,
+      "policy": "blocking",
+      "capture_fps": 57.396732404024235,
+      "distinct_marker_fps": 55.196857642894386,
+      "frames": 574,
+      "distinct_marker_frames": 552,
+      "geometry_complete": true,
+      "elapsed_seconds": 10.0005693,
+      "submissions": 574,
+      "map_attempts": 574,
+      "map_busy": 0,
+      "delivered": 574,
+      "discarded_ready": 0,
+      "pending": 0,
+      "slots_used_mask": 0,
+      "peak_pending": 0,
+      "nonblocking_exercised": false,
+      "two_pending_exercised": false,
+      "age_over_period": 1,
+      "frame_age_ms": {
+        "count": 574,
+        "mean_ms": 7.16537055749129,
+        "min_ms": 5.3308,
+        "max_ms": 23.45,
+        "p50_range": {
+          "lower_ms": 7.2,
+          "upper_ms": 7.3
+        },
+        "p95_range": {
+          "lower_ms": 8.8,
+          "upper_ms": 8.9
+        }
+      }
+    },
+    {
+      "phase": 1,
+      "policy": "two_staging",
+      "capture_fps": 55.78202312740673,
+      "distinct_marker_fps": 54.78234529358224,
+      "frames": 558,
+      "distinct_marker_frames": 548,
+      "geometry_complete": true,
+      "elapsed_seconds": 10.0032227,
+      "submissions": 575,
+      "map_attempts": 2604,
+      "map_busy": 2029,
+      "delivered": 558,
+      "discarded_ready": 17,
+      "pending": 1,
+      "slots_used_mask": 3,
+      "peak_pending": 2,
+      "nonblocking_exercised": true,
+      "two_pending_exercised": true,
+      "age_over_period": 0,
+      "frame_age_ms": {
+        "count": 558,
+        "mean_ms": 7.8186754480286735,
+        "min_ms": 5.4861,
+        "max_ms": 11.3302,
+        "p50_range": {
+          "lower_ms": 7.9,
+          "upper_ms": 8
+        },
+        "p95_range": {
+          "lower_ms": 9.9,
+          "upper_ms": 10
+        }
+      }
+    },
+    {
+      "phase": 2,
+      "policy": "blocking",
+      "capture_fps": 57.576667631209126,
+      "distinct_marker_fps": 54.577882858750314,
+      "frames": 576,
+      "distinct_marker_frames": 546,
+      "geometry_complete": true,
+      "elapsed_seconds": 10.0040524,
+      "submissions": 576,
+      "map_attempts": 576,
+      "map_busy": 0,
+      "delivered": 576,
+      "discarded_ready": 0,
+      "pending": 0,
+      "slots_used_mask": 0,
+      "peak_pending": 0,
+      "nonblocking_exercised": false,
+      "two_pending_exercised": false,
+      "age_over_period": 1,
+      "frame_age_ms": {
+        "count": 576,
+        "mean_ms": 6.872274305555556,
+        "min_ms": 5.2982,
+        "max_ms": 16.7238,
+        "p50_range": {
+          "lower_ms": 7.1,
+          "upper_ms": 7.2
+        },
+        "p95_range": {
+          "lower_ms": 8.4,
+          "upper_ms": 8.5
+        }
+      }
+    }
+  ],
+  "other_diagnostics": [
+    {
+      "kind": "DIAGNOSTIC",
+      "capacity_approval": false,
+      "experiment_status": "OBSERVED",
+      "freshness_status": "PASS",
+      "scope": "Readback exercise and original age only, never product promotion or eight-client capacity",
+      "nonblocking_exercised": true,
+      "two_pending_exercised": true,
+      "two_textures_used": true,
+      "age_over_period": 0,
+      "original_age_fresh": true,
+      "product_promotion_approved": false
+    },
+    {
+      "kind": "DIAGNOSTIC",
+      "capacity_approval": false,
+      "scope": "GLOBAL_PAINT_SAMPLES_NOT_PHASE_ALIGNED",
+      "nominal_fps": 60,
+      "paint_records": 9,
+      "frame_delta": 2400,
+      "elapsed_ms": 40015,
+      "observed_present_fps": 59.977508434337125
+    }
+  ],
+  "conclusion": "two-slot async exercised, fresh, but no capture or distinct FPS improvement beyond control spread; retain default off",
+  "product_promotion_approved": false,
+  "schema_version": 1,
+  "kind": "NATIVE_READBACK_CORE_EXPERIMENT",
+  "capacity_approval": false,
+  "github_run_url": "https://github.com/BersaneV/Harmony/actions/runs/43979126187",
+  "github_job_id": 133690711198,
+  "workflow_conclusion": "success",
+  "source_default_unchanged": true,
+  "feature_default_off": true,
+  "baseline_freshness_note": "Both controls have one delivered age over the 60 FPS period; freshness PASS applies only to experimental B.",
+  "same_vm_control_only": true
+}
