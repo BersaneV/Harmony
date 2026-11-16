@@ -1,0 +1,454 @@
+{
+  "schema": 1,
+  "status": "DIAGNOSTIC",
+  "capacity_approval": false,
+  "product_source_commit": "420346ede0446d6964d7c1223331aa01670cacba",
+  "qa_head": "5d81fb7cceef6909dd9f677989ff660046f02433",
+  "source": "Full direct per-job API logs; aggregate projection only, no change to raw records",
+  "profiles": [
+    {
+      "kind": "exe_native_timing_diagnostic",
+      "status": "DIAGNOSTIC",
+      "completion": "COMPLETE",
+      "capacity_approval": false,
+      "release": "0.4.6",
+      "requested_profile": {
+        "id": "1080p60",
+        "width": 1920,
+        "height": 1080,
+        "fps": 60,
+        "bitrate_mbps": 8,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "scope": "One immutable public EXE046 on one public hosted Windows VM; own compiled UI call/microphone/native preview only, no screen publication or eight-peer capacity approval",
+      "installed_sha256": "d5527e165f3fab08acea0214e76428f12c0c3849fc851206b650df30a10d6876",
+      "limitations": [
+        "Diagnostic wrappers add measurement overhead and can change scheduling.",
+        "VideoFrame constructor timing is synchronous elapsed wall time, not isolated CPU attribution.",
+        "Writer settlement includes downstream backpressure and event-loop scheduling, not just writer CPU.",
+        "ACK timings cover observed CDP POST request to loadingFinished/loadingFailed, not every Rust producer stage.",
+        "Constructor/write measurement remains NOT_VERIFIED if the compiled app cached an original method or the API is not interceptable.",
+        "Each normal capture measurement uses the existing permanent marker reader and inspects one complete frame after its ten-second counter window. Wrapper exposure includes that final inspection."
+      ],
+      "provenance": {
+        "run": 43852858503,
+        "job": 133249805956,
+        "url": "https://github.com/BersaneV/Harmony/actions/runs/43852858503/job/133249805956",
+        "full_log_sha256": "6566789d8dd137b8f1f4f38465accbd57bced6e50c8b7e1decd4ca5f1cc2058a"
+      },
+      "phases": [
+        {
+          "name": "control_before",
+          "capacity_approval": false,
+          "native_producer_fps": 54.76591950684385,
+          "marker_copy_mean_ms": 0.1655303030371821,
+          "original_quality_gate": {
+            "status": "FAIL",
+            "reason": "Observed source frame rate is below the unchanged profile gate"
+          },
+          "capture": {
+            "pixel_width": 1920,
+            "pixel_height": 1080,
+            "sampled_sizes": [
+              "1920x1080"
+            ],
+            "observation_ms": 10001.099999999977,
+            "processor_source_fps": 52.794192638809854,
+            "distinct_marker_fps": 49.49455559888424,
+            "track_id": "c3f8130a-6568-4f82-b136-e0cfeb4969f5",
+            "label": "native-window:66136",
+            "backend": "native-wgc"
+          },
+          "ack": {
+            "status": "OBSERVED",
+            "requests": 529,
+            "completed": 529,
+            "failed": 0,
+            "pending": 0,
+            "pending_at_boundary": 1,
+            "completed_ms": {
+              "status": "OBSERVED",
+              "count": 529,
+              "mean_ms": 2.657948960301669,
+              "p50_ms": 2.1839999999428983,
+              "p95_ms": 5.038000000013199,
+              "max_ms": 8.672000000046864
+            },
+            "failed_ms": {
+              "status": "NOT_VERIFIED",
+              "count": 0,
+              "mean_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "max_ms": null
+            }
+          }
+        },
+        {
+          "name": "instrumented",
+          "capacity_approval": false,
+          "native_producer_fps": 49.14036788838139,
+          "marker_copy_mean_ms": 0.1640973630862813,
+          "original_quality_gate": {
+            "status": "FAIL",
+            "reason": "Observed source frame rate is below the unchanged profile gate"
+          },
+          "capture": {
+            "pixel_width": 1920,
+            "pixel_height": 1080,
+            "sampled_sizes": [
+              "1920x1080"
+            ],
+            "observation_ms": 10005.79999999993,
+            "processor_source_fps": 49.2714225749069,
+            "distinct_marker_fps": 46.97275580163538,
+            "track_id": "c3f8130a-6568-4f82-b136-e0cfeb4969f5",
+            "label": "native-window:66136",
+            "backend": "native-wgc"
+          },
+          "ack": {
+            "status": "OBSERVED",
+            "requests": 494,
+            "completed": 494,
+            "failed": 0,
+            "pending": 0,
+            "pending_at_boundary": 1,
+            "completed_ms": {
+              "status": "OBSERVED",
+              "count": 494,
+              "mean_ms": 3.0097813765148667,
+              "p50_ms": 2.379000000019005,
+              "p95_ms": 5.493000000001302,
+              "max_ms": 30.10499999993499
+            },
+            "failed_ms": {
+              "status": "NOT_VERIFIED",
+              "count": 0,
+              "mean_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "max_ms": null
+            }
+          },
+          "timings": {
+            "interception": {
+              "video_frame": "INTERCEPTED",
+              "writer_write": "INTERCEPTED"
+            },
+            "restore": {
+              "video_frame": "RESTORED",
+              "writer_write": "RESTORED"
+            },
+            "window_started_ms": 28638.900000000023,
+            "window_elapsed_ms": 10066.79999999993,
+            "pending_writes": 0,
+            "constructor_errors": 0,
+            "write_errors": 0,
+            "write_fulfilled": 494,
+            "write_rejected": 0,
+            "write_unobservable": 0,
+            "dropped_observations": 0,
+            "constructor_bgrx": {
+              "status": "OBSERVED",
+              "count": 494,
+              "mean_ms": 1.496558704451179,
+              "p50_ms": 1.3999999999068677,
+              "p95_ms": 3,
+              "max_ms": 3.699999999953434
+            },
+            "write_sync": {
+              "status": "OBSERVED",
+              "count": 494,
+              "mean_ms": 0.073886639677056,
+              "p50_ms": 0.09999999997671694,
+              "p95_ms": 0.19999999995343387,
+              "max_ms": 1.900000000023283
+            },
+            "write_settled": {
+              "status": "OBSERVED",
+              "count": 494,
+              "mean_ms": 0.11821862348465641,
+              "p50_ms": 0.09999999997671694,
+              "p95_ms": 0.2000000000698492,
+              "max_ms": 2
+            }
+          }
+        },
+        {
+          "name": "control_after",
+          "capacity_approval": false,
+          "native_producer_fps": 51.37819031390691,
+          "marker_copy_mean_ms": 0.16575342465425366,
+          "original_quality_gate": {
+            "status": "FAIL",
+            "reason": "Observed source frame rate is below the unchanged profile gate"
+          },
+          "capture": {
+            "pixel_width": 1920,
+            "pixel_height": 1080,
+            "sampled_sizes": [
+              "1920x1080"
+            ],
+            "observation_ms": 10000.400000000023,
+            "processor_source_fps": 51.097956081756614,
+            "distinct_marker_fps": 48.79804807807676,
+            "track_id": "c3f8130a-6568-4f82-b136-e0cfeb4969f5",
+            "label": "native-window:66136",
+            "backend": "native-wgc"
+          },
+          "ack": {
+            "status": "OBSERVED",
+            "requests": 512,
+            "completed": 512,
+            "failed": 0,
+            "pending": 0,
+            "pending_at_boundary": 1,
+            "completed_ms": {
+              "status": "OBSERVED",
+              "count": 512,
+              "mean_ms": 2.7454570312528404,
+              "p50_ms": 2.2519999999985885,
+              "p95_ms": 4.962999999975182,
+              "max_ms": 7.202000000006592
+            },
+            "failed_ms": {
+              "status": "NOT_VERIFIED",
+              "count": 0,
+              "mean_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "max_ms": null
+            }
+          }
+        }
+      ],
+      "final_restore": {
+        "video_frame": "RESTORED",
+        "writer_write": "RESTORED"
+      }
+    },
+    {
+      "kind": "exe_native_timing_diagnostic",
+      "status": "DIAGNOSTIC",
+      "completion": "COMPLETE",
+      "capacity_approval": false,
+      "release": "0.4.6",
+      "requested_profile": {
+        "id": "1440p60",
+        "width": 2560,
+        "height": 1440,
+        "fps": 60,
+        "bitrate_mbps": 16,
+        "min_displayed_fps": 54,
+        "min_source_fps": 54
+      },
+      "scope": "One immutable public EXE046 on one public hosted Windows VM; own compiled UI call/microphone/native preview only, no screen publication or eight-peer capacity approval",
+      "installed_sha256": "d5527e165f3fab08acea0214e76428f12c0c3849fc851206b650df30a10d6876",
+      "limitations": [
+        "Diagnostic wrappers add measurement overhead and can change scheduling.",
+        "VideoFrame constructor timing is synchronous elapsed wall time, not isolated CPU attribution.",
+        "Writer settlement includes downstream backpressure and event-loop scheduling, not just writer CPU.",
+        "ACK timings cover observed CDP POST request to loadingFinished/loadingFailed, not every Rust producer stage.",
+        "Constructor/write measurement remains NOT_VERIFIED if the compiled app cached an original method or the API is not interceptable.",
+        "Each normal capture measurement uses the existing permanent marker reader and inspects one complete frame after its ten-second counter window. Wrapper exposure includes that final inspection."
+      ],
+      "provenance": {
+        "run": 43852863290,
+        "job": 133249749023,
+        "url": "https://github.com/BersaneV/Harmony/actions/runs/43852863290/job/133249749023",
+        "full_log_sha256": "940baba8236eea8f00ace4f1e90d3ca3371001803f5ae438ecef5fe7e3bdd377"
+      },
+      "phases": [
+        {
+          "name": "control_before",
+          "capacity_approval": false,
+          "native_producer_fps": 40.44691273647633,
+          "marker_copy_mean_ms": 0.18009950249891413,
+          "original_quality_gate": {
+            "status": "FAIL",
+            "reason": "Observed source frame rate is below the unchanged profile gate"
+          },
+          "capture": {
+            "pixel_width": 2560,
+            "pixel_height": 1440,
+            "sampled_sizes": [
+              "2560x1440"
+            ],
+            "observation_ms": 10000.19999999972,
+            "processor_source_fps": 40.199196016080805,
+            "distinct_marker_fps": 37.89924201516076,
+            "track_id": "acbc7cb8-4430-4f47-bc31-7e6f6e0f1a05",
+            "label": "native-window:66130",
+            "backend": "native-wgc"
+          },
+          "ack": {
+            "status": "OBSERVED",
+            "requests": 403,
+            "completed": 403,
+            "failed": 0,
+            "pending": 0,
+            "pending_at_boundary": 1,
+            "completed_ms": {
+              "status": "OBSERVED",
+              "count": 403,
+              "mean_ms": 3.6424937965303767,
+              "p50_ms": 2.912999999807653,
+              "p95_ms": 7.137000000057014,
+              "max_ms": 9.571999999934633
+            },
+            "failed_ms": {
+              "status": "NOT_VERIFIED",
+              "count": 0,
+              "mean_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "max_ms": null
+            }
+          }
+        },
+        {
+          "name": "instrumented",
+          "capacity_approval": false,
+          "native_producer_fps": 40.42481551248067,
+          "marker_copy_mean_ms": 0.19351620948118647,
+          "original_quality_gate": {
+            "status": "FAIL",
+            "reason": "Observed source frame rate is below the unchanged profile gate"
+          },
+          "capture": {
+            "pixel_width": 2560,
+            "pixel_height": 1440,
+            "sampled_sizes": [
+              "2560x1440"
+            ],
+            "observation_ms": 10000.900000000373,
+            "processor_source_fps": 40.096391324779276,
+            "distinct_marker_fps": 37.79659830615104,
+            "track_id": "acbc7cb8-4430-4f47-bc31-7e6f6e0f1a05",
+            "label": "native-window:66130",
+            "backend": "native-wgc"
+          },
+          "ack": {
+            "status": "OBSERVED",
+            "requests": 402,
+            "completed": 402,
+            "failed": 0,
+            "pending": 0,
+            "pending_at_boundary": 1,
+            "completed_ms": {
+              "status": "OBSERVED",
+              "count": 402,
+              "mean_ms": 3.507582089549313,
+              "p50_ms": 2.8600000000551518,
+              "p95_ms": 6.41700000005585,
+              "max_ms": 8.909000000130618
+            },
+            "failed_ms": {
+              "status": "NOT_VERIFIED",
+              "count": 0,
+              "mean_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "max_ms": null
+            }
+          },
+          "timings": {
+            "interception": {
+              "video_frame": "INTERCEPTED",
+              "writer_write": "INTERCEPTED"
+            },
+            "restore": {
+              "video_frame": "RESTORED",
+              "writer_write": "RESTORED"
+            },
+            "window_started_ms": 28750,
+            "window_elapsed_ms": 10075.100000000093,
+            "pending_writes": 0,
+            "constructor_errors": 0,
+            "write_errors": 0,
+            "write_fulfilled": 403,
+            "write_rejected": 0,
+            "write_unobservable": 0,
+            "dropped_observations": 0,
+            "constructor_bgrx": {
+              "status": "OBSERVED",
+              "count": 403,
+              "mean_ms": 2.9059553349982234,
+              "p50_ms": 2.400000000372529,
+              "p95_ms": 5.100000000093132,
+              "max_ms": 6.199999999720603
+            },
+            "write_sync": {
+              "status": "OBSERVED",
+              "count": 403,
+              "mean_ms": 0.08784119107485483,
+              "p50_ms": 0.10000000009313226,
+              "p95_ms": 0.20000000018626451,
+              "max_ms": 3.599999999627471
+            },
+            "write_settled": {
+              "status": "OBSERVED",
+              "count": 403,
+              "mean_ms": 0.16401985112378933,
+              "p50_ms": 0.10000000009313226,
+              "p95_ms": 0.20000000018626451,
+              "max_ms": 3.6999999997206032
+            }
+          }
+        },
+        {
+          "name": "control_after",
+          "capacity_approval": false,
+          "native_producer_fps": 40.18282203959184,
+          "marker_copy_mean_ms": 0.17157107232686625,
+          "original_quality_gate": {
+            "status": "FAIL",
+            "reason": "Observed source frame rate is below the unchanged profile gate"
+          },
+          "capture": {
+            "pixel_width": 2560,
+            "pixel_height": 1440,
+            "sampled_sizes": [
+              "2560x1440"
+            ],
+            "observation_ms": 10001.299999999814,
+            "processor_source_fps": 40.09478767760266,
+            "distinct_marker_fps": 38.694969653945705,
+            "track_id": "acbc7cb8-4430-4f47-bc31-7e6f6e0f1a05",
+            "label": "native-window:66130",
+            "backend": "native-wgc"
+          },
+          "ack": {
+            "status": "OBSERVED",
+            "requests": 402,
+            "completed": 402,
+            "failed": 0,
+            "pending": 0,
+            "pending_at_boundary": 1,
+            "completed_ms": {
+              "status": "OBSERVED",
+              "count": 402,
+              "mean_ms": 3.5933980099404983,
+              "p50_ms": 2.951999999822874,
+              "p95_ms": 6.689999999707652,
+              "max_ms": 9.516999999959808
+            },
+            "failed_ms": {
+              "status": "NOT_VERIFIED",
+              "count": 0,
+              "mean_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "max_ms": null
+            }
+          }
+        }
+      ],
+      "final_restore": {
+        "video_frame": "RESTORED",
+        "writer_write": "RESTORED"
+      }
+    }
+  ]
+}
