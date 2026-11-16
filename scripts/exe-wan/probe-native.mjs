@@ -73,6 +73,8 @@ try{
  assert.equal(members.length,8);assert.ok(members.every(m=>users.some(u=>u.id===m.id)),'Only owned fixture members may join');
  const instance=await api('/instance'),callInfo=await api(`/channels/${process.env.HARMONY_VOICE_ID}/call`,token);assertCallRoute(instance,callInfo);result.server={version:instance.version,media_transport:instance.media_transport,screen_sfu_enabled:callInfo.screen_sfu_enabled===true};
  app=await session(0,{onCommandTrace});result.attestation=app.attestation;result.installed_sha256=executableHash;
+ // Prototype descriptors only: no receiver instance, getter call or media setter.
+ app.cdp.setStage('session.setup');result.receiver_delay_capabilities=await app.cdp.evaluate(`(()=>{const receiver=globalThis.RTCRtpReceiver,p=receiver?.prototype;return{receiver_type:typeof receiver,jitterBufferTarget:!!p&&'jitterBufferTarget' in p,playoutDelayHint:!!p&&'playoutDelayHint' in p,jitterBufferTarget_setter_type:typeof(p&&Object.getOwnPropertyDescriptor(p,'jitterBufferTarget')?.set),playoutDelayHint_setter_type:typeof(p&&Object.getOwnPropertyDescriptor(p,'playoutDelayHint')?.set)}})()`,false,2000);
  const who=identity(0);mask(who.password);
  await app.fill('input[type="url"]',origin);await app.fill('input[autocomplete="username"]',who.username);await app.fill('input[type="password"]',who.password);await app.click('Entrar no Harmony');
  await app.labelled('Abrir '+process.env.HARMONY_GUILD_NAME);await app.click('Sala de voz');
