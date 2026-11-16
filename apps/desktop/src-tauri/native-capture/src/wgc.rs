@@ -1,5 +1,5 @@
 //! OS-selected capture item, bounded frame pool, reusable GPU staging texture.
-use super::{Dib, Profile, Source};
+use super::{FullBuffer, Profile, Source};
 use crate::byte_len;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -211,19 +211,22 @@ impl Wgc {
     pub fn dimensions(&self) -> (u32, u32) {
         (self.size.Width as u32, self.size.Height as u32)
     }
-    pub fn read(&mut self, raw: &mut Option<Dib>) -> Result<bool, String> {
+    pub(super) fn read<'a>(
+        &mut self,
+        choose: impl FnOnce(u32, u32) -> Result<FullBuffer<'a>, String>,
+    ) -> Result<Option<(u32, u32)>, String> {
         if self.closed.load(Ordering::Acquire) {
             return Err("A janela compartilhada foi fechada.".into());
         }
         if !self.ready.swap(false, Ordering::AcqRel) {
-            return Ok(false);
+            return Ok(None);
         }
         let mut frame = match self.pool.TryGetNextFrame() {
             Ok(f) => f,
             // windows-core 0.62 maps a successful nullable COM result to
             // Error::empty() (code S_OK), not E_POINTER. A late FrameArrived
             // callback after draining the pool must not terminate capture.
-            Err(e) if e.code().0 == 0 => return Ok(false),
+            Err(e) if e.code().0 == 0 => return Ok(None),
             Err(e) => {
                 eprintln!(
                     "harmony_native_capture stage=next_frame hresult={:08X}",
@@ -236,7 +239,7 @@ impl Wgc {
             let _ = frame.Close();
             frame = newer;
         }
-        let result = (|| -> Result<bool, String> {
+        let result = (|| -> Result<Option<(u32, u32)>, String> {
             let size = frame
                 .ContentSize()
                 .map_err(|_| "Tamanho de captura indisponível.")?;
@@ -260,8 +263,11 @@ impl Wgc {
                     .map_err(|_| "Não foi possível acompanhar o tamanho da janela.")?;
                 self.size = size;
                 self.staging = None;
-                return Ok(false);
+                return Ok(None);
             }
+            // Choose using this frame's validated geometry only after handling
+            // pool resize. No callback/allocation error can bypass an Unmap.
+            let target = choose(w, h)?;
             let access: IDirect3DDxgiInterfaceAccess = frame
                 .Surface()
                 .and_then(|s| s.cast())
@@ -311,28 +317,12 @@ impl Wgc {
                     .Map(staging, 0, D3D11_MAP_READ, 0, Some(&mut mapped))
             }
             .map_err(|_| "Não foi possível mapear o quadro da captura.")?;
-            let copied = (|| -> Result<(), String> {
-                if mapped.pData.is_null() || (mapped.RowPitch as usize) < w as usize * 4 {
-                    return Err("Layout de captura inválido.".into());
-                }
-                if raw.as_ref().is_none_or(|d| d.width != w || d.height != h) {
-                    *raw = Some(Dib::new(w, h)?);
-                }
-                let target = raw.as_ref().unwrap();
-                for row in 0..h as usize {
-                    unsafe {
-                        std::ptr::copy_nonoverlapping(
-                            (mapped.pData as *const u8).add(row * mapped.RowPitch as usize),
-                            target.bits.as_ptr().add(row * w as usize * 4),
-                            w as usize * 4,
-                        );
-                    }
-                }
-                Ok(())
-            })();
+            let copied = unsafe {
+                target.copy_from(mapped.pData as *const u8, mapped.RowPitch as usize, w, h)
+            };
             unsafe { self.context.Unmap(staging, 0) };
             copied?;
-            Ok(true)
+            Ok(Some((w, h)))
         })();
         let _ = frame.Close();
         result

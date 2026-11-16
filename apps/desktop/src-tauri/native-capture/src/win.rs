@@ -204,6 +204,62 @@ impl Drop for Dib {
     }
 }
 
+/// A full source frame stays on the capture thread. Only the resize path needs
+/// a GDI bitmap; unchanged geometry goes straight to the caller's reusable Vec.
+enum FullBuffer<'a> {
+    Bytes(&'a mut Vec<u8>),
+    Dib(&'a mut Option<Dib>),
+}
+impl FullBuffer<'_> {
+    /// # Safety
+    /// `source` must remain readable for every requested row, and must not
+    /// overlap the destination. The WGC staging mapping owns it during this call.
+    unsafe fn copy_from(
+        self,
+        source: *const u8,
+        row_pitch: usize,
+        width: u32,
+        height: u32,
+    ) -> Result<(), String> {
+        let len = byte_len(width, height)?;
+        let row_bytes = width as usize * 4;
+        if source.is_null()
+            || row_pitch < row_bytes
+            || row_pitch
+                .checked_mul(height as usize - 1)
+                .and_then(|offset| offset.checked_add(row_bytes))
+                .is_none_or(|span| span > isize::MAX as usize)
+        {
+            return Err("Layout de captura inválido.".into());
+        }
+        let destination = match self {
+            Self::Bytes(output) => {
+                output.resize(len, 0);
+                output.as_mut_ptr()
+            }
+            Self::Dib(raw) => {
+                if raw
+                    .as_ref()
+                    .is_none_or(|d| d.width != width || d.height != height)
+                {
+                    *raw = Some(Dib::new(width, height)?);
+                }
+                raw.as_ref().unwrap().bits.as_ptr()
+            }
+        };
+        for row in 0..height as usize {
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    source.add(row * row_pitch),
+                    destination.add(row * row_bytes),
+                    row_bytes,
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
 pub struct Capture {
     raw: Option<Dib>,
     scaled: Option<Dib>,
@@ -251,18 +307,29 @@ impl Capture {
     pub fn profile(&self) -> Profile {
         self.profile
     }
-    /// Writes BGRX into caller-owned storage, retaining DCs and DIBs across frames.
+    /// Writes BGRX into caller-owned storage, retaining staging/resize resources.
     pub fn backend(&self) -> &'static str {
         "native-wgc"
     }
     pub fn frame(&mut self, output: &mut Vec<u8>) -> Result<Option<(u32, u32)>, String> {
-        if !self.wgc.read(&mut self.raw)? {
+        let profile = self.profile;
+        let Some((w, h)) = self.wgc.read(|w, h| {
+            Ok(if profile.size(w, h)? == (w, h) {
+                FullBuffer::Bytes(&mut *output)
+            } else {
+                FullBuffer::Dib(&mut self.raw)
+            })
+        })?
+        else {
             return Ok(None);
+        };
+        let (width, height) = profile.size(w, h)?;
+        if (width, height) == (w, h) {
+            return Ok(Some((w, h)));
         }
+        // This path retains the existing HALFTONE resize and final DIB copy.
         let raw = self.raw.as_ref().ok_or("Quadro indisponível.")?;
-        let (w, h) = (raw.width, raw.height);
-        let (width, height) = self.profile.size(w, h)?;
-        let dib = if (width, height) != (w, h) {
+        let dib = {
             if self
                 .scaled
                 .as_ref()
@@ -291,8 +358,6 @@ impl Capture {
                 }
             }
             dst
-        } else {
-            raw
         };
         let len = byte_len(width, height)?;
         output.resize(len, 0);
@@ -303,5 +368,65 @@ impl Capture {
             std::ptr::copy_nonoverlapping(dib.bits.as_ptr(), output.as_mut_ptr(), len);
         }
         Ok(Some((width, height)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn full_buffer_copies_bgrx_rows_without_padding_and_reuses_the_vec() {
+        let pixels = [
+            1, 2, 3, 4, 5, 6, 7, 8, 99, 99, 99, 99, 9, 10, 11, 12, 13, 14, 15, 16,
+        ];
+        let mut output = Vec::with_capacity(64);
+        let allocation = output.as_ptr();
+        unsafe { FullBuffer::Bytes(&mut output).copy_from(pixels.as_ptr(), 12, 2, 2) }.unwrap();
+        assert_eq!(output, (1..=16).collect::<Vec<_>>());
+        assert_eq!(output.as_ptr(), allocation);
+        unsafe { FullBuffer::Bytes(&mut output).copy_from(pixels.as_ptr(), 12, 1, 1) }.unwrap();
+        assert_eq!(output, [1, 2, 3, 4]);
+        assert_eq!(output.as_ptr(), allocation);
+    }
+
+    #[test]
+    fn full_buffer_rejects_invalid_geometry_pitch_and_null_before_mutating_output() {
+        let pixels = [0u8; 16];
+        for (source, pitch, width, height) in [
+            (pixels.as_ptr(), 7, 2, 2),
+            (std::ptr::null(), 8, 2, 2),
+            (pixels.as_ptr(), 8, 0, 2),
+            (pixels.as_ptr(), 8, 8192, 8192),
+            (pixels.as_ptr(), usize::MAX, 1, 2),
+        ] {
+            let mut output = vec![42];
+            assert!(unsafe {
+                FullBuffer::Bytes(&mut output).copy_from(source, pitch, width, height)
+            }
+            .is_err());
+            assert_eq!(output, [42]);
+        }
+    }
+
+    #[test]
+    fn dib_and_direct_destinations_receive_identical_full_bgrx_bytes() {
+        let pixels = [
+            1, 2, 3, 4, 5, 6, 7, 8, 99, 99, 99, 99, 9, 10, 11, 12, 13, 14, 15, 16,
+        ];
+        let mut output = Vec::new();
+        let mut dib = None;
+        unsafe {
+            FullBuffer::Bytes(&mut output)
+                .copy_from(pixels.as_ptr(), 12, 2, 2)
+                .unwrap();
+            FullBuffer::Dib(&mut dib)
+                .copy_from(pixels.as_ptr(), 12, 2, 2)
+                .unwrap();
+            assert_eq!(
+                std::slice::from_raw_parts(dib.as_ref().unwrap().bits.as_ptr(), output.len()),
+                output
+            );
+        }
     }
 }
