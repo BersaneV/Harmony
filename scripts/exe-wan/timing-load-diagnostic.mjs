@@ -1,23 +1,14 @@
 // Isolated QA on eight immutable public048 EXEs. Only the existing temporary
 // VideoFrame/writer instrumentation changes API dispatch, on the publisher.
 import { readFile, writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { cpus } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { session } from "./session.mjs";
 import { requestedProfile } from "./profiles.mjs";
-import {
-  guard,
-  cohort,
-  identity,
-  origin,
-  mask,
-  ownedSession,
-  api,
-  postControl,
-  controls,
-} from "./lab.mjs";
+import { guard, cohort, identity, origin, mask } from "./lab.mjs";
+import { rotatingToken } from "./auth.mjs";
 import { assertOwnedCapture } from "./capture-ui.mjs";
 import { assertCallRoute } from "./fixture-contract.mjs";
 import { createClientDiagnostics } from "./client-diagnostics.mjs";
@@ -155,6 +146,160 @@ export async function acquireSession(budget, open, maximum = 120000) {
   }
 }
 
+/** Retry only a definite HTTP 429 response. Network errors, parsing failures and
+ * other statuses may have ambiguous side effects and are never retried. */
+export function createDiagnosticHttp({ budget, fetch = globalThis.fetch }) {
+  const stats = {
+    attempts: 0,
+    rate_limited_responses: 0,
+    rate_limited_requests: 0,
+    recovered_requests: 0,
+    backoff_count: 0,
+    backoff_elapsed_ms: 0,
+    exhausted: 0,
+    status_counts: {},
+    backoffs: [],
+  };
+  const request = async (
+    path,
+    token,
+    body,
+    { maximum = 60000, kind = "bootstrap", signal } = {},
+  ) => {
+    check(path.startsWith("/") && !path.includes("://"), "HTTP_PATH_REFUSED");
+    check(
+      ["bootstrap", "auth", "control_read", "control_write"].includes(kind),
+      "HTTP_KIND_REFUSED",
+    );
+    const end = budget.now() + Math.min(maximum, budget.remaining()),
+      encoded = body === undefined ? undefined : JSON.stringify(body),
+      access =
+        typeof token === "function"
+          ? await budget.run(() => token(), end - budget.now())
+          : token;
+    let retry = 0,
+      limited = false;
+    for (;;) {
+      check(!signal?.aborted, "DEADLINE");
+      const remaining = end - budget.now();
+      check(remaining > 0, "DEADLINE");
+      const result = await budget.run(
+        async (ms) => {
+          stats.attempts++;
+          const response = await fetch(origin + "/api" + path, {
+            method: encoded === undefined ? "GET" : "POST",
+            headers: {
+              ...(access ? { Authorization: "Bearer " + access } : {}),
+              ...(encoded === undefined
+                ? {}
+                : { "Content-Type": "application/json" }),
+            },
+            body: encoded,
+            signal: AbortSignal.any([
+              AbortSignal.timeout(Math.max(1, Math.floor(ms))),
+              ...(signal ? [signal] : []),
+            ]),
+          });
+          const status = response.status;
+          check(
+            Number.isInteger(status) && status >= 100 && status <= 599,
+            "HTTP_STATUS_INVALID",
+          );
+          stats.status_counts[status] = (stats.status_counts[status] || 0) + 1;
+          if (status === 429) {
+            stats.rate_limited_responses++;
+            if (!limited) {
+              limited = true;
+              stats.rate_limited_requests++;
+            }
+            await response.body?.cancel().catch(() => {});
+            return { limited: true };
+          }
+          if (!response.ok) {
+            await response.body?.cancel().catch(() => {});
+            throw failure("HTTP_FAILED");
+          }
+          return { value: status === 204 ? null : await response.json() };
+        },
+        Math.min(20000, remaining),
+      );
+      if (!result.limited) {
+        if (limited) stats.recovered_requests++;
+        return result.value;
+      }
+      const delay = Math.min(5000 * 2 ** retry, 20000);
+      if (retry >= 5 || end - budget.now() <= delay) {
+        stats.exhausted++;
+        throw failure("HTTP_RATE_LIMITED");
+      }
+      retry++;
+      stats.backoff_count++;
+      const started = budget.now(),
+        row = { kind, attempt: retry, requested_ms: delay, elapsed_ms: 0 };
+      stats.backoffs.push(row);
+      try {
+        await budget.pause(delay, signal);
+      } finally {
+        row.elapsed_ms = budget.now() - started;
+        stats.backoff_elapsed_ms += row.elapsed_ms;
+      }
+      check(budget.now() < end, "HTTP_RATE_LIMITED");
+      check(!signal?.aborted, "DEADLINE");
+    }
+  };
+  return {
+    request,
+    snapshot: () => ({
+      ...structuredClone(stats),
+      classification:
+        stats.exhausted ||
+        stats.rate_limited_requests > stats.recovered_requests
+          ? "NOT_RUN"
+          : stats.rate_limited_responses
+            ? "RECOVERED"
+            : "NO_RATE_LIMIT",
+    }),
+  };
+}
+export function createControlTransport({ http, token, channel, cohortKey }) {
+  const endpoint = `/channels/${encodeURIComponent(channel)}/messages`;
+  return {
+    send: (message, { maximum = 90000 } = {}) => {
+      // Allocate once per logical operation, outside the HTTP 429 retry loop.
+      const body = {
+        client_nonce: randomUUID(),
+        content: JSON.stringify({
+          lab: "exe-wan",
+          cohort: cohortKey,
+          ...message,
+        }),
+      };
+      return http.request(endpoint, token, body, {
+        maximum,
+        kind: "control_write",
+      });
+    },
+    list: async (maximum = 90000, signal) => {
+      const value = await http.request(
+        endpoint + "?limit=100",
+        token,
+        undefined,
+        { maximum, kind: "control_read", signal },
+      );
+      return value.items.flatMap((message) => {
+        try {
+          const parsed = JSON.parse(message.content);
+          return parsed.lab === "exe-wan" && parsed.cohort === cohortKey
+            ? [{ ...parsed, author_id: message.author.id }]
+            : [];
+        } catch {
+          return [];
+        }
+      });
+    },
+  };
+}
+
 const actions = new Set([
   "voice-ready",
   "screen-ready",
@@ -211,6 +356,65 @@ export function createCohortProtocol({ index, users, list, send, budget }) {
         return false;
       return true;
     });
+  let cached,
+    cachedAt = -Infinity,
+    inFlight,
+    readAbort;
+  const waits = [];
+  const read = (end) => {
+    if (inFlight) return inFlight;
+    if (cached && budget.now() - cachedAt < 10000)
+      return Promise.resolve(cached);
+    const controller = new AbortController();
+    readAbort = controller;
+    inFlight = budget
+      .run((ms) => list(ms, controller.signal), end - budget.now())
+      .then((rows) => {
+        check(!controller.signal.aborted, "DEADLINE");
+        cached = rows;
+        cachedAt = budget.now();
+        return rows;
+      })
+      .finally(() => {
+        inFlight = undefined;
+      });
+    return inFlight;
+  };
+  const readWithMedia = async (end, inspect) => {
+    const pending = budget.run(() => read(end), end - budget.now());
+    if (!inspect) return pending;
+    let settled = false,
+      value,
+      error;
+    const done = pending.then(
+      (rows) => {
+        value = rows;
+        settled = true;
+      },
+      (reason) => {
+        error = reason;
+        settled = true;
+      },
+    );
+    while (!settled) {
+      const stop = new AbortController();
+      try {
+        await Promise.race([
+          done,
+          budget.pause(
+            Math.min(3000, Math.max(0, end - budget.now())),
+            stop.signal,
+          ),
+        ]);
+      } finally {
+        stop.abort();
+      }
+      if (!settled)
+        await budget.run(() => inspect(), Math.min(5000, end - budget.now()));
+    }
+    if (error) throw error;
+    return value;
+  };
   const post = (action, { stage, receipt } = {}) => {
     check(
       actions.has(action) &&
@@ -230,42 +434,80 @@ export function createCohortProtocol({ index, users, list, send, budget }) {
         "RECEIPT_REFUSED",
       );
     return budget.run(
-      () =>
-        send({
-          probe: tag,
-          action,
-          index,
-          ...(stage ? { stage } : {}),
-          ...(receipt ? { receipt } : {}),
-        }),
-      5000,
+      (ms) =>
+        send(
+          {
+            probe: tag,
+            action,
+            index,
+            ...(stage ? { stage } : {}),
+            ...(receipt ? { receipt } : {}),
+          },
+          { maximum: ms },
+        ),
+      90000,
     );
   };
   const wait = async (
     action,
     count,
-    { stage, inspect, maximum = 45000 } = {},
+    { stage, inspect, maximum = 90000 } = {},
   ) => {
-    const end = budget.now() + Math.min(maximum, budget.remaining());
-    while (budget.now() < end) {
-      const rows = parse(
-        await budget.run(() => list(), Math.min(5000, end - budget.now())),
-      );
-      check(!rows.some((r) => r.action === "abort"), "COHORT_ABORTED");
-      const found = [
-        ...new Map(
-          rows
-            .filter((r) => r.action === action && r.stage === stage)
-            .map((r) => [r.index, r]),
-        ).values(),
-      ];
-      if (found.length === count) return found;
-      if (inspect) await inspect();
-      await budget.pause(Math.min(3000, Math.max(0, end - budget.now())));
+    const started = budget.now(),
+      end = started + Math.min(maximum, budget.remaining()),
+      timing = {
+        action,
+        ...(stage ? { stage } : {}),
+        requested_maximum_ms: maximum,
+        elapsed_ms: 0,
+        quorum: 0,
+        observed_clients: 0,
+        expected_clients: count,
+        completion: "NOT_RUN",
+      };
+    waits.push(timing);
+    try {
+      while (budget.now() < end) {
+        const rows = parse(await readWithMedia(end, inspect));
+        check(budget.now() < end, "BARRIER_TIMEOUT");
+        check(!rows.some((r) => r.action === "abort"), "COHORT_ABORTED");
+        const found = [
+          ...new Map(
+            rows
+              .filter((r) => r.action === action && r.stage === stage)
+              .map((r) => [r.index, r]),
+          ).values(),
+        ];
+        timing.observed_clients = found.length;
+        if (found.length === count) {
+          timing.quorum = count;
+          timing.completion = "COMPLETE";
+          return found;
+        }
+        if (inspect) await inspect();
+        // Media checks retain their 3s cadence. Only the shared HTTP read is
+        // throttled/coalesced to at most one per 10s per process.
+        await budget.pause(Math.min(3000, Math.max(0, end - budget.now())));
+      }
+      throw failure("BARRIER_TIMEOUT");
+    } catch (error) {
+      readAbort?.abort();
+      cached = undefined;
+      throw error;
+    } finally {
+      timing.elapsed_ms = budget.now() - started;
     }
-    throw failure("BARRIER_TIMEOUT");
   };
-  return { post, wait, parse };
+  return {
+    post,
+    wait,
+    parse,
+    snapshot: () => ({
+      poll_interval_ms: 10000,
+      inspection_interval_ms: 3000,
+      waits: structuredClone(waits),
+    }),
+  };
 }
 export function resolveFixtureUsers(members, usernames) {
   check(
@@ -713,6 +955,11 @@ export function projectTimingPhase(phase) {
     load_samples: phase.load_samples || [],
     load_start_receipts: phase.load_start_receipts || null,
     load_end_receipts: phase.load_end_receipts || null,
+    preparation_timing: finite(phase.preparation_timing, [
+      "requested_gap_ms",
+      "observed_gap_ms",
+      "total_elapsed_ms",
+    ]),
     host_cpu: summarizeHostCpu(phase.load_samples || []),
   };
 }
@@ -761,7 +1008,8 @@ export async function runPublisherTiming({
 }) {
   const ack = createAckTimingObserver(),
     previousEvent = app.cdp.onEvent,
-    starts = new Map();
+    starts = new Map(),
+    preparationTimings = new Map();
   const eventWrapper = (event) => {
     try {
       previousEvent?.call(app.cdp, event);
@@ -813,8 +1061,11 @@ export async function runPublisherTiming({
   };
   const wait = async (ms) => {
     assertActive();
+    const started = budget.now();
     await finishPhase();
+    const gapStarted = budget.now();
     await observeFor(ms, budget, sample, emit, "gap");
+    const observedGap = budget.now() - gapStarted;
     const name = timingLoadPhases[next++];
     check(name !== undefined, "PHASE_SEQUENCE_CHANGED");
     await protocol.post("prepare", { stage: name });
@@ -825,6 +1076,11 @@ export async function runPublisherTiming({
       inspect: () => sampleFor(budget, sample, emit, "barrier"),
     });
     starts.set(name, receiptSummary(receipts));
+    preparationTimings.set(name, {
+      requested_gap_ms: ms,
+      observed_gap_ms: observedGap,
+      total_elapsed_ms: budget.now() - started,
+    });
   };
   const measuredApp = {
     ...app,
@@ -857,6 +1113,7 @@ export async function runPublisherTiming({
       const abort = () => stop.abort();
       stopWork.signal.addEventListener("abort", abort, { once: true });
       phase.load_start_receipts = starts.get(phase.name);
+      phase.preparation_timing = preparationTimings.get(phase.name);
       await sampleFor(budget, sample, emit, phase.name, rows);
       const watch = (async () => {
         while (!stop.signal.aborted && active) {
@@ -964,7 +1221,7 @@ export async function runReceiverTiming({
     });
     const ready = await inspect();
     await protocol.post("phase-ready", { stage: name, receipt: ready.receipt });
-    await protocol.wait("end", 1, { stage: name, inspect, maximum: 45000 });
+    await protocol.wait("end", 1, { stage: name, inspect, maximum: 90000 });
     const final = await inspect();
     await protocol.post("phase-done", { stage: name, receipt: final.receipt });
     phases.push({
@@ -982,7 +1239,8 @@ async function main() {
   const profile = requestedProfile(),
     index = Number(process.env.HARMONY_CLIENT_INDEX),
     budget = createBudget(),
-    hostCpus = cpus();
+    hostCpus = cpus(),
+    http = createDiagnosticHttp({ budget });
   const report = {
     kind: "exe_native_timing_load_diagnostic",
     status: "DIAGNOSTIC",
@@ -1018,7 +1276,7 @@ async function main() {
       "HARMONY_EXE_TIMING_LOAD_SAMPLE " +
         JSON.stringify({ index, capacity_approval: false, ...row }),
     );
-  let app, token, protocol;
+  let app, token, protocol, controlChannel;
   const publisherPhases = [];
   try {
     guard();
@@ -1041,43 +1299,64 @@ async function main() {
       "BINARY_REFUSED",
     );
     report.main_sha256 = manifest.main_sha256;
-    token = await budget.run(() => ownedSession(index), 30000);
+    const actor = identity(index);
+    mask(actor.password);
+    const loggedIn = await http.request("/auth/login", null, actor, {
+      kind: "auth",
+    });
+    mask(loggedIn.access_token);
+    mask(loggedIn.refresh_token);
+    check(
+      loggedIn.user.username === actor.username &&
+        loggedIn.user.is_admin === false,
+      "AUTH_REFUSED",
+    );
+    token = rotatingToken(loggedIn, async (refresh_token) => {
+      const fresh = await http.request(
+        "/auth/refresh",
+        null,
+        { refresh_token },
+        { kind: "auth" },
+      );
+      mask(fresh.access_token);
+      mask(fresh.refresh_token);
+      return fresh;
+    });
     const guildName = "EXE WAN " + cohort(),
-      guilds = (
-        await budget.run(() => api("/guilds", token), 20000)
-      ).items.filter((g) => g.name === guildName);
+      guilds = (await http.request("/guilds", token)).items.filter(
+        (g) => g.name === guildName,
+      );
     check(guilds.length === 1, "COHORT_REFUSED");
     const guildId = guilds[0].id,
-      channels = (
-        await budget.run(() => api(`/guilds/${guildId}/channels`, token), 20000)
-      ).items;
+      channels = (await http.request(`/guilds/${guildId}/channels`, token))
+        .items;
     const voice = channels.filter(
         (c) => c.kind === "voice" && c.name === "Sala de voz",
       ),
       control = channels.filter((c) => c.kind === "text");
     check(voice.length === 1 && control.length === 1, "COHORT_REFUSED");
-    // Existing control transport reads this per-process variable. Server/user
-    // identifiers are discovered over authenticated HTTP, never workflow logs.
-    process.env.HARMONY_CONTROL_ID = control[0].id;
-    const members = (
-      await budget.run(() => api(`/guilds/${guildId}/members`, token), 20000)
-    ).items;
+    controlChannel = control[0].id;
+    const members = (await http.request(`/guilds/${guildId}/members`, token))
+      .items;
     const users = resolveFixtureUsers(
       members,
       Array.from({ length: 8 }, (_, i) => identity(i).username),
     );
-    const instance = await budget.run(() => api("/instance"), 20000),
-      call = await budget.run(
-        () => api(`/channels/${voice[0].id}/call`, token),
-        20000,
-      );
+    const instance = await http.request("/instance"),
+      call = await http.request(`/channels/${voice[0].id}/call`, token);
     assertCallRoute(instance, call);
     check(call.screen_sfu_enabled === true, "SFU_REQUIRED");
+    const transport = createControlTransport({
+      http,
+      token,
+      channel: control[0].id,
+      cohortKey: cohort(),
+    });
     protocol = createCohortProtocol({
       index,
       users,
-      list: () => controls(token),
-      send: (row) => postControl(token, row),
+      list: transport.list,
+      send: transport.send,
       budget,
     });
     app = await acquireSession(
@@ -1249,24 +1528,37 @@ async function main() {
     await protocol.post("finished");
     await protocol.wait("finished", 8, { maximum: 60000 });
   } catch (error) {
-    report.completion = "FAILED";
+    report.completion =
+      error.code === "HTTP_RATE_LIMITED" ||
+      (error.code === "DEADLINE" &&
+        http.snapshot().classification === "NOT_RUN")
+        ? "NOT_RUN"
+        : "FAILED";
     report.error_code = /^[A-Z_]{1,64}$/.test(error?.code)
       ? error.code
       : "DIAGNOSTIC_FAILED";
     diagnostics.noteFailure(report, app);
-    if (token) {
+    if (token && controlChannel) {
       const cleanup = createBudget({ duration: 5000 });
+      const cleanupHttp = createDiagnosticHttp({ budget: cleanup });
       try {
-        await cleanup.run(
-          () => postControl(token, { probe: tag, action: "abort", index }),
-          5000,
-        );
+        // Use a separate, short cleanup bound, including after global expiry;
+        // never repeat an ambiguous write or restart fixture preparation.
+        await createControlTransport({
+          http: cleanupHttp,
+          token,
+          channel: controlChannel,
+          cohortKey: cohort(),
+        }).send({ probe: tag, action: "abort", index }, { maximum: 5000 });
       } catch {
       } finally {
+        report.cleanup_http = cleanupHttp.snapshot();
         cleanup.close();
       }
     }
   } finally {
+    report.http = http.snapshot();
+    report.control = protocol?.snapshot();
     if (index === 0 && publisherPhases.length)
       report.phases = publisherPhases.map(projectTimingPhase);
     if (app) {

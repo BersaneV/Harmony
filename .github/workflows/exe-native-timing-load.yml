@@ -35,6 +35,8 @@ jobs:
           JS
       - name: Validate protocol, deadlines, load guards and existing hook passivity
         run: node --test scripts/exe-wan/timing-load-diagnostic.test.mjs scripts/exe-wan/timing-diagnostic.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/fixture-contract.test.mjs scripts/exe-wan/profiles.test.mjs
+      - name: Allow the preceding HTTP quota window to clear before preparing once
+        run: sleep 60
       - name: Prepare eight ordinary private test accounts
         id: fixture
         env:

@@ -263,6 +263,246 @@ test("fixture identities are discovered by all eight exact synthetic usernames w
     ),
   );
 });
+test("a definite429 backs off, reuses exactly the same POST nonce/body, and can recover without duplicating a message", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  const budget = createBudget({ now: () => Date.now() }),
+    requests = [],
+    stored = new Map();
+  const http = diagnostic.createDiagnosticHttp({
+    budget,
+    fetch: async (_url, options) => {
+      requests.push(options);
+      const body = JSON.parse(options.body);
+      stored.set(body.client_nonce, body.content);
+      return requests.length === 1
+        ? { status: 429, ok: false }
+        : { status: 200, ok: true, json: async () => ({}) };
+    },
+  });
+  const transport = diagnostic.createControlTransport({
+    http,
+    token: "private-token",
+    channel: "private-channel",
+    cohortKey: "private-cohort",
+  });
+  await drive(
+    transport.send(message(0, "finished"), { maximum: 90000 }),
+    context,
+  );
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].body, requests[1].body);
+  assert.equal(stored.size, 1);
+  await transport.send(message(0, "abort"));
+  assert.notEqual(
+    JSON.parse(requests[0].body).client_nonce,
+    JSON.parse(requests[2].body).client_nonce,
+  );
+  assert.equal(stored.size, 2);
+  assert.equal(http.snapshot().rate_limited_responses, 1);
+  assert.ok(http.snapshot().backoff_elapsed_ms >= 5000);
+  assert.ok(!JSON.stringify(http.snapshot()).includes("private-"));
+  budget.close();
+});
+test("429 retry exhaustion is bounded and classified NOT_RUN, while other statuses and ambiguous network failures never retry", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  const budget = createBudget({ now: () => Date.now(), duration: 12000 });
+  let attempts = 0;
+  const limited = diagnostic.createDiagnosticHttp({
+    budget,
+    fetch: async () => {
+      attempts++;
+      return { status: 429, ok: false };
+    },
+  });
+  await assert.rejects(
+    drive(
+      limited.request("/instance", null, undefined, { maximum: 12000 }),
+      context,
+    ),
+    code("HTTP_RATE_LIMITED"),
+  );
+  assert.equal(attempts, 2);
+  assert.equal(limited.snapshot().classification, "NOT_RUN");
+  assert.ok(Date.now() <= 12000);
+  budget.close();
+  for (const response of [
+    { status: 503, ok: false },
+    new TypeError("ambiguous network"),
+  ]) {
+    const fresh = createBudget({ now: () => Date.now() });
+    let calls = 0;
+    const http = diagnostic.createDiagnosticHttp({
+      budget: fresh,
+      fetch: async () => {
+        calls++;
+        if (response instanceof Error) throw response;
+        return response;
+      },
+    });
+    await assert.rejects(
+      http.request("/channels/private-channel/messages", null, {
+        client_nonce: "private-stable-nonce",
+        content: "private-payload",
+      }),
+    );
+    assert.equal(calls, 1);
+    assert.equal(http.snapshot().backoff_count, 0);
+    fresh.close();
+  }
+});
+test("concurrent barrier readers coalesce and a recent result is reused without weakening eight-client quorum", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  const budget = createBudget({ now: () => Date.now() });
+  let calls = 0;
+  const p = createCohortProtocol({
+    index: 0,
+    users,
+    budget,
+    send: async () => {},
+    list: async () => {
+      calls++;
+      return users.map((_, i) => message(i, "finished"));
+    },
+  });
+  const pair = await Promise.all([
+    p.wait("finished", 8),
+    p.wait("finished", 8),
+  ]);
+  assert.deepEqual(
+    pair.map((x) => x.length),
+    [8, 8],
+  );
+  await p.wait("finished", 8);
+  assert.equal(calls, 1);
+  budget.close();
+});
+test("closing the budget during429 backoff prevents a late fetch and never claims recovery", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  const budget = createBudget({ now: () => Date.now() });
+  let calls = 0;
+  const http = diagnostic.createDiagnosticHttp({
+    budget,
+    fetch: async () => {
+      calls++;
+      return { status: 429, ok: false };
+    },
+  });
+  const pending = http.request("/instance");
+  await flush();
+  const rejected = assert.rejects(pending, code("DEADLINE"));
+  budget.close();
+  await rejected;
+  context.mock.timers.tick(90000);
+  await flush();
+  assert.equal(calls, 1);
+  assert.equal(http.snapshot().classification, "NOT_RUN");
+  assert.equal(http.snapshot().recovered_requests, 0);
+});
+test("receiver media remains inspected every3s while a single coalesced HTTP read backs off", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  const budget = createBudget({ now: () => Date.now() }),
+    inspected = [];
+  let calls = 0;
+  const http = diagnostic.createDiagnosticHttp({
+    budget,
+    fetch: async () => {
+      calls++;
+      return calls <= 2
+        ? { status: 429, ok: false }
+        : {
+            status: 200,
+            ok: true,
+            json: async () => ({
+              items: [
+                {
+                  author: { id: users[0].id },
+                  content: JSON.stringify({
+                    lab: "exe-wan",
+                    cohort: "synthetic-cohort",
+                    ...message(0, "end", "instrumented"),
+                  }),
+                },
+              ],
+            }),
+          };
+    },
+  });
+  const transport = diagnostic.createControlTransport({
+    http,
+    token: "synthetic-token",
+    channel: "synthetic-channel",
+    cohortKey: "synthetic-cohort",
+  });
+  const protocol = createCohortProtocol({
+    index: 1,
+    users,
+    budget,
+    ...transport,
+  });
+  const result = await drive(
+    protocol.wait("end", 1, {
+      stage: "instrumented",
+      inspect: async () => {
+        inspected.push(Date.now());
+      },
+    }),
+    context,
+  );
+  assert.equal(result.length, 1);
+  assert.equal(calls, 3);
+  assert.ok(
+    inspected.length >= 4,
+    "Backoff must not hide the whole instrumented media window",
+  );
+  assert.ok(
+    inspected.every((time, i) => time - (inspected[i - 1] || 0) <= 4000),
+  );
+  assert.ok(protocol.snapshot().waits[0].elapsed_ms >= 15000);
+  budget.close();
+});
+test("a failed local media guard cancels a pending429 read without a later retry", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  const budget = createBudget({ now: () => Date.now() });
+  let calls = 0;
+  const http = diagnostic.createDiagnosticHttp({
+    budget,
+    fetch: async () => {
+      calls++;
+      return { status: 429, ok: false };
+    },
+  });
+  const transport = diagnostic.createControlTransport({
+    http,
+    token: "synthetic-token",
+    channel: "synthetic-channel",
+    cohortKey: "synthetic-cohort",
+  });
+  const protocol = createCohortProtocol({
+    index: 1,
+    users,
+    budget,
+    ...transport,
+  });
+  await assert.rejects(
+    drive(
+      protocol.wait("end", 1, {
+        stage: "instrumented",
+        inspect: async () => {
+          throw Object.assign(new Error("media stopped"), {
+            code: "MEDIA_NOT_ADVANCING",
+          });
+        },
+      }),
+      context,
+    ),
+    code("MEDIA_NOT_ADVANCING"),
+  );
+  context.mock.timers.tick(30000);
+  await flush();
+  assert.equal(calls, 1);
+  assert.equal(protocol.snapshot().waits[0].completion, "NOT_RUN");
+  budget.close();
+});
 test("network barriers bind authenticated authors, deduplicate clients and reject foreign stage/owner receipts", async () => {
   const budget = createBudget({ duration: 500 }),
     rows = users.map((_, i) => message(i, "phase-ready", "instrumented"));
@@ -484,6 +724,7 @@ function phaseFixture(
     duration = 600000,
     noObservations = false,
     pendingBeforeInstrument = false,
+    http429BeforeInstrument = false,
   } = {},
 ) {
   context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
@@ -549,9 +790,35 @@ function phaseFixture(
       return measured;
     },
   };
+  let httpCalls = 0;
+  const http = diagnostic.createDiagnosticHttp({
+    budget,
+    fetch: async () => {
+      assert.ok(
+        !events.includes("install"),
+        "HTTP retries must finish before wrapper installation",
+      );
+      events.push("http:" + Date.now());
+      httpCalls++;
+      return httpCalls === 1
+        ? { ok: false, status: 429 }
+        : { ok: true, status: 204 };
+    },
+  });
   const protocol = {
     async post(action, { stage } = {}) {
       events.push(action + (stage ? ":" + stage : ""));
+      if (
+        http429BeforeInstrument &&
+        action === "prepare" &&
+        stage === "instrumented"
+      )
+        await http.request(
+          "/channels/private/messages",
+          null,
+          { client_nonce: "private-operation", content: "prepare" },
+          { kind: "control_write", maximum: 90000 },
+        );
     },
     async wait(action, count, { stage }) {
       events.push("quorum:" + action + ":" + stage);
@@ -576,6 +843,7 @@ function phaseFixture(
     phases,
     run,
     originalEvent,
+    http,
     releaseSnapshot: () => releaseSnapshot(),
   };
 }
@@ -603,6 +871,21 @@ test("real phase helper keeps FAIL FPS and requires all start/end load receipts;
   );
   assert.ok(f.events.indexOf("restore") < f.events.indexOf("end:instrumented"));
   assert.equal(f.app.cdp.onEvent, f.originalEvent);
+  f.budget.close();
+});
+test("a transient429 before instrumentation records real transition time and finishes backoff before installing hooks", async (context) => {
+  const f = phaseFixture(context, { http429BeforeInstrument: true }),
+    result = await drive(f.run(), context),
+    middle = projectTimingPhase(result.phases[1]);
+  assert.equal(middle.preparation_timing.requested_gap_ms, 2000);
+  assert.ok(middle.preparation_timing.observed_gap_ms >= 2000);
+  assert.ok(middle.preparation_timing.total_elapsed_ms >= 7000);
+  assert.equal(f.http.snapshot().rate_limited_responses, 1);
+  assert.ok(
+    f.events.findLastIndex((e) => e.startsWith("http:")) <
+      f.events.indexOf("install"),
+  );
+  assert.equal(result.observations_verified, true);
   f.budget.close();
 });
 test("capture failure and lost install response both restore the owner and event handler before teardown", async (context) => {
