@@ -143,6 +143,29 @@ test("companion rejects IDs, nonnumeric payloads and unexpected event/phase/capa
     ),
   );
 });
+test("optional identity counts are exact nonnegative integers and contain no window identities", () => {
+  const value = reply("attached", null, {
+    identity_visible_candidates: 2,
+    identity_title_matches: 1,
+  });
+  assert.equal(validateCompanionReply(value, "attached"), value);
+  assert.doesNotThrow(() =>
+    validateCompanionReply(reply("attached"), "attached"),
+  );
+  for (const invalid of [null, true, -1, 0.5, Infinity])
+    assert.throws(() =>
+      validateCompanionReply(
+        { ...value, identity_title_matches: invalid },
+        "attached",
+      ),
+    );
+  assert.throws(() =>
+    validateCompanionReply(
+      { ...value, identity_window_handles: 2 },
+      "attached",
+    ),
+  );
+});
 test("counter/window validation never labels missing, regressive, short or disjoint clocks OBSERVED", () => {
   const observation = phaseObservation([row(0), row(10000)], profile);
   assert.equal(observation.original_source_fps_gate, "FAIL");
@@ -557,6 +580,8 @@ test("legitimate NOT_VERIFIED operations retain their sanitized cause", async (c
                 status: "NOT_VERIFIED",
                 failure_code: "window_not_unique",
                 native_error_code: 5,
+                identity_visible_candidates: 2,
+                identity_title_matches: 0,
               },
             )
           : original(command, phase);
@@ -565,7 +590,9 @@ test("legitimate NOT_VERIFIED operations retain their sanitized cause", async (c
         (e) =>
           e.code === "PS_NOT_VERIFIED" &&
           e.companion_failure_code === "window_not_unique" &&
-          e.native_error_code === 5,
+          e.native_error_code === 5 &&
+          e.identity_visible_candidates === 2 &&
+          e.identity_title_matches === 0,
       );
       assert.equal(f.phases.length, operation === "attach" ? 0 : 1);
       assert.equal(f.events.at(-1), "close");
@@ -580,6 +607,8 @@ test("NOT_VERIFIED cleanup preserves its own cause without replacing the primary
       status: "NOT_VERIFIED",
       failure_code: "owned_session_cleanup_not_verified",
       native_error_code: 5,
+      identity_visible_candidates: 2,
+      identity_title_matches: 1,
     });
   await assert.rejects(
     drive(f.run(), context),
@@ -588,7 +617,9 @@ test("NOT_VERIFIED cleanup preserves its own cause without replacing the primary
       e.cleanup_error_code === "PS_CLOSE_NOT_VERIFIED" &&
       e.cleanup_companion_failure_code ===
         "owned_session_cleanup_not_verified" &&
-      e.cleanup_native_error_code === 5,
+      e.cleanup_native_error_code === 5 &&
+      e.cleanup_identity_visible_candidates === 2 &&
+      e.cleanup_identity_title_matches === 1,
   );
   f.budget.close();
 });

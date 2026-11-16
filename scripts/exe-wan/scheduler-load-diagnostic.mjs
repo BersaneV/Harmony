@@ -75,6 +75,10 @@ const events = {
   end: "ended",
   close: "closed",
 };
+const identityCountKeys = [
+  "identity_visible_candidates",
+  "identity_title_matches",
+];
 const COMPANION_SCHEMA = {
   reply: [
     "kind",
@@ -90,6 +94,8 @@ const COMPANION_SCHEMA = {
     "cpu",
     "trace",
     "native_error_code",
+    "identity_visible_candidates",
+    "identity_title_matches",
   ],
   window: [
     "start_utc_ms",
@@ -335,6 +341,10 @@ const COMPANION_SCHEMA = {
   },
   all_other_values:
     "numeric, bool or null; failure_code fixed enum in frozen script. No other string/dynamic key allowed.",
+  optional_identity_counts: {
+    identity_visible_candidates: "safe integer>=0, absent if not enumerated",
+    identity_title_matches: "safe integer>=0, absent if not enumerated",
+  },
 };
 export function validateCompanionReply(row, event, phase) {
   check(
@@ -361,6 +371,10 @@ export function validateCompanionReply(row, event, phase) {
     },
   };
   const primitive = (value, key) => {
+    if (identityCountKeys.includes(key)) {
+      check(Number.isSafeInteger(value) && value >= 0, "COMPANION_SCHEMA");
+      return;
+    }
     if (Object.hasOwn(COMPANION_SCHEMA.enums, key)) {
       check(COMPANION_SCHEMA.enums[key].includes(value), "COMPANION_SCHEMA");
       return;
@@ -450,16 +464,22 @@ function copyCompanionDetails(target, error, prefix = "") {
         Number.isFinite(error.native_error_code)))
   )
     target[prefix + "native_error_code"] = error.native_error_code;
+  for (const key of identityCountKeys)
+    if (Number.isSafeInteger(error?.[key]) && error[key] >= 0)
+      target[prefix + key] = error[key];
   return target;
 }
 function companionFailure(row, code) {
   validateCompanionReply(row, row.event, row.phase);
-  return copyCompanionDetails(failure(code), {
+  const details = {
     companion_failure_code: row.failure_code,
     ...(Object.hasOwn(row, "native_error_code")
       ? { native_error_code: row.native_error_code }
       : {}),
-  });
+  };
+  for (const key of identityCountKeys)
+    if (Object.hasOwn(row, key)) details[key] = row[key];
+  return copyCompanionDetails(failure(code), details);
 }
 function requireObserved(row, code) {
   if (row.status !== "OBSERVED") throw companionFailure(row, code);
@@ -1166,16 +1186,16 @@ async function main() {
       : "DIAGNOSTIC_FAILED";
     report.primary_error_code = report.error_code;
     copyCompanionDetails(report, error);
-    copyCompanionDetails(
-      report,
-      {
-        companion_failure_code: error?.cleanup_companion_failure_code,
-        ...(Object.hasOwn(error ?? {}, "cleanup_native_error_code")
-          ? { native_error_code: error.cleanup_native_error_code }
-          : {}),
-      },
-      "cleanup_",
-    );
+    const cleanupDetails = {
+      companion_failure_code: error?.cleanup_companion_failure_code,
+      ...(Object.hasOwn(error ?? {}, "cleanup_native_error_code")
+        ? { native_error_code: error.cleanup_native_error_code }
+        : {}),
+    };
+    for (const key of identityCountKeys)
+      if (Object.hasOwn(error ?? {}, "cleanup_" + key))
+        cleanupDetails[key] = error["cleanup_" + key];
+    copyCompanionDetails(report, cleanupDetails, "cleanup_");
     if (error?.cleanup_error_code)
       report.cleanup_error_code = error.cleanup_error_code;
     diagnostics.noteFailure(report, app);

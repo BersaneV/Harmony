@@ -372,7 +372,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
-public sealed class SchedulingFault:Exception { public readonly string Code; public readonly int? NativeCode; public SchedulingFault(string code,int? native=null):base(code){Code=code;NativeCode=native;} }
+public sealed class SchedulingFault:Exception { public readonly string Code; public readonly int? NativeCode,VisibleCandidates,TitleMatches; public SchedulingFault(string code,int? native=null,int? visible=null,int? matches=null):base(code){Code=code;NativeCode=native;VisibleCandidates=visible;TitleMatches=matches;} }
 public sealed class QueryHandle:SafeHandleZeroOrMinusOneIsInvalid { public QueryHandle():base(true){} [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h); protected override bool ReleaseHandle(){return CloseHandle(handle);} }
 public static class SchedulerNative {
  [StructLayout(LayoutKind.Sequential)] public struct FT {public uint Low,High; public ulong Value(){return ((ulong)High<<32)|Low;}}
@@ -392,13 +392,13 @@ public static class SchedulerNative {
  delegate bool EnumWindowsCallback(IntPtr w,IntPtr p);
  [DllImport("user32.dll",SetLastError=true)] static extern bool EnumWindows(EnumWindowsCallback cb,IntPtr p);
  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr w);
- [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr w,uint command);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern int GetWindowText(IntPtr w,StringBuilder text,int count);
  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr w,out uint p);
  public static string Image(QueryHandle h){var b=new StringBuilder(32768);uint n=32768;if(!QueryFullProcessImageName(h,0,b,ref n))throw new SchedulingFault("process_query_failed",Marshal.GetLastWin32Error());return Path.GetFullPath(b.ToString());}
  public static ulong Creation(QueryHandle h,bool process){FT c,e,k,u;bool ok=process?GetProcessTimes(h,out c,out e,out k,out u):Times(h,out c,out e,out k,out u);if(!ok)throw new SchedulingFault("creation_query_failed",Marshal.GetLastWin32Error());return c.Value();}
  public static bool Alive(QueryHandle h,bool process){uint c;bool ok=process?GetExitCodeProcess(h,out c):GetExitCodeThread(h,out c);return ok&&c==259;}
  public static string Description(QueryHandle h){IntPtr p=IntPtr.Zero;int hr=GetThreadDescription(h,out p);try{if(hr<0)throw new SchedulingFault("description_query_failed",hr);return Marshal.PtrToStringUni(p)??"";}finally{if(p!=IntPtr.Zero)LocalFree(p);}}
- public static List<IntPtr> Windows(uint pid){var a=new List<IntPtr>();if(!EnumWindows((w,p)=>{uint owner;GetWindowThreadProcessId(w,out owner);if(owner==pid&&IsWindowVisible(w)&&GetWindow(w,4)==IntPtr.Zero)a.Add(w);return true;},IntPtr.Zero))throw new SchedulingFault("window_query_failed",Marshal.GetLastWin32Error());return a;}
+ public static List<IntPtr> Windows(uint pid,out int visible){var a=new List<IntPtr>();int candidates=0;const string title="Harmony";if(!EnumWindows((w,p)=>{uint owner;GetWindowThreadProcessId(w,out owner);if(owner==pid&&IsWindowVisible(w)){candidates++;var text=new StringBuilder(title.Length+2);int length=GetWindowText(w,text,text.Capacity);if(length==title.Length&&String.Equals(text.ToString(),title,StringComparison.Ordinal))a.Add(w);}return true;},IntPtr.Zero))throw new SchedulingFault("window_query_failed",Marshal.GetLastWin32Error());visible=candidates;return a;}
  public static uint WindowOwner(IntPtr w,uint pid){uint owner;uint id=GetWindowThreadProcessId(w,out owner);if(owner!=pid||id==0)throw new SchedulingFault("window_owner_changed");return id;}
  public sealed class Clock {public readonly long UtcTicks,QpcBefore,Qpc;public Clock(){QpcBefore=Stopwatch.GetTimestamp();FT t;GetSystemTimePreciseAsFileTime(out t);UtcTicks=DateTime.FromFileTimeUtc((long)t.Value()).Ticks;Qpc=Stopwatch.GetTimestamp();}public Dictionary<string,object> Export(){return new Dictionary<string,object>{{"utc_ms",(UtcTicks-621355968000000000L)/10000},{"qpc_ticks",Qpc},{"qpc_frequency",Stopwatch.Frequency},{"clock_query_ms",(Qpc-QpcBefore)*1000.0/Stopwatch.Frequency}};}}
  public static Clock Now(){return new Clock();}
@@ -418,17 +418,18 @@ public static class SchedulerNative {
 }
 public sealed class SchedulingOwner:IDisposable {
  const string Hash="6a1517c44ed45c996ac8d32c08767ea7306e897a4cb73d703d9286b68c86c2cc";
+ public int IdentityVisibleCandidates {get;private set;} public int IdentityTitleMatches {get;private set;}
  readonly string path; readonly uint pid,uiId,captureId; readonly ulong processCreated,uiCreated,captureCreated; readonly IntPtr window; readonly QueryHandle process,ui,capture;
  public SchedulingOwner(string exe,string root,string temp){path=Path.GetFullPath(exe);string r=Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar,t=Path.GetFullPath(temp).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;if(!r.StartsWith(t,StringComparison.OrdinalIgnoreCase)||!path.StartsWith(r,StringComparison.OrdinalIgnoreCase))throw new SchedulingFault("installed_path_unverified");using(var f=File.Open(path,FileMode.Open,FileAccess.Read,FileShare.Read)){if(Convert.ToHexString(SHA256.HashData(f)).ToLowerInvariant()!=Hash)throw new SchedulingFault("main_hash_mismatch");}
   Process[] candidates=Process.GetProcessesByName(Path.GetFileNameWithoutExtension(path));try{if(candidates.Length!=1)throw new SchedulingFault("process_not_unique");pid=(uint)candidates[0].Id;}finally{foreach(var p in candidates)p.Dispose();}
   try{process=SchedulerNative.OpenProcess(0x1000,false,pid);if(process.IsInvalid||!SchedulerNative.Alive(process,true)||!String.Equals(SchedulerNative.Image(process),path,StringComparison.OrdinalIgnoreCase))throw new SchedulingFault("process_identity_unverified");processCreated=SchedulerNative.Creation(process,true);
-   var windows=SchedulerNative.Windows(pid);if(windows.Count!=1)throw new SchedulingFault("window_not_unique");window=windows[0];uiId=SchedulerNative.WindowOwner(window,pid);captureId=FindCapture();if(uiId==captureId)throw new SchedulingFault("roles_not_distinct");
+   int visible;var windows=SchedulerNative.Windows(pid,out visible);IdentityVisibleCandidates=visible;IdentityTitleMatches=windows.Count;if(windows.Count!=1)throw new SchedulingFault("window_not_unique",null,visible,windows.Count);window=windows[0];uiId=SchedulerNative.WindowOwner(window,pid);captureId=FindCapture();if(uiId==captureId)throw new SchedulingFault("roles_not_distinct");
    ui=SchedulerNative.OpenThread(0x0800,false,uiId);capture=SchedulerNative.OpenThread(0x0800,false,captureId);if(ui.IsInvalid||capture.IsInvalid||SchedulerNative.GetProcessIdOfThread(ui)!=pid||SchedulerNative.GetProcessIdOfThread(capture)!=pid)throw new SchedulingFault("thread_open_failed");uiCreated=SchedulerNative.Creation(ui,false);captureCreated=SchedulerNative.Creation(capture,false);Validate();
   }catch{Dispose();throw;}
  }
  uint FindCapture(){uint found=0;int matches=0;using(var p=Process.GetProcessById((int)pid)){foreach(ProcessThread t in p.Threads){try{using(var h=SchedulerNative.OpenThread(0x0800,false,(uint)t.Id)){if(h.IsInvalid)throw new SchedulingFault("thread_enumeration_unverified");if(SchedulerNative.Description(h)=="harmony-capture"){found=(uint)t.Id;matches++;}}}finally{t.Dispose();}}}if(matches!=1)throw new SchedulingFault("capture_description_not_unique");return found;}
  public uint RoleId(string role){return role=="capture"?captureId:role=="ui"?uiId:throw new SchedulingFault("role_invalid");}
- public void Validate(){if(process==null||process.IsInvalid||!SchedulerNative.Alive(process,true)||SchedulerNative.Creation(process,true)!=processCreated||!String.Equals(SchedulerNative.Image(process),path,StringComparison.OrdinalIgnoreCase))throw new SchedulingFault("process_changed");var ws=SchedulerNative.Windows(pid);if(ws.Count!=1||ws[0]!=window||SchedulerNative.WindowOwner(window,pid)!=uiId||FindCapture()!=captureId)throw new SchedulingFault("subject_changed");if(SchedulerNative.GetProcessIdOfThread(ui)!=pid||SchedulerNative.GetProcessIdOfThread(capture)!=pid||!SchedulerNative.Alive(ui,false)||!SchedulerNative.Alive(capture,false)||SchedulerNative.Creation(ui,false)!=uiCreated||SchedulerNative.Creation(capture,false)!=captureCreated||SchedulerNative.Description(capture)!="harmony-capture")throw new SchedulingFault("thread_changed");}
+ public void Validate(){if(process==null||process.IsInvalid||!SchedulerNative.Alive(process,true)||SchedulerNative.Creation(process,true)!=processCreated||!String.Equals(SchedulerNative.Image(process),path,StringComparison.OrdinalIgnoreCase))throw new SchedulingFault("process_changed");int visible;var ws=SchedulerNative.Windows(pid,out visible);IdentityVisibleCandidates=visible;IdentityTitleMatches=ws.Count;if(ws.Count!=1||ws[0]!=window||SchedulerNative.WindowOwner(window,pid)!=uiId||FindCapture()!=captureId)throw new SchedulingFault("subject_changed",null,visible,ws.Count);if(SchedulerNative.GetProcessIdOfThread(ui)!=pid||SchedulerNative.GetProcessIdOfThread(capture)!=pid||!SchedulerNative.Alive(ui,false)||!SchedulerNative.Alive(capture,false)||SchedulerNative.Creation(ui,false)!=uiCreated||SchedulerNative.Creation(capture,false)!=captureCreated||SchedulerNative.Description(capture)!="harmony-capture")throw new SchedulingFault("thread_changed");}
  public SchedulerNative.Sample Read(string role){return new SchedulerNative.Sample(role=="capture"?capture:role=="ui"?ui:throw new SchedulingFault("role_invalid"));}
  public void Dispose(){capture?.Dispose();ui?.Dispose();process?.Dispose();}
 }
@@ -499,14 +500,15 @@ $owner=$null; $active=$null; $attached=$false; $next=0; $windows=@{}; $traceMayE
 function Failure-From($Record) {
     $ex=$Record.Exception
     for($i=0;$i -lt 8 -and $null -ne $ex;$i++) {
-        if($ex -is [SchedulingFault]) { return @{code=(Resolve-Failure $ex.Code);native=$ex.NativeCode} }
-        if($ex.Message -cin $failureCodes) { return @{code=$ex.Message;native=$null} }
+        if($ex -is [SchedulingFault]) { return @{code=(Resolve-Failure $ex.Code);native=$ex.NativeCode;visible=$ex.VisibleCandidates;matches=$ex.TitleMatches} }
+        if($ex.Message -cin $failureCodes) { return @{code=$ex.Message;native=$null;visible=$null;matches=$null} }
         $ex=$ex.InnerException
     }
-    return @{code='unexpected_failure';native=$null}
+    return @{code='unexpected_failure';native=$null;visible=$null;matches=$null}
 }
-function Emit-Reply([string]$Event,$Phase,[string]$Status,[string]$Code,$Window=$null,$Cpu=$null,$Trace=$null,$Native=$null) {
+function Emit-Reply([string]$Event,$Phase,[string]$Status,[string]$Code,$Window=$null,$Cpu=$null,$Trace=$null,$Native=$null,$Visible=$null,$TitleMatches=$null) {
     $value=@{kind='SCHEDULING_LOAD';event=$Event;phase=$Phase;status=$Status;failure_code=(Resolve-Failure $Code);capacity_approval=$false;utc_ms=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds();qpc_ticks=[Diagnostics.Stopwatch]::GetTimestamp();qpc_frequency=[Diagnostics.Stopwatch]::Frequency;native_error_code=$Native}
+    if($null -ne $Visible){$value.identity_visible_candidates=[int]$Visible};if($null -ne $TitleMatches){$value.identity_title_matches=[int]$TitleMatches}
     if($null -ne $Window){$value.window=$Window};if($null -ne $Cpu){$value.cpu=$Cpu};if($null -ne $Trace){$value.trace=$Trace}
     $line=$value | ConvertTo-Json -Depth 12 -Compress
     $bytes=[Text.Encoding]::UTF8.GetByteCount($line)+1
@@ -629,7 +631,7 @@ try {
             if($cmd.command -eq 'attach'){
                 if($attached){throw 'already_attached'}
                 $owner=[SchedulingOwner]::new($env:HARMONY_EXE_PATH,$env:HARMONY_EXE_ROOT,$env:RUNNER_TEMP);New-PrivateTrace;$attached=$true
-                Emit-Reply 'attached' $null 'OBSERVED' 'none';continue
+                Emit-Reply 'attached' $null 'OBSERVED' 'none' -Visible $owner.IdentityVisibleCandidates -TitleMatches $owner.IdentityTitleMatches;continue
             }
             if($cmd.command -eq 'close'){
                 if($null -ne $active){$fatal='trace_incomplete';$active=$null}
@@ -658,7 +660,7 @@ try {
         }catch{
             $failure=Failure-From $_;$fatal=$failure.code
             $event=switch($cmd.command){'attach'{'attached'}'begin'{'begun'}'end'{'ended'}default{'closed'}}
-            if($event -ne 'closed'){Emit-Reply $event $phase 'NOT_VERIFIED' $failure.code $null $null $null $failure.native}
+            if($event -ne 'closed'){Emit-Reply $event $phase 'NOT_VERIFIED' $failure.code $null $null $null $failure.native $failure.visible $failure.matches}
             if($event -eq 'closed'){$pendingCloseFailure=$failure;break}
         }
     }
@@ -669,6 +671,6 @@ try {
     if($traceMayExist -and $null -ne $instance -and $null -ne $wpr){try{[void](Invoke-Inbox $wpr @('-cancel','-instancename',$instance));$after=Invoke-Inbox $wpr @('-status','-instancename',$instance);if($after.text -notmatch '(?i)\bnot recording\b'){$fatal='owned_session_cleanup_not_verified'}}catch{$fatal='owned_session_cleanup_not_verified'}}
     if($null -ne $owner){$owner.Dispose()}
 }
-if($null -ne $pendingCloseFailure){try{Emit-Reply 'closed' $null 'NOT_VERIFIED' $fatal $null $null $null $pendingCloseFailure.native}catch{}}
+if($null -ne $pendingCloseFailure){try{Emit-Reply 'closed' $null 'NOT_VERIFIED' $fatal $null $null $null $pendingCloseFailure.native $pendingCloseFailure.visible $pendingCloseFailure.matches}catch{}}
 if($fatal -ne 'none'){exit 2}
 exit 0

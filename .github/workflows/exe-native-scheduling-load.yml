@@ -57,7 +57,7 @@ jobs:
       HARMONY_EXE_PROFILE: ${{ inputs.profile }}
       HARMONY_CLIENT_INDEX: ${{ matrix.client }}
       HARMONY_SCHEDULER_LOAD_PUBLIC_REPOSITORY: ${{ github.event.repository.private == false }}
-      HARMONY_SCHEDULER_PS_SHA256: "c4d7739220977968bd9dbf8acee8ae3ef74dd5f5f34ffa2d57eb4c9554c4eb9b"
+      HARMONY_SCHEDULER_PS_SHA256: "15b157b6838d17a66b845746152dfd25425f71487d5231e7fc98310d40af5ce0"
       HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
       HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
     steps:
