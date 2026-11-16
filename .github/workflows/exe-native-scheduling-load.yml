@@ -1,0 +1,82 @@
+name: Diagnose scheduler under eight immutable Windows EXEs
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: DIAGNOSTIC only; no capacity approval
+        type: choice
+        options: ["1080p60", "1440p60"]
+        default: "1440p60"
+permissions:
+  contents: read
+concurrency:
+  group: exe-wan
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      cohort: ${{ steps.fixture.outputs.cohort }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: "26.13.0" }
+      - name: Verify unchanged profile, protocol and owned companion guards
+        run: node --test scripts/exe-wan/scheduler-load-diagnostic.test.mjs
+      - name: Require actual immutable public049 hashes
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFile} from 'node:fs/promises';
+          const m=JSON.parse(await readFile('scripts/exe-wan/releases/0.4.9.json','utf8'));
+          assert.deepEqual(m,{version:'0.4.9',installer_url:'https://github.com/BersaneV/Harmony/releases/download/v0.4.9/Harmony_0.4.9_x64-setup.exe',installer_sha256:'cf42a6924ccd1c390e33bbf440b6d77381f15f57fd06c09d5c1a29035b23f7ca',main_sha256:'6a1517c44ed45c996ac8d32c08767ea7306e897a4cb73d703d9286b68c86c2cc'});
+          JS
+      - name: Allow the preceding quota window to clear
+        run: sleep 60
+      - name: Prepare eight ordinary private accounts once
+        id: fixture
+        env:
+          HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+        run: node scripts/exe-wan/prepare.mjs
+  windows:
+    needs: prepare
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false && contains(fromJSON('["1080p60","1440p60"]'), inputs.profile)
+    name: Diagnostic client ${{ matrix.client }}
+    runs-on: windows-2022
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        client: [0, 1, 2, 3, 4, 5, 6, 7]
+    env:
+      HARMONY_EXE_RELEASE: "0.4.9"
+      HARMONY_EXE_PROFILE: ${{ inputs.profile }}
+      HARMONY_CLIENT_INDEX: ${{ matrix.client }}
+      HARMONY_SCHEDULER_LOAD_PUBLIC_REPOSITORY: ${{ github.event.repository.private == false }}
+      HARMONY_SCHEDULER_PS_SHA256: "c4d7739220977968bd9dbf8acee8ae3ef74dd5f5f34ffa2d57eb4c9554c4eb9b"
+      HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+      HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: "26.13.0" }
+      - name: Require the reviewed PS bytes and AST before execution
+        shell: pwsh
+        run: |
+          $script = Join-Path $pwd 'scripts/exe-wan/scheduling-load.ps1'
+          if ($env:HARMONY_SCHEDULER_PS_SHA256 -cnotmatch '^[a-f0-9]{64}$') { throw 'PS fingerprint is not frozen' }
+          $sha = (Get-FileHash -LiteralPath $script -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($sha -cne $env:HARMONY_SCHEDULER_PS_SHA256) { throw 'Reviewed PS bytes changed; LF checkout required' }
+          $tokens = $null; $errors = $null
+          $null = [Management.Automation.Language.Parser]::ParseFile($script,[ref]$tokens,[ref]$errors)
+          if ($errors.Count -ne 0) { throw 'Reviewed PS AST parse failed' }
+      - name: Verify and install the immutable published049 EXE
+        shell: pwsh
+        run: ./scripts/exe-wan/install.ps1
+      - name: Observe real voice and screen load with external scheduler tracing
+        run: node scripts/exe-wan/scheduler-load-diagnostic.mjs
