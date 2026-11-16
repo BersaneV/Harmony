@@ -98,7 +98,10 @@ version = report.get('product', {}).get('version', '0.4.1')
 voice_ok = all(c['voice_status'] == 'PASS' for c in phases['screen']['clients'])
 approved = sum(index not in failed and stream is not None for index, stream in video)
 result = ('voz 8/8' if voice_ok else 'voz reprovada') + f', vídeo aprovado {approved}/7'
-fig.suptitle(f"Harmony {version} · {request['id']} · oito EXEs Windows · {result}", fontsize=18, weight='bold')
+native = phases['screen'].get('native_source')
+if native:
+    result += f" · fonte nativa {native['status']}"
+fig.suptitle(f"Harmony {version} · {request['id']} · oito EXEs Windows · resultado global {report['status']}\n{result}", fontsize=16, weight='bold')
 fig.supxlabel('RTT: amostras do último valor ICE a cada ~3 s. Áudio gerado e janela de teste; ambiente de nuvem, sem medição de acústica física.', fontsize=9)
 destination.parent.mkdir(parents=True, exist_ok=True)
 fig.savefig(destination, dpi=160, facecolor=fig.get_facecolor())
