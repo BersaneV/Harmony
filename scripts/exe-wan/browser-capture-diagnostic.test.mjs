@@ -1,18 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {installCaptureDiagnostic, diagnosticVariants} from './browser-capture-diagnostic.mjs';
+import {installCaptureDiagnostic, diagnosticVariants, postFrameVariants, ownedResizeScript} from './browser-capture-diagnostic.mjs';
 
 function fixture({label='window:42:0',surface='window',audio=false}={}){
- const calls=[];let stopped=0;
- const track={id:'compiled-track',label,readyState:'live',muted:false,enabled:true,getSettings:()=>({width:960,height:720,frameRate:30,displaySurface:surface,deviceId:'SECRET'}),getConstraints:()=>({height:{ideal:720,max:720},frameRate:{ideal:30,max:30},deviceId:'SECRET'}),getCapabilities:()=>({width:{min:1,max:8192},height:{min:1,max:8192},deviceId:'SECRET'}),stop(){this.readyState='ended';stopped++;}};
+ const calls=[],applied=[];let stopped=0,now=123;
+ const track={id:'compiled-track',label,readyState:'live',muted:false,enabled:true,getSettings:()=>({width:960,height:720,frameRate:30,displaySurface:surface,deviceId:'SECRET'}),getConstraints:()=>({height:{ideal:720,max:720},frameRate:{ideal:30,max:30},deviceId:'SECRET'}),getCapabilities:()=>({width:{min:1,max:8192},height:{min:1,max:8192},deviceId:'SECRET'}),applyConstraints:async c=>applied.push(c),stop(){this.readyState='ended';stopped++;}};
  const audioTrack={stop(){stopped++;}};
  const media={getDisplayMedia:async opts=>{calls.push(opts);return{getTracks:()=>audio?[track,audioTrack]:[track],getVideoTracks:()=>[track],getAudioTracks:()=>audio?[audioTrack]:[]};}};
  const original=media.getDisplayMedia;
  const window={__TAURI_INTERNALS__:{}};
- const context={window,location:{origin:'http://tauri.localhost'},navigator:{mediaDevices:media},structuredClone,performance:{now:()=>123},document:{querySelectorAll:()=>[]}};
+ const video={videoWidth:960,videoHeight:540,readyState:2,srcObject:{getVideoTracks:()=>[track]}};
+ const context={window,location:{origin:'http://tauri.localhost'},navigator:{mediaDevices:media},structuredClone,performance:{now:()=>now},document:{querySelectorAll:()=>[video]}};
  vm.runInNewContext(`(${installCaptureDiagnostic.toString()})()`,context);
- return{qa:window.__browserCaptureDiagnostic,media,track,calls,original,stopped:()=>stopped};
+ return{qa:window.__browserCaptureDiagnostic,media,track,calls,original,video,applied,advance:ms=>{now+=ms;},stopped:()=>stopped};
 }
 const options=()=>({video:{height:{ideal:720,max:720},frameRate:{ideal:30,max:30}},audio:false,selfBrowserSurface:'exclude',systemAudio:'include',surfaceSwitching:'include'});
 for(const variant of diagnosticVariants)test(`GDM diagnostic ${variant} changes only its specified constraints and preserves the compiled options`,async()=>{
@@ -47,4 +48,23 @@ test('a pending capture cannot be reconfigured, restored or mistaken for an ende
  const track={id:'actual',label:'window:42:0',readyState:'live',getSettings:()=>({displaySurface:'window'}),getConstraints:()=>({}),getCapabilities:()=>({})};
  resolveCapture({getVideoTracks:()=>[track],getAudioTracks:()=>[],getTracks:()=>[track]});await pending;assert.equal(qa.snapshot()[0].pending,false);
  track.readyState='ended';qa.restore();
+});
+for(const variant of postFrameVariants)test(`post-frame diagnostic ${variant} keeps baseline GDM and derives dimensions only from a current owned video`,async()=>{
+ const f=fixture();f.qa.configure(variant,42);await f.media.getDisplayMedia(options());assert.deepEqual(JSON.parse(JSON.stringify(f.calls[0])),options());
+ await assert.rejects(f.qa.applyObservedConstraints(),/five seconds/);f.advance(5000);
+ f.video.readyState=1;await assert.rejects(f.qa.applyObservedConstraints(),/current owned video/);assert.equal(f.applied.length,0);f.video.readyState=2;
+ const value=await f.qa.applyObservedConstraints();
+ const expected=variant==='post_frame_max'?{width:{max:1280},height:{max:720},frameRate:{max:30}}:{width:{ideal:1280,max:1280},height:{ideal:720,max:720},frameRate:{max:30}};
+ assert.deepEqual(JSON.parse(JSON.stringify(f.applied[0])),expected);assert.equal(value.video_before.width,960);assert.equal(value.video_before.height,540);assert.equal(value.before.settings.height,720);
+ await assert.rejects(f.qa.applyObservedConstraints(),/already applied/);
+});
+test('post-frame constraints reject another source binding and are forbidden for the four historical variants',async()=>{
+ const f=fixture();f.qa.configure('post_frame_max',42);await f.media.getDisplayMedia(options());f.advance(5000);
+ f.video.srcObject={getVideoTracks:()=>[{id:'another'}]};await assert.rejects(f.qa.applyObservedConstraints(),/current owned video/);assert.equal(f.applied.length,0);
+ const baseline=fixture();baseline.qa.configure('baseline',42);await baseline.media.getDisplayMedia(options());baseline.advance(5000);await assert.rejects(baseline.qa.applyObservedConstraints(),/post-frame variant/);
+});
+test('native fixture resize accepts only the exact owned diagnostic handle, title and two authorized geometries',()=>{
+ for(const size of [[640,360],[1280,720]]){const script=ownedResizeScript(42,...size,'HarmonyWAN-12345');assert.match(script,/SetWindowPos/);assert.match(script,/GetWindowRect/);assert.match(script,/DwmGetWindowAttribute/);assert.match(script,/GetWindowText/);assert.match(script,/SetThreadDpiAwarenessContext/);}
+ assert.match(ownedResizeScript(42,640,360,'HarmonyWAN-12345',false),/Resize\(42,640,360,'HarmonyWAN-12345',\$false\)/);
+ for(const args of [[0,640,360,'HarmonyWAN-12345'],[42,641,360,'HarmonyWAN-12345'],[42,1280,720,"HarmonyWAN-1';whoami"],[42,1920,1080,'HarmonyWAN-12345']])assert.throws(()=>ownedResizeScript(...args));
 });

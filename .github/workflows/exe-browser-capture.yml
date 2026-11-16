@@ -61,5 +61,5 @@ jobs:
       - name: Verify and install the immutable published EXE
         shell: pwsh
         run: ./scripts/exe-wan/install.ps1
-      - name: Run four UI previews on the same owned HWND; diagnostic only
+      - name: Run four historical GDM previews plus two post-frame variants and conditional resize; diagnostic only
         run: node scripts/exe-wan/browser-capture-diagnostic.mjs
