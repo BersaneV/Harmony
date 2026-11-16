@@ -4,11 +4,60 @@ use std::{
     ptr::{null_mut, NonNull},
 };
 use windows_sys::Win32::{
-    Foundation::*, Graphics::Gdi::*, System::Threading::GetCurrentProcessId,
+    Foundation::*,
+    Graphics::Gdi::*,
+    System::Threading::{
+        CreateWaitableTimerExW, GetCurrentProcessId, SetWaitableTimer, WaitForSingleObject,
+        CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS,
+    },
     UI::WindowsAndMessaging::*,
 };
 #[path = "wgc.rs"]
 mod wgc;
+
+/// Per-producer high resolution wait. No process-wide timer resolution change,
+/// spin loop or catch-up queue. Dropped frames are never replayed.
+pub struct FramePacer(HANDLE);
+impl Default for FramePacer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl FramePacer {
+    pub fn new() -> Self {
+        Self(unsafe {
+            CreateWaitableTimerExW(
+                std::ptr::null(),
+                std::ptr::null(),
+                CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                TIMER_ALL_ACCESS,
+            )
+        })
+    }
+    pub fn sleep(&self, duration: std::time::Duration) {
+        if duration.is_zero() {
+            return;
+        }
+        let duration = duration.min(std::time::Duration::from_millis(250));
+        let due = -(duration.as_nanos().div_ceil(100).max(1) as i64);
+        if !self.0.is_null()
+            && unsafe { SetWaitableTimer(self.0, &due, 0, None, std::ptr::null(), 0) } != 0
+            && unsafe { WaitForSingleObject(self.0, 300) } == WAIT_OBJECT_0
+        {
+            return;
+        }
+        std::thread::sleep(duration);
+    }
+}
+impl Drop for FramePacer {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            unsafe {
+                CloseHandle(self.0);
+            }
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Source {
@@ -110,14 +159,16 @@ struct Dib {
 impl Dib {
     fn new(width: u32, height: u32) -> Result<Self, String> {
         byte_len(width, height)?;
-        let mut info = BITMAPINFO::default();
-        info.bmiHeader = BITMAPINFOHEADER {
-            biSize: size_of::<BITMAPINFOHEADER>() as u32,
-            biWidth: width as i32,
-            biHeight: -(height as i32),
-            biPlanes: 1,
-            biBitCount: 32,
-            biCompression: BI_RGB,
+        let info = BITMAPINFO {
+            bmiHeader: BITMAPINFOHEADER {
+                biSize: size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: width as i32,
+                biHeight: -(height as i32),
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: BI_RGB,
+                ..Default::default()
+            },
             ..Default::default()
         };
         unsafe {
@@ -221,7 +272,7 @@ impl Capture {
             }
             let dst = self.scaled.as_ref().unwrap();
             unsafe {
-                SetStretchBltMode(dst.dc, HALFTONE as i32);
+                SetStretchBltMode(dst.dc, HALFTONE);
                 if StretchBlt(
                     dst.dc,
                     0,

@@ -183,7 +183,9 @@ pub fn native_capture_stop(
 #[cfg(windows)]
 mod platform {
     use super::*;
-    use harmony_native_capture::{byte_len, Capture, Profile as CaptureProfile, Source};
+    use harmony_native_capture::{
+        byte_len, Capture, FramePacer, Profile as CaptureProfile, Source,
+    };
     use std::{
         cell::RefCell,
         collections::HashMap,
@@ -392,6 +394,7 @@ mod platform {
         mut capture: Capture,
     ) -> Result<(), String> {
         let start = Instant::now();
+        let pacer = FramePacer::new();
         let mut deadline = start;
         let mut sequence = 0;
         let mut since = start;
@@ -403,19 +406,21 @@ mod platform {
                 if unacked.elapsed() > Duration::from_secs(5) {
                     return Err("A prévia da captura deixou de responder.".into());
                 }
-                thread::sleep(Duration::from_micros(500));
+                pacer.sleep(Duration::from_micros(500));
                 continue;
             }
             let now = Instant::now();
             if now < deadline {
-                thread::sleep(deadline - now);
+                pacer.sleep(deadline - now);
             }
             if run.stop.load(Ordering::Acquire) {
                 break;
             }
             capture.set_profile(*locked(&run.profile)?)?;
             let Some((width, height)) = capture.frame(&mut locked(&run.pixels)?)? else {
-                deadline = Instant::now() + capture.profile().period();
+                // Pool is event-driven. Poll briefly for its newest frame;
+                // waiting a full frame period here can halve the capture rate.
+                pacer.sleep(Duration::from_millis(1));
                 continue;
             };
             *locked(&run.bounds)? = capture.source_dimensions();

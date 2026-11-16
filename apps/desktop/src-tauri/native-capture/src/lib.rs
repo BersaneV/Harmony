@@ -45,7 +45,7 @@ pub fn byte_len(width: u32, height: u32) -> Result<usize, String> {
 #[cfg(windows)]
 mod win;
 #[cfg(windows)]
-pub use win::{Capture, Source};
+pub use win::{Capture, FramePacer, Source};
 
 #[cfg(test)]
 mod tests {

@@ -5,7 +5,7 @@ fn main() {
 
 #[cfg(windows)]
 fn main() {
-    use harmony_native_capture::{Capture, Profile, Source};
+    use harmony_native_capture::{Capture, FramePacer, Profile, Source};
     use std::{
         env, thread,
         time::{Duration, Instant},
@@ -37,6 +37,7 @@ fn main() {
     let profile = Profile { height, fps: 60 };
     let mut capture = Capture::new(source, profile, 0, || true).unwrap();
     let mut frame = Vec::new();
+    let pacer = FramePacer::new();
     let start = Instant::now();
     let settle = start + Duration::from_secs(5);
     let end = settle + Duration::from_secs(10);
@@ -49,7 +50,7 @@ fn main() {
     while Instant::now() < end {
         let begin = Instant::now();
         let Some((w, h)) = capture.frame(&mut frame).unwrap() else {
-            thread::sleep(Duration::from_millis(1));
+            pacer.sleep(Duration::from_millis(1));
             continue;
         };
         let duration = begin.elapsed().as_secs_f64() * 1000.;
@@ -66,7 +67,7 @@ fn main() {
         deadline += profile.period();
         let now = Instant::now();
         if deadline > now {
-            thread::sleep(deadline - now);
+            pacer.sleep(deadline - now);
         } else {
             deadline = now;
         }
