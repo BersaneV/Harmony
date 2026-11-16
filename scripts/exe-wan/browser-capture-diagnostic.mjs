@@ -15,6 +15,10 @@ import {assertCallRoute} from './fixture-contract.mjs';
 
 export const diagnosticVariants = Object.freeze(['baseline', 'width_max', 'width_ideal_max', 'height_ideal_only']);
 export const postFrameVariants = Object.freeze(['post_frame_max', 'post_frame_ideal_max']);
+export function selectDiagnosticVariants(phase = 'full') {
+  assert.ok(phase === 'full' || phase === 'post-frame','Unknown diagnostic phase');
+  return phase === 'post-frame' ? [...postFrameVariants] : [...diagnosticVariants,...postFrameVariants];
+}
 
 // Self-contained for injection into the owned shipped WebView and VM tests.
 export function installCaptureDiagnostic() {
@@ -164,6 +168,59 @@ function resizeOwnedFixture(handle, width, height, resize = true) {
 
 const exactGeometry = (value,width,height) => (value?.resize_requested === false || value?.set_window_pos === true) && value.window_width === width && value.window_height === height && value.dwm_width === width && value.dwm_height === height;
 
+export function ownedUiAutomationScript(fixtureHandle, title) {
+  assert.ok(Number.isSafeInteger(fixtureHandle) && fixtureHandle >= 0,'Owned fixture HWND required');
+  assert.match(title,/^HarmonyWAN-[0-9]+$/,'Exact fixture title required');
+  return `$ErrorActionPreference='Stop'
+if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne 'BersaneV/Harmony' -or -not $env:HARMONY_EXE_PATH) { throw 'Owned installed EXE required' }
+$allProcesses=@(Get-CimInstance Win32_Process)
+$ownedIds=New-Object 'System.Collections.Generic.HashSet[int]'
+foreach($process in $allProcesses){if($process.Name -eq 'harmony-desktop.exe' -and [String]::Equals($process.ExecutablePath,$env:HARMONY_EXE_PATH,[StringComparison]::OrdinalIgnoreCase)){$null=$ownedIds.Add([int]$process.ProcessId)}}
+if($ownedIds.Count -eq 0){throw 'Owned installed process missing'}
+for($level=0;$level -lt 8;$level++){foreach($process in $allProcesses){if($ownedIds.Contains([int]$process.ParentProcessId)){$null=$ownedIds.Add([int]$process.ProcessId)}}}
+Add-Type -TypeDefinition @'
+using System; using System.Text; using System.Collections.Generic; using System.Runtime.InteropServices;
+public static class HarmonyBrowserDiagnosticUi {
+ public delegate bool EnumCallback(IntPtr hwnd,IntPtr param);
+ [DllImport("user32.dll")] public static extern bool EnumWindows(EnumCallback callback,IntPtr param);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr hwnd,StringBuilder text,int count);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetClassName(IntPtr hwnd,StringBuilder text,int count);
+ [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hwnd);
+ [DllImport("user32.dll")] static extern bool IsWindowEnabled(IntPtr hwnd);
+ [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr hwnd,uint command);
+ [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid);
+ public class WindowInfo { public long handle,owner_handle; public uint pid; public string title,class_name; public bool visible,enabled,fixture; }
+ public static WindowInfo[] Snapshot(int[] owned,long fixture,string expectedTitle) {
+  var ids=new HashSet<int>(owned); var rows=new List<WindowInfo>();
+  EnumWindows((hwnd,param)=>{uint processId,ownerId=0;GetWindowThreadProcessId(hwnd,out processId);var owner=GetWindow(hwnd,4);if(owner!=IntPtr.Zero)GetWindowThreadProcessId(owner,out ownerId);
+   var text=new StringBuilder(256);GetWindowText(hwnd,text,text.Capacity);bool source=hwnd.ToInt64()==fixture&&String.Equals(text.ToString(),expectedTitle,StringComparison.Ordinal);
+   if(ids.Contains((int)processId)||ids.Contains((int)ownerId)||source){var cls=new StringBuilder(128);GetClassName(hwnd,cls,cls.Capacity);rows.Add(new WindowInfo {handle=hwnd.ToInt64(),owner_handle=owner.ToInt64(),pid=processId,title=text.ToString(),class_name=cls.ToString(),visible=IsWindowVisible(hwnd),enabled=IsWindowEnabled(hwnd),fixture=source});}return true;
+  },IntPtr.Zero);return rows.ToArray();
+ }
+}
+'@
+$windows=@([HarmonyBrowserDiagnosticUi]::Snapshot([int[]]@($ownedIds),${fixtureHandle},'${title}'))
+[ordered]@{kind='owned_native_windows';windows=$windows}|ConvertTo-Json -Depth 5 -Compress
+[Console]::Out.Flush()
+Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes
+$walker=[Windows.Automation.TreeWalker]::ControlViewWalker
+$script:remaining=100
+function ReadOwnedNode($element,$depth){
+ if($null -eq $element -or $depth -gt 5 -or $script:remaining -le 0){return}
+ try{
+  $current=$element.Current
+  if($current.ControlType -eq [Windows.Automation.ControlType]::Edit -or $current.IsPassword){return}
+  $script:remaining--
+  $name=([string]$current.Name -replace '(https?|wss?)://[^ ]+','[url]' -replace '\\beyJ[A-Za-z0-9_.-]+','[token]')
+  [ordered]@{kind='owned_uia_node';depth=$depth;pid=$current.ProcessId;handle=$current.NativeWindowHandle;title=$name.Substring(0,[Math]::Min(180,$name.Length));class_name=$current.ClassName;type=$current.ControlType.ProgrammaticName;visible=(-not $current.IsOffscreen);enabled=$current.IsEnabled}|ConvertTo-Json -Compress
+  [Console]::Out.Flush()
+  if($depth -lt 5){$child=$walker.GetFirstChild($element);$siblings=0;while($child -and $siblings -lt 20 -and $script:remaining -gt 0){ReadOwnedNode $child ($depth+1);$child=$walker.GetNextSibling($child);$siblings++}}
+ }catch{}
+}
+foreach($window in $windows){try{ReadOwnedNode ([Windows.Automation.AutomationElement]::FromHandle([IntPtr]$window.handle)) 0}catch{}}
+`;
+}
+
 const domExpression = `(()=>{const d=[...document.querySelectorAll('dialog[open]')].find(d=>d.querySelector('h2')?.textContent==='Compartilhar sua tela');const v=d?.querySelector('.share-preview video');return{sharing_open:!!d,preview:v?{ready_state:v.readyState,width:v.videoWidth,height:v.videoHeight,paused:v.paused,error_code:v.error?.code??null}:null,buttons:d?[...d.querySelectorAll('button')].map(b=>({text:b.textContent.trim().slice(0,80),disabled:b.disabled})):[],alerts:[...document.querySelectorAll('.error-banner,[role=alert]')].map(e=>e.textContent.slice(0,180))}})()`;
 const errorView = error => ({name: String(error?.name || 'Error').slice(0,40), message: String(error?.message || error).slice(0,500)
   .replace(/(?:https?|wss?):\/\/\S+/g,'[url]').replace(/\beyJ[A-Za-z0-9_.-]+/g,'[token]')});
@@ -189,6 +246,14 @@ async function independentDiagnostics(app) {
   } catch (error) {out.debugger_error = errorView(error);}
   const processes = spawnSync('powershell.exe', ['-NoProfile','-Command', `Get-CimInstance Win32_Process | Where-Object {$_.Name -in @('harmony-desktop.exe','msedgewebview2.exe')} | ForEach-Object {$p=Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue; [ordered]@{name=$_.Name;pid=$_.ProcessId;parent=$_.ParentProcessId;responding=$p.Responding;cpu_seconds=$p.CPU;working_set=$p.WorkingSet64}} | ConvertTo-Json -Compress`], {encoding:'utf8', timeout:5000});
   try {out.processes = JSON.parse(processes.stdout);} catch {out.process_snapshot = 'unavailable';}
+  try {
+    const fixtureHandle=Number(app.fixtureDiagnostic().output.match(/(?:^|\r?\n)WINDOW ([0-9]+) /)?.[1] ?? 0);
+    const script=ownedUiAutomationScript(fixtureHandle,'HarmonyWAN-'+process.env.GITHUB_RUN_ID);
+    const ui=spawnSync('powershell.exe',['-NoProfile','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{encoding:'utf8',timeout:8000,maxBuffer:150000});
+    // Preserve the native snapshot flushed before a blocked UIA provider.
+    out.owned_windows=(ui.stdout || '').split(/\r?\n/).flatMap(line=>{try{return[JSON.parse(line)];}catch{return[];}});
+    out.owned_windows_completion=ui.status===0?'COMPLETE':'PARTIAL_OR_UNAVAILABLE';
+  } catch {out.owned_windows_completion='UNAVAILABLE';}
   return out;
 }
 
@@ -238,6 +303,8 @@ export async function runDiagnostic() {
   };
   try {
     guard(); assert.equal(process.env.HARMONY_EXE_RELEASE, '0.4.4'); assert.equal(process.env.HARMONY_EXE_PROFILE, '720p30');
+    const phase=process.env.HARMONY_BROWSER_CAPTURE_PHASE ?? 'full', selectedVariants=selectDiagnosticVariants(phase);
+    result.phase=phase;
     const manifest = JSON.parse(await readFile(new URL('./releases/0.4.4.json',import.meta.url),'utf8'));
     assert.equal(manifest.version, '0.4.4'); assert.match(manifest.main_sha256, /^[a-f0-9]{64}$/);
     const hash = createHash('sha256').update(await readFile(process.env.HARMONY_EXE_PATH)).digest('hex'); assert.equal(hash, manifest.main_sha256);
@@ -261,7 +328,7 @@ export async function runDiagnostic() {
     const fixtureHandle = Number(fixture.output.match(/(?:^|\r?\n)WINDOW ([0-9]+) 1280x720 TARGET 30(?:\r?\n|$)/)?.[1]);
     const handle = await app.ownedWindow(); assert.ok(Number.isSafeInteger(handle)&&handle>0); assert.equal(handle,fixtureHandle,'UIA HWND must be the exact handle emitted by the owned fixture'); result.owned_window_handle=handle;
     await stage('install_diagnostic_wrapper', () => app.cdp.evaluate(`(${installCaptureDiagnostic.toString()})()`, false, 5000));
-    for (const variant of [...diagnosticVariants,...postFrameVariants]) {
+    for (const variant of selectedVariants) {
       const row = {variant, status:'DIAGNOSTIC', completion:'RUNNING'}; result.variants.push(row);
       try {
         assert.equal(await app.ownedWindow(),handle,'The source HWND must stay identical across variants');

@@ -1,7 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {installCaptureDiagnostic, diagnosticVariants, postFrameVariants, ownedResizeScript} from './browser-capture-diagnostic.mjs';
+import {installCaptureDiagnostic, diagnosticVariants, postFrameVariants, selectDiagnosticVariants, ownedResizeScript, ownedUiAutomationScript} from './browser-capture-diagnostic.mjs';
+
+test('phase selection defaults to historical plus post-frame variants and restricts post-frame to exactly its two experiments',()=>{
+ assert.deepEqual(selectDiagnosticVariants(),[...diagnosticVariants,...postFrameVariants]);
+ assert.deepEqual(selectDiagnosticVariants('full'),[...diagnosticVariants,...postFrameVariants]);
+ assert.deepEqual(selectDiagnosticVariants('post-frame'),[...postFrameVariants]);
+ for(const bad of ['',null,'post_frame','baseline','post-frame;whoami',true])assert.throws(()=>selectDiagnosticVariants(bad),/phase/);
+});
+test('UI Automation diagnostic is bound to the installed executable tree and fixture without reading values or invoking controls',()=>{
+ const script=ownedUiAutomationScript(42,'HarmonyWAN-12345');
+ assert.match(script,/HARMONY_EXE_PATH/);assert.match(script,/EnumWindows/);assert.match(script,/TreeWalker/);assert.match(script,/ControlType\]::Edit/);
+ for(const forbidden of ['ValuePattern','GetCurrentPattern','InvokePattern','SendMessage','SetForegroundWindow','SetValue','Invoke()'])assert.equal(script.includes(forbidden),false);
+ for(const args of [[-1,'HarmonyWAN-12345'],[42,"HarmonyWAN-1';whoami"]])assert.throws(()=>ownedUiAutomationScript(...args));
+});
 
 function fixture({label='window:42:0',surface='window',audio=false}={}){
  const calls=[],applied=[];let stopped=0,now=123;

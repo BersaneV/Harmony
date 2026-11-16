@@ -1,6 +1,12 @@
 name: Diagnose browser capture constraints in the published EXE
 on:
   workflow_dispatch:
+    inputs:
+      phase:
+        description: All six experiments or only the two post-frame constraints
+        type: choice
+        options: ['full', 'post-frame']
+        default: 'full'
 permissions:
   contents: read
 concurrency:
@@ -47,6 +53,7 @@ jobs:
     env:
       HARMONY_EXE_RELEASE: '0.4.4'
       HARMONY_EXE_PROFILE: '720p30'
+      HARMONY_BROWSER_CAPTURE_PHASE: ${{ inputs.phase }}
       HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
       HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
       HARMONY_GUILD_ID: ${{ needs.prepare.outputs.guild }}
@@ -61,5 +68,5 @@ jobs:
       - name: Verify and install the immutable published EXE
         shell: pwsh
         run: ./scripts/exe-wan/install.ps1
-      - name: Run four historical GDM previews plus two post-frame variants and conditional resize; diagnostic only
+      - name: Run the selected preview diagnostics and conditional resize; never capacity approval
         run: node scripts/exe-wan/browser-capture-diagnostic.mjs
