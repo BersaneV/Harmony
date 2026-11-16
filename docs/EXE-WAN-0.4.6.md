@@ -60,7 +60,7 @@ Para reduzir a variação entre máquinas, o mesmo Windows executou os instalado
 | 1080p60 | 56,8932 / 53,2936 | 53,0920 / 50,6924 | 56,8954 / 53,6957 |
 | 1440p60 | 37,2922 / 35,1926 | 40,7788 / 38,6799 | 40,1992 / 38,3992 |
 
-Todos os seis resultados de qualidade permaneceram FAIL. Em 1080p, a 0.4.6 ficou abaixo dos controles 0.4.4 próximos entre si; em 1440p, a sequência não demonstra uma regressão grande. O perfil 1080p usou AMD EPYC 7763 e o 1440p, Intel Xeon Platinum 8573C, ambos com dois cores físicos e quatro processadores lógicos. Essa diferença entre perfis não isola o efeito de hardware nem permite atribuir uma causa universal.
+Todos os seis resultados de qualidade permaneceram FAIL. Em 1080p, a 0.4.6 ficou abaixo dos controles 0.4.4 próximos entre si; em 1440p, a sequência não demonstra uma regressão grande. A VM de 1080p reportou o modelo AMD EPYC 7763 e a de 1440p, Intel Xeon Platinum 8573C; as duas reportaram dois cores e quatro processadores lógicos ao Windows. Isso descreve a topologia observada no guest, sem identificar a quantidade de cores físicos do host. Essa diferença entre perfis não isola o efeito de hardware nem permite atribuir uma causa universal.
 
 Execuções completas: [1080p](https://github.com/BersaneV/Harmony/actions/runs/43858332463) e [1440p](https://github.com/BersaneV/Harmony/actions/runs/43858337659), QA 75886ed7743ea103ea2d86b5902b18e7f15b29dd. As primeiras tentativas, 43857676065 e 43857680518, pararam por erro de Measure-Object antes de instalar ou medir: NOT_RUN de preparação QA, sem falha de produto medida.
 

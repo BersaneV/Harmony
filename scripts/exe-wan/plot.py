@@ -58,7 +58,7 @@ fps_axis.bar(positions, fps, color=['#b45309' if index in failed else '#047857' 
 fps_axis.axhline(request['fps'], color='#475569', linestyle=':', label=f"Solicitado: {request['fps']} FPS")
 fps_axis.axhline(request['min_displayed_fps'], color='#b45309', linestyle='--', label=f"Meta do ensaio: {request['min_displayed_fps']} FPS")
 fps_axis.set_xticks(positions, [f'P{index+1}' for index, _ in video])
-fps_axis.set_ylim(0, max(request['fps']+5, max((v for v in fps if np.isfinite(v)), default=0) + 5))
+fps_axis.set_ylim(0, max(request['fps']+10, max((v for v in fps if np.isfinite(v)), default=0) + 10))
 fps_axis.set_ylabel('FPS exibidos · média na fase sustentada')
 fps_axis.set_title(f"Uma janela {request['width']}×{request['height']} → sete espectadores", loc='left', weight='bold', pad=12)
 for x, value, (index, stream) in zip(positions, fps, video):
