@@ -1,13 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {installCaptureDiagnostic, diagnosticVariants, postFrameVariants, selectDiagnosticVariants, ownedResizeScript, ownedUiAutomationScript} from './browser-capture-diagnostic.mjs';
+import {readFileSync} from 'node:fs';
+import {installCaptureDiagnostic, diagnosticVariants, postFrameVariants, selectDiagnosticVariants, selectDiagnosticFixture, ownedResizeScript, ownedUiAutomationScript} from './browser-capture-diagnostic.mjs';
+import {diagnosticFixtureProfile,diagnosticWindowScript} from './session.mjs';
+import {getProfile} from './profiles.mjs';
 
 test('phase selection defaults to historical plus post-frame variants and restricts post-frame to exactly its two experiments',()=>{
  assert.deepEqual(selectDiagnosticVariants(),[...diagnosticVariants,...postFrameVariants]);
  assert.deepEqual(selectDiagnosticVariants('full'),[...diagnosticVariants,...postFrameVariants]);
  assert.deepEqual(selectDiagnosticVariants('post-frame'),[...postFrameVariants]);
  for(const bad of ['',null,'post_frame','baseline','post-frame;whoami',true])assert.throws(()=>selectDiagnosticVariants(bad),/phase/);
+});
+test('small source explicitly selects only post-frame experiments and does not alter the normal profile',()=>{
+ assert.equal(selectDiagnosticFixture(),undefined);assert.deepEqual(selectDiagnosticFixture('small640'),{width:640,height:360});
+ assert.deepEqual(selectDiagnosticVariants('full','small640'),[...postFrameVariants]);
+ for(const bad of ['',null,'640x360','native',false])assert.throws(()=>selectDiagnosticFixture(bad),/source size/);
+ const profile=getProfile('720p30'),env={GITHUB_ACTIONS:'true',GITHUB_REPOSITORY:'BersaneV/Harmony',RUNNER_ENVIRONMENT:'github-hosted',HARMONY_COHORT:'12345_1',HARMONY_EXE_WAN_SEED:'x'.repeat(40)};
+ assert.equal(diagnosticFixtureProfile(0,'0.4.4',profile,undefined),profile);
+ assert.deepEqual(diagnosticFixtureProfile(0,'0.4.4',profile,{width:640,height:360},env,'win32'),{...profile,width:640,height:360});
+ for(const args of [[1,'0.4.4',profile,{width:640,height:360},env,'win32'],[0,'0.4.3',profile,{width:640,height:360},env,'win32'],[0,'0.4.4',getProfile('1080p60'),{width:640,height:360},env,'win32'],[0,'0.4.4',profile,{width:1280,height:720},env,'win32'],[0,'0.4.4',profile,{width:640,height:360},env,'darwin'],[0,'0.4.4',profile,{width:640,height:360},{...env,RUNNER_ENVIRONMENT:'self-hosted'},'win32']])assert.throws(()=>diagnosticFixtureProfile(...args));
+ assert.equal(profile.width,1280);assert.equal(profile.height,720);
+});
+test('the private small fixture differs only in allowed ValidateSet values; original defaults and rendering remain byte-identical',()=>{
+ const source=readFileSync(new URL('./window.ps1',import.meta.url),'utf8'),derived=diagnosticWindowScript(source);
+ assert.equal(derived.replace('[ValidateSet(640,1280,1920,2560)]','[ValidateSet(1280,1920,2560)]').replace('[ValidateSet(360,720,1080,1440)]','[ValidateSet(720,1080,1440)]'),source);
+ assert.match(derived,/\[int\]\$Width=1280/);assert.match(derived,/\[int\]\$Height=720/);
+ assert.throws(()=>diagnosticWindowScript(source.replace('[ValidateSet(720,1080,1440)]','[ValidateSet(1,2)]')),/declaration/);
 });
 test('UI Automation diagnostic is bound to the installed executable tree and fixture without reading values or invoking controls',()=>{
  const script=ownedUiAutomationScript(42,'HarmonyWAN-12345');

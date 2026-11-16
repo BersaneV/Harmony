@@ -7,6 +7,11 @@ on:
         type: choice
         options: ['full', 'post-frame']
         default: 'full'
+      source_size:
+        description: Physical source geometry; small640 runs only the two post-frame variants without resize
+        type: choice
+        options: ['normal', 'small640']
+        default: 'normal'
 permissions:
   contents: read
 concurrency:
@@ -54,6 +59,7 @@ jobs:
       HARMONY_EXE_RELEASE: '0.4.4'
       HARMONY_EXE_PROFILE: '720p30'
       HARMONY_BROWSER_CAPTURE_PHASE: ${{ inputs.phase }}
+      HARMONY_BROWSER_CAPTURE_SOURCE_SIZE: ${{ inputs.source_size }}
       HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
       HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
       HARMONY_GUILD_ID: ${{ needs.prepare.outputs.guild }}

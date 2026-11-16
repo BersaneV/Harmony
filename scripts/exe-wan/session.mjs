@@ -3,8 +3,23 @@ import assert from'node:assert/strict';import{spawn,spawnSync}from'node:child_pr
 import{CDP,until,delay,hasFlag}from'./cdp.mjs';import{guard,opaque}from'./lab.mjs';import{observe}from'./observe.mjs';
 import{captureMode,fixtureScript,fixtureReady,chooseScreenUi}from'./capture-ui.mjs';
 import{createBrowserEvents}from'./browser-events.mjs';
-export async function session(index){
+// Explicit opt-in for the isolated 0.4.4 browser diagnostic. Normal session
+// requests, fixture scripts and profile acceptance gates remain unchanged.
+export function diagnosticFixtureProfile(index,release,request,size,env=process.env,platform=process.platform){
+ if(size===undefined)return request;
+ guard(env,platform);assert.equal(index,0,'Only the owned publisher may use a diagnostic fixture');assert.equal(release,'0.4.4');
+ assert.equal(request.id,'720p30');assert.equal(request.width,1280);assert.equal(request.height,720);assert.equal(request.fps,30);
+ assert.deepEqual(size,{width:640,height:360},'Only the explicitly authorized small diagnostic source is allowed');
+ return{...request,width:640,height:360};
+}
+export function diagnosticWindowScript(source){
+ const width='[ValidateSet(1280,1920,2560)][int]$Width=1280',height='[ValidateSet(720,1080,1440)][int]$Height=720';
+ assert.equal(source.split(width).length,2,'Owned window width declaration changed');assert.equal(source.split(height).length,2,'Owned window height declaration changed');
+ return source.replace(width,'[ValidateSet(640,1280,1920,2560)][int]$Width=1280').replace(height,'[ValidateSet(360,720,1080,1440)][int]$Height=720');
+}
+export async function session(index,{diagnosticFixtureSize}={}){
  guard();const request=requestedProfile(),release=process.env.HARMONY_EXE_RELEASE||'0.4.1',capture=captureMode(release,request);const root=process.env.HARMONY_EXE_ROOT,exe=process.env.HARMONY_EXE_PATH;assert.ok(root&&exe?.startsWith(root)&&!/[\s"\r\n]/.test(root));
+ const fixtureProfile=diagnosticFixtureProfile(index,release,request,diagnosticFixtureSize);let diagnosticFixtureAttestation;
  const profile=join(root,'webview'),wav=join(root,'microphone.wav'),title='HarmonyWAN-'+process.env.GITHUB_RUN_ID,port=9222;await mkdir(profile);
  let audioSource='windows_synthesized_speech';const speech=spawnSync('powershell.exe',['-NoProfile','-File',resolve('scripts/exe-wan/speech.ps1'),'-Path',wav,'-Index',String(index)],{encoding:'utf8',timeout:30000});
  if(speech.status!==0){audioSource='generated_tone_fallback';const rate=48000,n=rate*10,b=Buffer.alloc(44+n*2);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(rate,24);b.writeUInt32LE(rate*2,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(n*2,40);for(let i=0;i<n;i++)b.writeInt16LE(Math.round(Math.sin(i*2*Math.PI*(330+index*110)/rate)*9000),44+i*2);await writeFile(wav,b);}
@@ -12,9 +27,15 @@ export async function session(index){
  const policy=resolve('scripts/exe-wan/webview-policy.ps1');let app,fixture,cdp,fixtureOutput='',fixtureError='';const nativeRequests=[],nativeIds=new Map(),browserEvents=createBrowserEvents();
  async function ensureFixture(){
   assert.equal(index,0,'Only the owned publisher creates a source window');if(fixture){assert.equal(fixture.exitCode,null,'Owned source fixture exited: '+fixtureError);return;}
-  fixture=spawn('powershell.exe',['-NoProfile','-File',resolve('scripts/exe-wan/'+fixtureScript(release,request)),'-Title',title,'-Width',String(request.width),'-Height',String(request.height),'-Fps',String(request.fps),...(capture==='native'?['-DurationSeconds','600']:[])],{stdio:['ignore','pipe','pipe']});
+  let fixturePath=resolve('scripts/exe-wan/'+fixtureScript(release,request));
+  if(diagnosticFixtureSize){
+   assert.equal(capture,'browser');const original=await readFile(fixturePath,'utf8'),derived=diagnosticWindowScript(original);
+   fixturePath=join(root,'diagnostic-window-small640.ps1');await writeFile(fixturePath,derived,{flag:'wx'});
+   diagnosticFixtureAttestation={fixture_profile:fixtureProfile,source_script:'window.ps1',source_sha256:createHash('sha256').update(original).digest('hex'),derived_script:'diagnostic-window-small640.ps1',derived_sha256:createHash('sha256').update(derived).digest('hex'),derivation:'Only ValidateSet gains640/360; defaults, drawing, DPI and physical size checks are unchanged. Compiled UI profile remains720p30.'};
+  }
+  fixture=spawn('powershell.exe',['-NoProfile','-File',fixturePath,'-Title',title,'-Width',String(fixtureProfile.width),'-Height',String(fixtureProfile.height),'-Fps',String(request.fps),...(capture==='native'?['-DurationSeconds','600']:[])],{stdio:['ignore','pipe','pipe']});
   fixture.stdout.on('data',b=>fixtureOutput=(fixtureOutput+b).slice(-12000));fixture.stderr.on('data',b=>fixtureError=(fixtureError+b).slice(-6000));
-  await until(()=>{assert.equal(fixture.exitCode,null,'Owned source exited before complete geometry: '+fixtureError);return fixtureReady(fixtureOutput,request,capture)},'complete owned fixture surface',45000);
+  await until(()=>{assert.equal(fixture.exitCode,null,'Owned source exited before complete geometry: '+fixtureError);return fixtureReady(fixtureOutput,fixtureProfile,capture)},'complete owned fixture surface',45000);
  }
  function policyCall(remove=false){const args=['-NoProfile','-File',policy,'-ExePath',exe,...(remove?['-Remove']:['-Profile',profile])];const r=spawnSync('pwsh',args,{encoding:'utf8',timeout:30000,env:{...process.env,HARMONY_WAN_BROWSER_ARGUMENTS:flags.join(' ')}});assert.equal(r.status,0,'Scoped test policy failed');}
  const close=()=>{cdp?.close();for(const child of[app,fixture])if(child?.pid&&child.exitCode===null)spawnSync('taskkill',['/PID',String(child.pid),'/T','/F'],{stdio:'ignore'});policyCall(true);};
@@ -34,6 +55,7 @@ export async function session(index){
   const sample=async()=>{const value=await cdp.evaluate('__exeWan.sample()');value.browser_events=browserEvents.snapshot();value.native_requests=nativeRequests.map(r=>({...r}));for(const p of value.peers){for(const k of['local_fingerprint','remote_fingerprint'])p[k]=p[k]?opaque(p[k]):null;for(const k of['local_candidate','remote_candidate']){p[k].address_hash=p[k].address?opaque(p[k].address):null;delete p[k].address;}}return value;};
   async function ownedWindow(){const r=spawnSync('powershell.exe',['-NoProfile','-Command',`Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes; $e=[Windows.Automation.AutomationElement]::RootElement.FindFirst([Windows.Automation.TreeScope]::Children,[Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty,'${title}')); $e.Current.NativeWindowHandle`],{encoding:'utf8'});return Number(r.stdout.trim());}
   const api={ownedWindow,cdp,fill,click,labelled,select,sample,close,root,ensureFixture,fixtureDiagnostic:()=>({output:fixtureOutput,error:fixtureError,running:fixture?.exitCode===null}),captureMode:capture,measureCapture:(captureIndex,duration=10000)=>cdp.run(`return await __exeWan.measureCapture(${JSON.stringify(captureIndex)},${JSON.stringify(duration)});`,false,duration+15000),attestation:{...attest,browser:await cdp.send('Browser.getVersion'),main_sha256:createHash('sha256').update(await readFile(exe)).digest('hex'),audio_source:audioSource,audio_file_sha256:createHash('sha256').update(await readFile(wav)).digest('hex'),desktop_resolution_change_succeeded:desktop.status===0,gpu_mode:'default_browser_graphics',focus_emulation:true,flags_verified:true,debugger_loopback:true,private_profile:true,one_exe_per_vm:true,native_test_window:index===0,capture_mode:capture,fixture_script:index===0?fixtureScript(release,request):null,requested_profile:request}};
+  if(diagnosticFixtureAttestation){api.attestation.diagnostic_fixture=diagnosticFixtureAttestation;api.attestation.fixture_script=diagnosticFixtureAttestation.derived_script;}
   api.chooseScreen=()=>chooseScreenUi(api,request,{release,title});return api;
  }catch(error){try{close()}catch{}throw error;}
 }

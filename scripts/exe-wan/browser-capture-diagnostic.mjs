@@ -15,9 +15,14 @@ import {assertCallRoute} from './fixture-contract.mjs';
 
 export const diagnosticVariants = Object.freeze(['baseline', 'width_max', 'width_ideal_max', 'height_ideal_only']);
 export const postFrameVariants = Object.freeze(['post_frame_max', 'post_frame_ideal_max']);
-export function selectDiagnosticVariants(phase = 'full') {
+export function selectDiagnosticFixture(sourceSize = 'normal') {
+  assert.ok(sourceSize === 'normal' || sourceSize === 'small640','Unknown diagnostic source size');
+  return sourceSize === 'small640' ? {width:640,height:360} : undefined;
+}
+export function selectDiagnosticVariants(phase = 'full', sourceSize = 'normal') {
   assert.ok(phase === 'full' || phase === 'post-frame','Unknown diagnostic phase');
-  return phase === 'post-frame' ? [...postFrameVariants] : [...diagnosticVariants,...postFrameVariants];
+  selectDiagnosticFixture(sourceSize);
+  return phase === 'post-frame' || sourceSize === 'small640' ? [...postFrameVariants] : [...diagnosticVariants,...postFrameVariants];
 }
 
 // Self-contained for injection into the owned shipped WebView and VM tests.
@@ -259,7 +264,7 @@ async function independentDiagnostics(app) {
 
 export async function runDiagnostic() {
   const result = {kind: 'browser_capture_diagnostic', status: 'DIAGNOSTIC', completion: 'RUNNING', capacity_approval: false,
-    scope: 'Same pinned published EXE 0.4.4, VM and owned physical 1280x720 HWND; compiled preview UI only. GDM and explicit owned post-frame constraint variants are an experiment, not a product fix or media capacity PASS. Optional 640x360 shrink retains the same constraints and restores 1280x720.', stages: [], variants: []};
+    scope: 'Same pinned published EXE 0.4.4, VM and exact owned HWND; compiled UI profile stays720p30. Explicit normal1280x720 or small640x360 source geometry is recorded separately. GDM and owned post-frame constraint variants are diagnostic, not a product fix or capacity PASS. Small-source runs never resize the window.', stages: [], variants: []};
   let app, currentStage = 'guard';
   const stage = async (label, operation) => {
     currentStage = label;
@@ -303,8 +308,9 @@ export async function runDiagnostic() {
   };
   try {
     guard(); assert.equal(process.env.HARMONY_EXE_RELEASE, '0.4.4'); assert.equal(process.env.HARMONY_EXE_PROFILE, '720p30');
-    const phase=process.env.HARMONY_BROWSER_CAPTURE_PHASE ?? 'full', selectedVariants=selectDiagnosticVariants(phase);
-    result.phase=phase;
+    const phase=process.env.HARMONY_BROWSER_CAPTURE_PHASE ?? 'full', sourceSize=process.env.HARMONY_BROWSER_CAPTURE_SOURCE_SIZE ?? 'normal';
+    const diagnosticFixtureSize=selectDiagnosticFixture(sourceSize), expectedSource=diagnosticFixtureSize ?? {width:1280,height:720}, selectedVariants=selectDiagnosticVariants(phase,sourceSize);
+    result.phase=phase;result.effective_phase=sourceSize==='small640'?'post-frame':phase;result.source_size=sourceSize;result.expected_physical_source=expectedSource;
     const manifest = JSON.parse(await readFile(new URL('./releases/0.4.4.json',import.meta.url),'utf8'));
     assert.equal(manifest.version, '0.4.4'); assert.match(manifest.main_sha256, /^[a-f0-9]{64}$/);
     const hash = createHash('sha256').update(await readFile(process.env.HARMONY_EXE_PATH)).digest('hex'); assert.equal(hash, manifest.main_sha256);
@@ -317,16 +323,17 @@ export async function runDiagnostic() {
     const instance = await api('/instance'), call = await api(`/channels/${process.env.HARMONY_VOICE_ID}/call`,token); assertCallRoute(instance,call);
     assert.equal(call.participants.length,0, 'Only this owned publisher may join the diagnostic');
     result.server = {version:instance.version, screen_sfu_enabled:call.screen_sfu_enabled===true};
-    app = await stage('start_verified_exe', () => session(0)); result.attestation = app.attestation;
+    app = await stage('start_verified_exe', () => diagnosticFixtureSize ? session(0,{diagnosticFixtureSize}) : session(0)); result.attestation = app.attestation;
     const who = identity(0); mask(who.password);
     await stage('compiled_login', async () => {await app.fill('input[type="url"]',origin);await app.fill('input[autocomplete="username"]',who.username);await app.fill('input[type="password"]',who.password);await app.click('Entrar no Harmony');});
     await stage('compiled_call', async () => {await app.labelled('Abrir '+process.env.HARMONY_GUILD_NAME);await app.click('Sala de voz');await until(()=>app.cdp.evaluate(`document.querySelector('.call-header small')?.textContent.trim()==='Em chamada · 1 na chamada'`,false,2000),'one owned compiled call participant',30000);});
     await stage('compiled_fake_microphone', async () => {await app.labelled('Ligar microfone');await until(()=>app.cdp.evaluate(`__exeWan.microphones.some(t=>t.readyState==='live')`,false,2000),'compiled synthetic microphone');result.fake_audio=await app.cdp.evaluate('__exeWan.measureMicrophone()',false,6000);assert.ok(result.fake_audio.rms>0.03);});
     await app.ensureFixture();
     const fixture = app.fixtureDiagnostic();
-    assert.match(fixture.output, /(?:^|\r?\n)PHYSICAL_WINDOW 1280x720 DWM 1280x720(?:\r?\n|$)/);
-    const fixtureHandle = Number(fixture.output.match(/(?:^|\r?\n)WINDOW ([0-9]+) 1280x720 TARGET 30(?:\r?\n|$)/)?.[1]);
+    assert.match(fixture.output, new RegExp(`(?:^|\\r?\\n)PHYSICAL_WINDOW ${expectedSource.width}x${expectedSource.height} DWM ${expectedSource.width}x${expectedSource.height}(?:\\r?\\n|$)`));
+    const fixtureHandle = Number(fixture.output.match(new RegExp(`(?:^|\\r?\\n)WINDOW ([0-9]+) ${expectedSource.width}x${expectedSource.height} TARGET 30(?:\\r?\\n|$)`))?.[1]);
     const handle = await app.ownedWindow(); assert.ok(Number.isSafeInteger(handle)&&handle>0); assert.equal(handle,fixtureHandle,'UIA HWND must be the exact handle emitted by the owned fixture'); result.owned_window_handle=handle;
+    if(sourceSize==='small640'){result.initial_source_geometry=resizeOwnedFixture(handle,640,360,false);assert.ok(exactGeometry(result.initial_source_geometry,640,360),'Exact small physical source required');}
     await stage('install_diagnostic_wrapper', () => app.cdp.evaluate(`(${installCaptureDiagnostic.toString()})()`, false, 5000));
     for (const variant of selectedVariants) {
       const row = {variant, status:'DIAGNOSTIC', completion:'RUNNING'}; result.variants.push(row);
@@ -351,7 +358,13 @@ export async function runDiagnostic() {
         row.measurement = await stage(variant+':observe_10s', () => app.measureCapture(index,10000));
         row.after_measurement = await captureAndDom();
         if (postFrameVariants.includes(variant)) {
-          if (row.measurement.pixel_width===1280 && row.measurement.pixel_height===720 && row.measurement.sampled_sizes.length>0 && row.measurement.sampled_sizes.every(s=>s==='1280x720')) await checkResize(row,index,handle);
+          if(sourceSize==='small640'){
+            const geometry=resizeOwnedFixture(handle,640,360,false),video=row.after_measurement.dom.preview,pixels=row.measurement,constraints=row.after_measurement.capture.current.constraints;
+            const sourceStayedSmall=exactGeometry(result.initial_source_geometry,640,360)&&exactGeometry(geometry,640,360);
+            row.small_source_experiment={status:'DIAGNOSTIC',completion:'COMPLETE',resize_attempted:false,physical_geometry:geometry,constraints,source_geometry_held:sourceStayedSmall,
+              observed_no_upscale:sourceStayedSmall&&constraints.width?.max===1280&&constraints.height?.max===720?video?.width===640&&video?.height===360&&pixels.pixel_width===640&&pixels.pixel_height===360&&pixels.sampled_sizes.length>0&&pixels.sampled_sizes.every(s=>s==='640x360'):null};
+          }
+          else if (row.measurement.pixel_width===1280 && row.measurement.pixel_height===720 && row.measurement.sampled_sizes.length>0 && row.measurement.sampled_sizes.every(s=>s==='1280x720')) await checkResize(row,index,handle);
           else row.resize_experiment={status:'DIAGNOSTIC',completion:'NOT_RUN',reason:'Post-frame constraints did not deliver complete 1280x720 frames; no resize attempted'};
         }
         row.completion='COMPLETE';
