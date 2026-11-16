@@ -184,7 +184,9 @@ pub fn native_capture_stop(
 mod platform {
     use super::*;
     use harmony_native_capture::{
-        byte_len, Capture, FramePacer, Profile as CaptureProfile, Source,
+        byte_len,
+        pipeline::{FrameLease, FramePipeline, ProfileEpoch},
+        Capture, FramePacer, Profile as CaptureProfile, Source,
     };
     use std::{
         cell::RefCell,
@@ -213,10 +215,10 @@ mod platform {
         client: String,
         source: Source,
         bounds: Mutex<(u32, u32)>,
-        profile: Mutex<CaptureProfile>,
+        profile: Mutex<ProfileEpoch>,
         stop: AtomicBool,
         done: AtomicBool,
-        pending: AtomicU64,
+        lease: FrameLease,
         pixels: Mutex<Vec<u8>>,
     }
     struct Shared {
@@ -297,11 +299,11 @@ mod platform {
             id: id.clone(),
             client,
             source,
-            profile: Mutex::new(p),
+            profile: Mutex::new(ProfileEpoch::new(p)?),
             bounds: Mutex::new((0, 0)),
             stop: AtomicBool::new(false),
             done: AtomicBool::new(false),
-            pending: AtomicU64::new(0),
+            lease: FrameLease::default(),
             pixels: Mutex::new(Vec::new()),
         });
         {
@@ -395,64 +397,82 @@ mod platform {
     ) -> Result<(), String> {
         let start = Instant::now();
         let pacer = FramePacer::new();
-        let mut deadline = start;
-        let mut sequence = 0;
-        let mut since = start;
-        let mut count = 0;
-        let mut fps = None;
-        let mut unacked = start;
+        let mut pipeline = FramePipeline::default();
+        let mut deferred_error = None;
         while !run.stop.load(Ordering::Acquire) {
-            if run.pending.load(Ordering::Acquire) != 0 {
-                if unacked.elapsed() > Duration::from_secs(5) {
-                    return Err("A prévia da captura deixou de responder.".into());
+            if pipeline.expired(start.elapsed(), &run.lease) {
+                return Err("A prévia da captura deixou de responder.".into());
+            }
+            // A prefetch error must not close the SharedBuffer still leased to
+            // JS. Preserve that lease until its ACK (or the original watchdog).
+            if deferred_error.is_some() || capture.is_closed() {
+                if !run.lease.waiting() {
+                    return Err(deferred_error
+                        .take()
+                        .unwrap_or_else(|| "A janela compartilhada foi fechada.".into()));
                 }
                 pacer.sleep(Duration::from_micros(500));
                 continue;
             }
-            let now = Instant::now();
-            if now < deadline {
-                pacer.sleep(deadline - now);
-            }
-            if run.stop.load(Ordering::Acquire) {
-                break;
-            }
-            capture.set_profile(*locked(&run.profile)?)?;
-            let Some((width, height)) = capture.frame(&mut *locked(&run.pixels)?)? else {
-                // Pool is event-driven. Poll briefly for its newest frame;
-                // waiting a full frame period here can halve the capture rate.
-                pacer.sleep(Duration::from_millis(1));
-                continue;
+            let posted = {
+                // Revision check and lease reservation share the profile lock.
+                // A later profile command sees an already in-flight old frame.
+                let profile = locked(&run.profile)?;
+                pipeline.reserve_post(
+                    start.elapsed(),
+                    *profile,
+                    &run.lease,
+                    !capture.is_closed(),
+                    run.stop.load(Ordering::Acquire),
+                )?
             };
-            *locked(&run.bounds)? = capture.source_dimensions();
-            sequence += 1;
-            count += 1;
-            let now = Instant::now();
-            if since.elapsed() >= Duration::from_secs(1) {
-                fps = Some(count as f64 / since.elapsed().as_secs_f64());
-                since = now;
-                count = 0;
+            if let Some(frame) = posted {
+                post(
+                    window,
+                    run.clone(),
+                    frames.clone(),
+                    Frame {
+                        id: run.id.clone(),
+                        sequence: frame.sequence,
+                        allocation: 0,
+                        width: frame.width,
+                        height: frame.height,
+                        timestamp_us: frame.captured_at.as_micros() as u64,
+                        fps: frame.fps,
+                        error: None,
+                        backend: capture.backend(),
+                    },
+                    start,
+                )?;
+                continue;
             }
-            run.pending.store(sequence, Ordering::Release);
-            unacked = now;
-            post(
-                window,
-                run.clone(),
-                frames.clone(),
-                Frame {
-                    id: run.id.clone(),
-                    sequence,
-                    allocation: 0,
-                    width,
-                    height,
-                    timestamp_us: start.elapsed().as_micros() as u64,
-                    fps,
-                    error: None,
-                    backend: capture.backend(),
-                },
-            )?;
-            deadline += capture.profile().period();
-            if deadline < now {
-                deadline = now;
+            let profile = *locked(&run.profile)?;
+            let now = start.elapsed();
+            if pipeline.can_capture(
+                now,
+                profile,
+                &run.lease,
+                !capture.is_closed(),
+                run.stop.load(Ordering::Acquire),
+            ) {
+                capture.set_profile(profile.settings())?;
+                let begun = start.elapsed();
+                let captured = capture.frame(&mut *locked(&run.pixels)?);
+                let finished = start.elapsed();
+                match captured {
+                    Ok(Some((width, height))) => {
+                        *locked(&run.bounds)? = capture.source_dimensions();
+                        pipeline.captured(begun, finished, width, height, profile, &run.lease)?;
+                    }
+                    Ok(None) => {
+                        // The pool drains to newest, including resize/Recreate.
+                        // Empty polls do not consume a successful capture period.
+                        pacer.sleep(Duration::from_millis(1));
+                    }
+                    Err(error) => deferred_error = Some(error),
+                }
+            } else {
+                pacer.sleep(pipeline.wait(now, profile, &run.lease));
             }
         }
         Ok(())
@@ -462,6 +482,7 @@ mod platform {
         run: Arc<Run>,
         frames: Channel<Frame>,
         mut meta: Frame,
+        clock_start: Instant,
     ) -> Result<(), String> {
         let page = window.clone();
         window.with_webview(move|view|{
@@ -488,7 +509,15 @@ mod platform {
                     unsafe{std::ptr::copy_nonoverlapping(pixels.as_ptr(),destination,len);}
                     meta.allocation=shared.allocation;Ok(())
                 })?;
-                frames.send(meta.clone()).map_err(|_|"A prévia da captura foi encerrada.".to_string())
+                // Mutex exclusion alone is insufficient: the asynchronous UI
+                // closure might not have read the Vec yet. Publish copy-ready
+                // only after its last read/unlock AND the metadata send.
+                drop(pixels);
+                frames.send(meta.clone()).map_err(|_|"A prévia da captura foi encerrada.".to_string())?;
+                // Send completion and capture metadata share producer time;
+                // this completion paces the next UI send, never the watchdog.
+                run.lease.finish_copy(meta.sequence,clock_start.elapsed());
+                Ok(())
             })();
             if let Err(error)=result{run.stop.store(true,Ordering::Release);let _=frames.send(Frame{error:Some(error),..meta});}
         }).map_err(|_|"A janela do Harmony foi encerrada.".into())
@@ -504,9 +533,7 @@ mod platform {
     }
     pub fn ack(store: &Store, id: &str, sequence: u64) -> Result<(), String> {
         let run = active(store, id)?;
-        let _ = run
-            .pending
-            .compare_exchange(sequence, 0, Ordering::AcqRel, Ordering::Acquire);
+        run.lease.ack(sequence);
         Ok(())
     }
     pub fn profile(store: &Store, id: &str, p: Profile) -> Result<(u32, u32), String> {
@@ -514,7 +541,7 @@ mod platform {
         let run = active(store, id)?;
         let (w, h) = *locked(&run.bounds)?;
         let size = p.size(w, h)?;
-        *locked(&run.profile)? = p;
+        locked(&run.profile)?.replace(p)?;
         Ok(size)
     }
     pub fn stop(store: &Store, id: &str) {

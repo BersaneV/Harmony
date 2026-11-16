@@ -211,6 +211,9 @@ impl Wgc {
     pub fn dimensions(&self) -> (u32, u32) {
         (self.size.Width as u32, self.size.Height as u32)
     }
+    pub fn is_closed(&self) -> bool {
+        self.closed.load(Ordering::Acquire)
+    }
     pub(super) fn read<'a>(
         &mut self,
         choose: impl FnOnce(u32, u32) -> Result<FullBuffer<'a>, String>,

@@ -292,6 +292,9 @@ impl Capture {
     pub fn source_dimensions(&self) -> (u32, u32) {
         self.wgc.dimensions()
     }
+    pub fn is_closed(&self) -> bool {
+        self.wgc.is_closed()
+    }
     pub fn dimensions(&self) -> Result<(u32, u32), String> {
         let (w, h) = self.source_dimensions();
         self.profile.size(w, h)

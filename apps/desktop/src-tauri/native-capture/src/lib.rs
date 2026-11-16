@@ -1,5 +1,6 @@
 //! Windows capture adapter. Pixels stay local; publication belongs to the call engine.
 use std::time::Duration;
+pub mod pipeline;
 
 pub const MAX_BYTES: usize = 64 * 1024 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -17,7 +18,7 @@ impl Profile {
         Ok(self)
     }
     pub fn period(self) -> Duration {
-        Duration::from_secs_f64(1.0 / f64::from(self.fps))
+        Duration::from_nanos(1_000_000_000_u64.div_ceil(u64::from(self.fps)))
     }
     pub fn size(self, width: u32, height: u32) -> Result<(u32, u32), String> {
         self.validate()?;
