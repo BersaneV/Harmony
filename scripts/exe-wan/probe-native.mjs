@@ -60,7 +60,7 @@ const result={kind:'exe_probe',status:'RUNNING',scope:'One pinned published EXE 
 const commandTrace=[];let traceDropped=0;
 const onCommandTrace=row=>{commandTrace.push(row);if(commandTrace.length>512){commandTrace.shift();traceDropped++;}console.log('HARMONY_EXE_PROBE_CDP '+JSON.stringify(row));};
 try{
- guard();const version=process.env.HARMONY_EXE_RELEASE;assert.ok(['0.4.3','0.4.4','0.4.5'].includes(version),'Explicit pinned desktop release required');
+ guard();const version=process.env.HARMONY_EXE_RELEASE;assert.ok(['0.4.3','0.4.4','0.4.5','0.4.6'].includes(version),'Explicit pinned desktop release required');
  for(const field of ['HARMONY_GUILD_ID','HARMONY_GUILD_NAME','HARMONY_VOICE_ID','HARMONY_COHORT_USERS'])assert.ok(process.env[field],`Compiled UI probe requires the private prepare.mjs fixture: ${field}`);
  assert.equal(process.env.HARMONY_GUILD_NAME,'EXE WAN '+cohort());
  const users=JSON.parse(process.env.HARMONY_COHORT_USERS);assert.equal(users.length,8);
