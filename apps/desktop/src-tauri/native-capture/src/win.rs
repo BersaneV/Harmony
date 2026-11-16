@@ -357,6 +357,10 @@ impl Capture {
     }
     pub fn set_profile(&mut self, p: Profile) -> Result<(), String> {
         let p = p.validate()?;
+        #[cfg(feature = "capture-readback-experiment")]
+        if self.profile != p {
+            self.wgc.invalidate_readback(p)?;
+        }
         if self.profile.fps != p.fps {
             self.wgc.set_fps(p.fps);
         }
@@ -365,6 +369,23 @@ impl Capture {
     }
     pub fn profile(&self) -> Profile {
         self.profile
+    }
+    /// Bench-only mode selection; ordinary builds have no such entry point.
+    #[cfg(feature = "capture-readback-experiment")]
+    pub fn set_readback_experiment(&mut self, enabled: bool) -> Result<(), String> {
+        self.wgc.set_readback_experiment(enabled)
+    }
+    #[cfg(feature = "capture-readback-experiment")]
+    pub fn reset_readback_metrics(&mut self) {
+        self.wgc.reset_readback_metrics();
+    }
+    #[cfg(feature = "capture-readback-experiment")]
+    pub fn readback_metrics_json(&self) -> String {
+        self.wgc.readback_metrics_json()
+    }
+    #[cfg(feature = "capture-readback-experiment")]
+    pub fn readback_frame_age(&self) -> Option<std::time::Duration> {
+        self.wgc.readback_frame_age()
     }
     /// Writes BGRX into caller-owned storage, retaining staging/resize resources.
     pub fn backend(&self) -> &'static str {
