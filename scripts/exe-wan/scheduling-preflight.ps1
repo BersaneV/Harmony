@@ -8,7 +8,7 @@ $PSNativeCommandUseErrorActionPreference = $false
 
 
 $failureCodes = @(
-    'buffers_lost', 'cpu_times_unverified', 'dropped_events', 'etl_size_bound', 'event_count_bound', 'events_lost', 'header_fields_invalid', 'header_fields_missing', 'header_missing', 'loss_counter_missing', 'native_tool_nonzero_exit', 'native_tool_output_bound', 'native_tool_start_failed', 'native_tool_timeout', 'none', 'nonfinite_metrics', 'not_started', 'owned_session_cleanup_not_verified', 'owned_windows_runner_required', 'preexisting_wpr_session', 'private_path_already_exists', 'profile_not_verified', 'scheduler_malformed', 'scheduler_schema_missing', 'schema_fixture_failure', 'session_status_unknown', 'sleep_not_exercised', 'synthetic_workload_timeout', 'target_scheduler_missing', 'thread_description_not_verified', 'timestamp_coverage_incomplete', 'timestamp_invalid', 'timestamp_missing', 'timestamp_nonfinite', 'timestamp_regressive', 'timestamp_span_insufficient', 'tools_or_access_unavailable', 'tracerpt_output_missing', 'unexpected_failure', 'worker_cleanup_not_verified', 'workload_duration_unverified', 'xml_size_bound'
+    'buffers_lost', 'cpu_times_unverified', 'cpu_cycles_unverified', 'dropped_events', 'etl_size_bound', 'event_count_bound', 'events_lost', 'header_fields_invalid', 'header_fields_missing', 'header_missing', 'loss_counter_missing', 'native_tool_nonzero_exit', 'native_tool_output_bound', 'native_tool_start_failed', 'native_tool_timeout', 'none', 'nonfinite_metrics', 'not_started', 'owned_session_cleanup_not_verified', 'owned_windows_runner_required', 'preexisting_wpr_session', 'private_path_already_exists', 'profile_not_verified', 'scheduler_malformed', 'scheduler_schema_missing', 'schema_fixture_failure', 'session_status_unknown', 'sleep_not_exercised', 'synthetic_workload_timeout', 'target_scheduler_missing', 'thread_description_not_verified', 'timestamp_coverage_incomplete', 'timestamp_invalid', 'timestamp_missing', 'timestamp_nonfinite', 'timestamp_regressive', 'timestamp_span_insufficient', 'tools_or_access_unavailable', 'tracerpt_output_missing', 'unexpected_failure', 'worker_cleanup_not_verified', 'workload_duration_unverified', 'xml_size_bound'
 )
 function New-Timeline {
     return @{ events = 0; valid = 0; missing = 0; invalid = 0; nonfinite = 0; regression = 0; first = $null; previous = $null; last = $null }
@@ -105,6 +105,92 @@ function Test-AdditionalGuards {
     return $count + $checks.Count
 }
 
+
+$schemaFields = @('OldThreadId','NewThreadId','OldThreadState','OldThreadWaitReason','TThreadId','EventsLost','BuffersLost')
+$fieldShapeKeys = @('present','missing','duplicate','decimal','hex','whitespace','empty','negative','nonfinite','fractional','exceeds_u32','other','rejected','zero','positive','domain_rejected')
+function New-FieldShapes {
+    $shapes = @{}
+    foreach ($field in $schemaFields) {
+        $shapes[$field] = @{}
+        foreach ($key in $fieldShapeKeys) { $shapes[$field][$key] = 0 }
+    }
+    return $shapes
+}
+function Measure-FieldShapes($Raw, $Counts, [string[]]$Expected) {
+    $shapes = New-FieldShapes
+    foreach ($field in $Expected) {
+        $shape = $shapes[$field]
+        if (-not $Raw.ContainsKey($field)) { $shape.missing = 1; continue }
+        $shape.present = 1; $shape.duplicate = [Math]::Max(0, $Counts[$field] - 1)
+        [string]$value = $Raw[$field]
+        $trimmed = $value.Trim() # Classification only; parsing still uses unmodified bytes.
+        $shape.whitespace = [int]($value -cne $trimmed)
+        if ($trimmed.Length -eq 0) { $shape.empty = 1 }
+        elseif ($trimmed -match '^(?i:NaN|[+-]?Infinity|[+-]?Inf)$') { $shape.nonfinite = 1 }
+        elseif ($trimmed -cmatch '^-[0-9]+$') { $shape.negative = 1 }
+        elseif ($trimmed -cmatch '^[0-9]+$') {
+            $shape.decimal = 1
+            [uint32]$n = 0
+            if (-not [uint32]::TryParse($trimmed, [ref]$n)) { $shape.exceeds_u32 = 1 }
+        } elseif ($trimmed -cmatch '^0[xX][0-9a-fA-F]+$') {
+            $shape.hex = 1
+            if ($trimmed.Length -gt 10) { $shape.exceeds_u32 = 1 }
+        } elseif ($trimmed -cmatch '^[+-]?[0-9]+\.[0-9]+$') { $shape.fractional = 1 }
+        else { $shape.other = 1 }
+        $parsed = Read-U32 $value
+        $shape.rejected = [int]($null -eq $parsed)
+        if ($null -ne $parsed) {
+            $shape.zero = [int]($parsed -eq 0); $shape.positive = [int]($parsed -gt 0)
+            if (($field -eq 'OldThreadState' -and $parsed -gt 7) -or ($field -eq 'OldThreadWaitReason' -and $parsed -gt 255)) { $shape.domain_rejected = 1 }
+        }
+    }
+    return $shapes
+}
+function Read-StaticSchemaMetadata {
+    # Get-CimClass reads class definitions locally, never instances or remote sessions.
+    $out = @{ status='NOT_VERIFIED'; classes_available=0; query_failures=0; fields=@{} }
+    $classes = @{ CSwitch=@('OldThreadId','NewThreadId','OldThreadState','OldThreadWaitReason'); ReadyThread=@('TThreadId'); EventTrace_Header=@('EventsLost','BuffersLost') }
+    foreach ($name in $classes.Keys) {
+        foreach ($field in $classes[$name]) { $out.fields[$field] = 'unknown' }
+        try {
+            $definition = Get-CimClass -Namespace root/wmi -ClassName $name -OperationTimeoutSec 5 -ErrorAction Stop
+            $out.classes_available++
+            foreach ($field in $classes[$name]) {
+                $property = $definition.CimClassProperties[$field]
+                if ($null -ne $property) {
+                    $type = $property.CimType.ToString()
+                    if ($type -cin @('UInt8','UInt16','UInt32','UInt64','SInt8','SInt16','SInt32','SInt64','String','Boolean')) { $out.fields[$field] = $type }
+                }
+            }
+        } catch { $out.query_failures++ }
+    }
+    if ($out.classes_available -eq 3 -and $out.query_failures -eq 0 -and -not ($out.fields.Values -contains 'unknown')) { $out.status = 'OBSERVED' }
+    return $out
+}
+function Test-FieldShapes {
+    $cases = @(
+        @{ raw='0'; key='zero'; rejected=0 }
+        @{ raw='1'; key='positive'; rejected=0 }
+        @{ raw='0x2a'; key='hex'; rejected=0 }
+        @{ raw=' 0 '; key='whitespace'; rejected=1 }
+        @{ raw='-1'; key='negative'; rejected=1 }
+        @{ raw='4294967296'; key='exceeds_u32'; rejected=1 }
+        @{ raw='0x100000000'; key='exceeds_u32'; rejected=1 }
+        @{ raw='NaN'; key='nonfinite'; rejected=1 }
+        @{ raw='1.5'; key='fractional'; rejected=1 }
+        @{ raw=''; key='empty'; rejected=1 }
+        @{ raw='unrecognized'; key='other'; rejected=1 }
+    )
+    foreach ($case in $cases) {
+        $shape = (Measure-FieldShapes @{ EventsLost=$case.raw } @{ EventsLost=1 } @('EventsLost')).EventsLost
+        if ($shape[$case.key] -ne 1 -or $shape.rejected -ne $case.rejected) { throw 'schema_fixture_failure' }
+    }
+    if ((Measure-FieldShapes @{} @{} @('EventsLost')).EventsLost.missing -ne 1) { throw 'schema_fixture_failure' }
+    if ((Measure-FieldShapes @{ EventsLost='0' } @{ EventsLost=2 } @('EventsLost')).EventsLost.duplicate -ne 1) { throw 'schema_fixture_failure' }
+    if ((Measure-FieldShapes @{ OldThreadState='8' } @{ OldThreadState=1 } @('OldThreadState')).OldThreadState.domain_rejected -ne 1) { throw 'schema_fixture_failure' }
+    return $cases.Count + 3
+}
+
 function Read-U32([string]$Value) {
     [uint32]$n = 0
     if ($Value -cmatch '^0[xX][0-9a-fA-F]{1,8}$') {
@@ -114,14 +200,17 @@ function Read-U32([string]$Value) {
     return $null
 }
 function Decode-Event([xml]$Record, [uint32]$Target) {
-    $out = @{ kind = 'other'; valid = $false; incoming = $false; outgoing = $false; ready = $false; wait_reason = $null; events_lost = $null; buffers_lost = $null; shape = @{ provider_guid=0; extended_guid=0; opcode=0; named_fields=0; direct_fields=0; thread_headers=0; log_headers=0; header_fields_missing=0; header_fields_invalid=0 } }
-    $data = @{}; $duplicate = $false
+    $out = @{ kind = 'other'; valid = $false; incoming = $false; outgoing = $false; ready = $false; wait_reason = $null; events_lost = $null; buffers_lost = $null; field_shapes = (New-FieldShapes); shape = @{ provider_guid=0; extended_guid=0; opcode=0; named_fields=0; direct_fields=0; thread_headers=0; log_headers=0; header_fields_missing=0; header_fields_invalid=0 } }
+    $data = @{}; $duplicate = $false; $rawFields = @{}; $fieldCounts = @{}
     $out.shape.provider_guid = [int]($Record.SelectNodes('/*[local-name()="Event"]/*[local-name()="System"]/*[local-name()="Provider"]/@Guid').Count -gt 0)
     $out.shape.extended_guid = [int]($Record.SelectNodes('/*[local-name()="Event"]/*[local-name()="ExtendedTracingInfo"]/*[local-name()="EventGuid"]').Count -gt 0)
     foreach ($node in $Record.SelectNodes('/*[local-name()="Event"]/*[local-name()="EventData"]/*')) {
         if ($node.LocalName -eq 'Data') { $out.shape.named_fields = 1 } else { $out.shape.direct_fields = 1 }
         $name = if ($node.LocalName -eq 'Data') { $node.GetAttribute('Name') } else { $node.LocalName }
         if ($name -notin @('OldThreadId','NewThreadId','OldThreadState','OldThreadWaitReason','TThreadId','EventsLost','BuffersLost')) { continue }
+        if (-not $fieldCounts.ContainsKey($name)) { $fieldCounts[$name] = 0 }
+        $fieldCounts[$name]++
+        if (-not $rawFields.ContainsKey($name)) { $rawFields[$name] = $node.InnerText }
         if ($data.ContainsKey($name)) { $duplicate = $true; continue }
         $data[$name] = Read-U32 $node.InnerText
     }
@@ -136,6 +225,11 @@ function Decode-Event([xml]$Record, [uint32]$Target) {
     if ($null -eq $opcode) { return $out }
     $out.shape.opcode = 1
     $op = Read-U32 $opcode.InnerText
+    $expectedFields = @()
+    if ($isHeader -and $op -eq 0) { $expectedFields = @('EventsLost','BuffersLost') }
+    elseif ($isThread -and $op -eq 36) { $expectedFields = @('OldThreadId','NewThreadId','OldThreadState','OldThreadWaitReason') }
+    elseif ($isThread -and $op -eq 50) { $expectedFields = @('TThreadId') }
+    $out.field_shapes = Measure-FieldShapes $rawFields $fieldCounts $expectedFields
     if ($isThread -and $op -in @(36,50)) { $out.shape.thread_headers = 1 }
     if ($isHeader -and $op -eq 0) {
         $out.shape.log_headers = 1
@@ -231,7 +325,8 @@ $report = [ordered]@{
     native_tool_results = @{ wpr=@{ calls=0; last_exit_code=$null; last_nonzero_exit_code=$null; last_timed_out=$false; timeouts=0; start_failures=0 }; logman=@{ calls=0; last_exit_code=$null; last_nonzero_exit_code=$null; last_timed_out=$false; timeouts=0; start_failures=0 }; tracerpt=@{ calls=0; last_exit_code=$null; last_nonzero_exit_code=$null; last_timed_out=$false; timeouts=0; start_failures=0 } }
     tools = [ordered]@{ wpr = $false; tracerpt = $false; logman = $false; administrator = $false; profile = $false }
     fixture_tests = 0; stage = 'guard'; cleanup = 'NOT_NEEDED'
-    memory_buffer_mib = 32; workload_seconds_requested = 10
+    memory_buffer_mib = 32; workload_seconds_requested = 10; workload_busy_ms = 20; workload_sleep_ms = 10; managed_fixture_tests = 0
+    cpu_api = $null; cpu_cycles_verified = $false; field_shapes = (New-FieldShapes); schema_metadata = @{ status='NOT_VERIFIED'; classes_available=0; query_failures=0; fields=@{} }
     description_verified = $false; cpu_times_verified = $false; elapsed_ms = $null; user_cpu_ms = $null; kernel_cpu_ms = $null; sleep_calls = 0
     schema = 'Thread_V2:36,50; named EventData/Data or direct fields; uint32 decimal/hex'
     decoder = [ordered]@{ status = 'NOT_VERIFIED'; events = 0; cswitch = 0; readythread = 0; malformed_scheduler = 0; target_in = 0; target_out = 0; target_ready = 0; target_delay_execution = 0; target_events = 0; timestamped_target_events = 0; timestamps_missing = 0; timestamps_invalid = 0; timestamps_nonfinite = 0; timestamps_regressive = 0; target_span_ms = $null; wait_reason_counts = @{} }
@@ -241,7 +336,7 @@ $report = [ordered]@{
 }
 $ownedInstance = $null; $attemptedStart = $false; $worker = $null; $private = $null; $wpr = $null
 try {
-    $report.fixture_tests = (Test-Decoder) + (Test-AdditionalGuards)
+    $report.fixture_tests = (Test-Decoder) + (Test-AdditionalGuards) + (Test-FieldShapes)
     if ($SelfTest) {
         $report.kind = 'SCHEMA_FIXTURE_CHECK_ONLY'
         $report.stage = 'SCHEMA_FIXTURE_CHECK_ONLY'
@@ -293,63 +388,129 @@ try {
         if ($details.code -ne 0) { throw (Get-NativeFailure $true $false $details.code) }
         $report.tools.profile = $details.code -eq 0 -and $details.text -match 'CSwitch' -and $details.text -match 'ReadyThread' -and $details.text -match 'ProcessThread' -and $details.text -match 'Memory'
         if (-not $report.tools.profile) { throw 'profile_not_verified' }
+        $report.schema_metadata = Read-StaticSchemaMetadata
         $report.stage = 'native_apis'
         Add-Type -TypeDefinition @'
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 public sealed class SyntheticSchedulerWorker : IDisposable {
+ [StructLayout(LayoutKind.Sequential)] public struct NativeFileTime {
+  public uint Low; public uint High;
+  public ulong Ticks() { return ((ulong)High << 32) | Low; }
+ }
  [DllImport("kernel32.dll")] static extern IntPtr GetCurrentThread();
  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
  [DllImport("kernel32.dll", CharSet=CharSet.Unicode)] static extern int SetThreadDescription(IntPtr t, string name);
  [DllImport("kernel32.dll")] static extern int GetThreadDescription(IntPtr t, out IntPtr name);
  [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr ptr);
- [DllImport("kernel32.dll", SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] static extern bool GetThreadTimes(IntPtr t, out long created, out long ended, out long kernel, out long user);
- readonly ManualResetEventSlim ready = new ManualResetEventSlim();
- readonly ManualResetEventSlim go = new ManualResetEventSlim();
- readonly ManualResetEventSlim done = new ManualResetEventSlim();
- readonly ManualResetEventSlim release = new ManualResetEventSlim();
+ [DllImport("kernel32.dll", EntryPoint="GetThreadTimes", SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] static extern bool GetThreadTimesLong(IntPtr t, out long created, out long ended, out long kernel, out long user);
+ [DllImport("kernel32.dll", EntryPoint="GetThreadTimes", SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] static extern bool GetThreadTimesStruct(IntPtr t, out NativeFileTime created, out NativeFileTime ended, out NativeFileTime kernel, out NativeFileTime user);
+ [DllImport("kernel32.dll", SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] static extern bool QueryThreadCycleTime(IntPtr t, out ulong cycles);
+ sealed class CpuSample {
+  public bool LongOk, StructOk, CycleOk;
+  public int? LongError, StructError, CycleError;
+  public long LongKernel, LongUser;
+  public ulong StructKernel, StructUser, Cycles;
+  public double BeforeMs, AfterMs;
+  public Dictionary<string,object> Export() {
+   return new Dictionary<string,object> {
+    {"long_bool",LongOk},{"long_last_error",LongError},{"struct_bool",StructOk},{"struct_last_error",StructError},{"cycle_bool",CycleOk},{"cycle_last_error",CycleError},
+    {"long_kernel_100ns",LongOk?(object)LongKernel:null},{"long_user_100ns",LongOk?(object)LongUser:null},
+    {"struct_kernel_100ns",StructOk?(object)StructKernel:null},{"struct_user_100ns",StructOk?(object)StructUser:null},{"cycles",CycleOk?(object)Cycles:null},
+    {"query_before_ms",BeforeMs},{"query_after_ms",AfterMs}
+   };
+  }
+ }
+ static CpuSample Sample(IntPtr t, Stopwatch audit) {
+  CpuSample s=new CpuSample(); long c,e; NativeFileTime fc,fe,fk,fu;
+  s.BeforeMs=audit.Elapsed.TotalMilliseconds;
+  s.LongOk=GetThreadTimesLong(t,out c,out e,out s.LongKernel,out s.LongUser);
+  if(!s.LongOk) s.LongError=Marshal.GetLastWin32Error();
+  s.StructOk=GetThreadTimesStruct(t,out fc,out fe,out fk,out fu);
+  if(!s.StructOk) s.StructError=Marshal.GetLastWin32Error();
+  if(s.StructOk) { s.StructKernel=fk.Ticks(); s.StructUser=fu.Ticks(); }
+  s.CycleOk=QueryThreadCycleTime(t,out s.Cycles);
+  if(!s.CycleOk) s.CycleError=Marshal.GetLastWin32Error();
+  s.AfterMs=audit.Elapsed.TotalMilliseconds;
+  return s;
+ }
+ readonly ManualResetEventSlim ready=new ManualResetEventSlim(), go=new ManualResetEventSlim(), done=new ManualResetEventSlim(), release=new ManualResetEventSlim();
  readonly Thread thread;
  volatile bool cancel;
+ CpuSample before, after;
  public uint NativeId { get; private set; }
  public bool DescriptionOk { get; private set; }
+ public int? DescriptionSetHResult { get; private set; }
+ public int? DescriptionGetHResult { get; private set; }
  public bool TimesOk { get; private set; }
+ public bool StructTimesOk { get; private set; }
+ public bool CyclesOk { get; private set; }
+ public ulong CycleDelta { get; private set; }
  public double ElapsedMs { get; private set; }
  public double KernelMs { get; private set; }
  public double UserMs { get; private set; }
+ public double StructKernelMs { get; private set; }
+ public double StructUserMs { get; private set; }
+ public double WorkStartAuditMs { get; private set; }
+ public double WorkEndAuditMs { get; private set; }
  public long Sleeps { get; private set; }
  long checksum;
- public SyntheticSchedulerWorker() { thread = new Thread(Work); thread.IsBackground = true; thread.Start(); }
+ public SyntheticSchedulerWorker() { thread=new Thread(Work); thread.IsBackground=true; thread.Start(); }
+ public static int ManagedSelfTest() {
+  if(Marshal.SizeOf<NativeFileTime>()!=8 || Marshal.OffsetOf<NativeFileTime>("Low").ToInt32()!=0 || Marshal.OffsetOf<NativeFileTime>("High").ToInt32()!=4 || sizeof(long)!=8) throw new InvalidOperationException();
+  if(new NativeFileTime{Low=0x89abcdef,High=0x01234567}.Ticks()!=0x0123456789abcdefUL) throw new InvalidOperationException();
+  if(new NativeFileTime{Low=uint.MaxValue,High=uint.MaxValue}.Ticks()!=ulong.MaxValue) throw new InvalidOperationException();
+  if(new NativeFileTime{Low=0,High=0}.Ticks()!=0) throw new InvalidOperationException();
+  return 7;
+ }
  void Work() {
   try {
-   NativeId = GetCurrentThreadId(); IntPtr t = GetCurrentThread(); IntPtr name = IntPtr.Zero;
-   if (SetThreadDescription(t, "scheduling-preflight-worker") >= 0 && GetThreadDescription(t, out name) >= 0) {
-    try { DescriptionOk = Marshal.PtrToStringUni(name) == "scheduling-preflight-worker"; } finally { if(name != IntPtr.Zero) LocalFree(name); }
+   NativeId=GetCurrentThreadId(); IntPtr t=GetCurrentThread(); IntPtr name=IntPtr.Zero;
+   DescriptionSetHResult=SetThreadDescription(t,"scheduling-preflight-worker");
+   if(DescriptionSetHResult>=0) {
+    DescriptionGetHResult=GetThreadDescription(t,out name);
+    try { if(DescriptionGetHResult>=0) DescriptionOk=Marshal.PtrToStringUni(name)=="scheduling-preflight-worker"; } finally { if(name!=IntPtr.Zero) LocalFree(name); }
    }
    ready.Set(); go.Wait(); if(cancel) return;
-   long c,e,k0,u0,k1,u1; bool first = GetThreadTimes(t,out c,out e,out k0,out u0);
-   Stopwatch wall = Stopwatch.StartNew(); long value=1;
-   while(!cancel && wall.Elapsed.TotalSeconds < 10) {
-    long end = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 1000;
-    while(!cancel && Stopwatch.GetTimestamp() < end) { value = unchecked(value * 1664525 + 1013904223); }
-    if(!cancel) { Thread.Sleep(2); Sleeps++; }
+   Stopwatch audit=Stopwatch.StartNew(); before=Sample(t,audit); WorkStartAuditMs=audit.Elapsed.TotalMilliseconds;
+   Stopwatch wall=Stopwatch.StartNew(); long value=1;
+   // Counter calibration only: C5's1ms/Sleep2 produced0CPUtimes in run43950604603.
+   // Longer CPU blocks test counter usability; they do not change Harmony.
+   while(!cancel && wall.Elapsed.TotalSeconds<10) {
+    long end=Stopwatch.GetTimestamp()+Stopwatch.Frequency/50;
+    while(!cancel && Stopwatch.GetTimestamp()<end) { value=unchecked(value*1664525+1013904223); }
+    if(!cancel) { Thread.Sleep(10); Sleeps++; }
    }
-   ElapsedMs = wall.Elapsed.TotalMilliseconds;
-   bool last = GetThreadTimes(t,out c,out e,out k1,out u1);
-   TimesOk = first && last && k1>=k0 && u1>=u0;
-   if(TimesOk) { KernelMs=(k1-k0)/10000.0; UserMs=(u1-u0)/10000.0; }
-   checksum=value;
-   done.Set(); release.Wait(); // Keep this native TID alive through ETL decoding.
+   ElapsedMs=wall.Elapsed.TotalMilliseconds; WorkEndAuditMs=audit.Elapsed.TotalMilliseconds; after=Sample(t,audit);
+   TimesOk=before.LongOk && after.LongOk && before.LongKernel>=0 && before.LongUser>=0 && after.LongKernel>=before.LongKernel && after.LongUser>=before.LongUser;
+   if(TimesOk) { KernelMs=(after.LongKernel-before.LongKernel)/10000.0; UserMs=(after.LongUser-before.LongUser)/10000.0; }
+   StructTimesOk=before.StructOk && after.StructOk && after.StructKernel>=before.StructKernel && after.StructUser>=before.StructUser;
+   if(StructTimesOk) { StructKernelMs=(after.StructKernel-before.StructKernel)/10000.0; StructUserMs=(after.StructUser-before.StructUser)/10000.0; }
+   CyclesOk=before.CycleOk && after.CycleOk && after.Cycles>=before.Cycles;
+   if(CyclesOk) CycleDelta=after.Cycles-before.Cycles;
+   checksum=value; done.Set(); release.Wait(); // Keep this native TID alive through decoding.
   } catch { } finally { ready.Set(); done.Set(); }
+ }
+ public Dictionary<string,object> Audit() {
+  return new Dictionary<string,object> {
+   {"get_thread_times_return","BOOL"},{"description_set_hresult",DescriptionSetHResult},{"description_get_hresult",DescriptionGetHResult},
+   {"filetime_bytes",Marshal.SizeOf<NativeFileTime>()},{"filetime_low_offset",Marshal.OffsetOf<NativeFileTime>("Low").ToInt32()},{"filetime_high_offset",Marshal.OffsetOf<NativeFileTime>("High").ToInt32()},{"long_bytes",sizeof(long)},
+   {"start",before==null?null:before.Export()},{"end",after==null?null:after.Export()},{"work_start_ms",WorkStartAuditMs},{"work_end_ms",WorkEndAuditMs},
+   {"long_monotonic",TimesOk},{"struct_monotonic",StructTimesOk},{"struct_kernel_ms",StructTimesOk?(object)StructKernelMs:null},{"struct_user_ms",StructTimesOk?(object)StructUserMs:null},
+   {"cycles_monotonic",CyclesOk},{"cycles_delta",CyclesOk?(object)CycleDelta:null}
+  };
  }
  public bool Ready() { return ready.Wait(5000) && NativeId!=0 && DescriptionOk; }
  public bool Run() { go.Set(); return done.Wait(15000); }
  public void Dispose() { cancel=true; go.Set(); release.Set(); if(thread.Join(5000)) { ready.Dispose(); go.Dispose(); done.Dispose(); release.Dispose(); } GC.KeepAlive(checksum); }
 }
 '@
+        $report.managed_fixture_tests = [SyntheticSchedulerWorker]::ManagedSelfTest()
         $worker = [SyntheticSchedulerWorker]::new()
-        if (-not $worker.Ready()) { throw 'thread_description_not_verified' }
+        if (-not $worker.Ready()) { $report.cpu_api = $worker.Audit(); throw 'thread_description_not_verified' }
         $report.description_verified = $true
         $report.stage = 'start'
         $attemptedStart = $true
@@ -358,11 +519,13 @@ public sealed class SyntheticSchedulerWorker : IDisposable {
         $report.cleanup = 'PENDING'
         $report.stage = 'synthetic_workload'
         if (-not $worker.Run()) { throw 'synthetic_workload_timeout' }
+        $report.cpu_api = $worker.Audit()
         $report.elapsed_ms = $worker.ElapsedMs
         $report.user_cpu_ms = $worker.UserMs
         $report.kernel_cpu_ms = $worker.KernelMs
         $report.sleep_calls = $worker.Sleeps
-        $report.cpu_times_verified = $worker.TimesOk -and $worker.UserMs + $worker.KernelMs -gt 0
+        $report.cpu_times_verified = $worker.TimesOk -and $worker.UserMs + $worker.KernelMs -gt 0 -and $worker.StructTimesOk -and $worker.StructUserMs + $worker.StructKernelMs -gt 0
+        $report.cpu_cycles_verified = $worker.CyclesOk -and $worker.CycleDelta -gt 0
         $report.stage = 'flush'
         $finalStatus = Invoke-Inbox $wpr @('-status','collectors','-details','-instancename',$ownedInstance)
         $drop = [regex]::Matches($finalStatus.text, '(?im)^\s*Dropped event\s*:\s*(\d+)\s*$')
@@ -400,6 +563,9 @@ public sealed class SyntheticSchedulerWorker : IDisposable {
                 $sub = $reader.ReadSubtree()
                 try { $eventDoc = [xml]::new(); $eventDoc.XmlResolver = $null; $eventDoc.Load($sub) } finally { $sub.Dispose() }
                 $decoded = Decode-Event $eventDoc $worker.NativeId
+                foreach ($field in $schemaFields) {
+                    foreach ($key in $fieldShapeKeys) { $report.field_shapes[$field][$key] += $decoded.field_shapes[$field][$key] }
+                }
                 foreach ($shape in @($report.schema_shape.Keys)) { $report.schema_shape[$shape] += $decoded.shape[$shape] }
                 if ($null -ne $decoded.events_lost) { $loss.Add($decoded.events_lost) }
                 if ($null -ne $decoded.buffers_lost) { $bufferLoss.Add($decoded.buffers_lost) }
@@ -441,6 +607,7 @@ public sealed class SyntheticSchedulerWorker : IDisposable {
         if ($timelineFailure -ne 'none') { throw $timelineFailure }
         if ($integrityFailure -ne 'none') { throw $integrityFailure }
         if (-not $report.cpu_times_verified) { throw 'cpu_times_unverified' }
+        if (-not $report.cpu_cycles_verified) { throw 'cpu_cycles_unverified' }
         foreach ($metric in @($report.elapsed_ms,$report.user_cpu_ms,$report.kernel_cpu_ms,$report.decoder.target_span_ms)) {
             if ($null -eq $metric -or [double]::IsNaN($metric) -or [double]::IsInfinity($metric)) { throw 'nonfinite_metrics' }
         }
