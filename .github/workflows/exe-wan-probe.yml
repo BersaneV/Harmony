@@ -21,7 +21,7 @@ on:
         type: choice
         # Add 0.4.3 only after releases/0.4.3.json records the real published
         # installer and EXE hashes. The prepared UI path below fails closed.
-        options: ['0.4.1', '0.4.2']
+        options: ['0.4.1', '0.4.2', '0.4.3']
         default: '0.4.2'
 permissions:
   contents: read
