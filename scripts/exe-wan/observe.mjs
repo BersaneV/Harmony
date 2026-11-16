@@ -4,15 +4,18 @@ export function observe(){
  if(!window.__TAURI_INTERNALS__||!['http://tauri.localhost','https://tauri.localhost'].includes(location.origin))throw Error('Owned compiled Tauri page required');
  if(window.__exeWan)throw Error('Already instrumented');
  const qa=window.__exeWan={pcs:[],tracks:[],events:[],contexts:[],captures:[],microphones:[],screenAudio:[],started:performance.now()};
+ const nativeFrameSnapshots=new WeakMap();
 
  function countSource(record){
-  record.processor_frames=0;record.distinct_marker_frames=0;record.marker_copy_errors=0;record.processor_error=null;record.processor_sizes=new Set();record.processor_status='starting';
-  record.observer_overhead='One native-track clone and one 1px RGBA copy per delivered frame; extra observer overhead is possible. Full source geometry is unchanged.';
+  record.processor_frames=0;record.distinct_marker_frames=0;record.marker_copy_errors=0;record.marker_copy_calls=0;record.marker_copy_total_ms=0;record.marker_copy_max_ms=0;record.processor_error=null;record.processor_sizes=new Set();record.processor_formats=new Set();record.processor_status='starting';
+  record.observer_overhead='One permanent native-track clone/reader and one timed 1px RGBA copy per delivered frame; preflight reuses its counters and requests one frame clone after the timed window. Full source geometry is unchanged.';
   if(typeof MediaStreamTrackProcessor!=='function'){record.processor_status='unsupported';return;}
-  const clone=record.track.clone(),pixel=new Uint8Array(4),pixelLayout={format:'RGBA',rect:{x:0,y:0,width:1,height:1}};let reader,watch,previous=null;
+  const clone=record.track.clone(),pixel=new Uint8Array(4),pixelLayout={format:'RGBA',rect:{x:0,y:0,width:1,height:1}};let reader,watch,previous=null,snapshot=null;
+  function finishSnapshot(error,frame){const pending=snapshot;if(!pending)return;snapshot=null;clearTimeout(pending.timer);if(error)pending.reject(error);else try{pending.resolve(frame.clone());}catch(e){pending.reject(e);}}
   try{reader=new MediaStreamTrackProcessor({track:clone,maxBufferSize:1}).readable.getReader();record.processor_status='running';
+   nativeFrameSnapshots.set(record,()=>new Promise((resolve,reject)=>{if(snapshot){reject(Error('A source frame inspection is already pending'));return;}if(record.processor_status!=='running'||record.track.readyState!=='live'){reject(Error('Live source observer required'));return;}snapshot={resolve,reject,timer:setTimeout(()=>finishSnapshot(Error('Actual source frame inspection timed out')),3000)};}));
    watch=setInterval(()=>{if(record.track.readyState!=='live'){void reader.cancel().catch(()=>{});clone.stop();}},250);
-   void(async()=>{try{while(record.track.readyState==='live'){const next=await reader.read();if(next.done)break;try{record.processor_frames++;record.processor_sizes.add(`${next.value.displayWidth}x${next.value.displayHeight}`);if(record.kind==='native'){try{await next.value.copyTo(pixel,pixelLayout);}catch(error){record.marker_copy_errors++;throw error;}const marker=(pixel[0]<<16)|(pixel[1]<<8)|pixel[2];if(marker!==previous)record.distinct_marker_frames++;previous=marker;}}finally{next.value.close();}}record.processor_status=record.track.readyState==='live'?'ended':'stopped';}catch(error){record.processor_status='error';record.processor_error=String(error?.message||error).slice(0,300);}finally{clearInterval(watch);clone.stop();reader.releaseLock();}})();
+   void(async()=>{try{while(record.track.readyState==='live'){const next=await reader.read();if(next.done)break;try{record.processor_sizes.add(`${next.value.displayWidth}x${next.value.displayHeight}`);record.processor_formats.add(next.value.format);if(record.kind==='native'){const before=performance.now();try{await next.value.copyTo(pixel,pixelLayout);}catch(error){record.marker_copy_errors++;throw error;}finally{const elapsed=performance.now()-before;record.marker_copy_calls++;record.marker_copy_total_ms+=elapsed;record.marker_copy_max_ms=Math.max(record.marker_copy_max_ms,elapsed);}const marker=(pixel[0]<<16)|(pixel[1]<<8)|pixel[2];if(marker!==previous)record.distinct_marker_frames++;previous=marker;}record.processor_frames++;finishSnapshot(null,next.value);}finally{next.value.close();}}record.processor_status=record.track.readyState==='live'?'ended':'stopped';}catch(error){record.processor_status='error';record.processor_error=String(error?.message||error).slice(0,300);}finally{finishSnapshot(Error('Actual source observer stopped'));nativeFrameSnapshots.delete(record);clearInterval(watch);clone.stop();reader.releaseLock();}})();
   }catch(error){clearInterval(watch);clone.stop();record.processor_status='error';record.processor_error=String(error?.message||error).slice(0,300);}
  }
  window.addEventListener('harmony-native-screen',event=>{
@@ -21,13 +24,31 @@ export function observe(){
   const record={kind:'native',track:d.track,getSettings:d.settings,label:d.label,backend:d.backend,settings_source:'native-frame-metadata'};
   qa.captures.push(record);countSource(record);
  });
- qa.captureSnapshots=()=>qa.captures.map((c,index)=>({index,kind:c.kind,track_id:c.track.id,track_label:c.track.label,label:c.label,backend:c.backend,settings:c.getSettings(),track_settings:c.track.getSettings(),settings_source:c.settings_source,ready:c.track.readyState,processor_frames:c.processor_frames??null,distinct_marker_frames:c.distinct_marker_frames??null,marker_copy_errors:c.marker_copy_errors??null,processor_error:c.processor_error??null,observer_overhead:c.observer_overhead??null,processor_status:c.processor_status??null,processor_sizes:[...(c.processor_sizes||[])]}));
+ qa.captureSnapshots=()=>qa.captures.map((c,index)=>({index,kind:c.kind,track_id:c.track.id,track_label:c.track.label,label:c.label,backend:c.backend,settings:c.getSettings(),track_settings:c.track.getSettings(),settings_source:c.settings_source,ready:c.track.readyState,processor_frames:c.processor_frames??null,distinct_marker_frames:c.distinct_marker_frames??null,marker_copy_errors:c.marker_copy_errors??null,marker_copy_calls:c.marker_copy_calls??null,marker_copy_total_ms:c.marker_copy_total_ms??null,marker_copy_max_ms:c.marker_copy_max_ms??null,processor_formats:[...(c.processor_formats||[])],processor_error:c.processor_error??null,observer_overhead:c.observer_overhead??null,processor_status:c.processor_status??null,processor_sizes:[...(c.processor_sizes||[])]}));
  // Inspect clones of actual application tracks. Nothing is substituted or
  // attached to a sender, and pixel inspection retains the complete frame size.
  qa.measureCapture=async(index,durationMs=10000)=>{
   if(!Number.isInteger(durationMs)||durationMs<1000||durationMs>15000)throw Error('Bounded capture observation required');
   const capture=qa.captures[index];if(!capture||capture.track.readyState!=='live')throw Error('Live application capture required');
   const video=[...document.querySelectorAll('video')].find(v=>v.srcObject?.getVideoTracks?.().some(t=>t.id===capture.track.id));
+  if(capture.kind==='native'){
+   const snapshotFrame=nativeFrameSnapshots.get(capture);if(!snapshotFrame||capture.processor_status!=='running')throw Error('Native source must be counted by its permanent MediaStreamTrackProcessor');
+   const first=qa.captureSnapshots()[index],initialVideo=video?.getVideoPlaybackQuality().totalVideoFrames??null,begin=performance.now();let frame;
+   try{
+    await new Promise(r=>setTimeout(r,durationMs));const elapsed=performance.now()-begin,end=qa.captureSnapshots()[index];
+    if(end.processor_status!=='running'||end.processor_error||end.marker_copy_errors!==0)throw Error('Actual source observation failed: '+(end.processor_error||end.processor_status));
+    const frames=end.processor_frames-first.processor_frames,changed=end.distinct_marker_frames-first.distinct_marker_frames;
+    if(!Number.isSafeInteger(frames)||frames<0||!Number.isSafeInteger(changed)||changed<0||changed>frames)throw Error('Actual source counters are invalid');
+    const measuredFps=video&&initialVideo!==null?(video.getVideoPlaybackQuality().totalVideoFrames-initialVideo)*1000/elapsed:null;
+    // This is a handle clone of one full frame from the same permanent reader,
+    // requested only after the counter window. No second processor/marker copy.
+    frame=await snapshotFrame();const width=frame.displayWidth,height=frame.displayHeight;if(!width||!height)throw Error('Complete source frame unavailable');
+    const canvas=typeof OffscreenCanvas==='function'?new OffscreenCanvas(width,height):Object.assign(document.createElement('canvas'),{width,height}),context=canvas.getContext('2d',{willReadFrequently:true});
+    context.drawImage(frame,0,0,width,height);const rgba=context.getImageData(0,0,width,height).data;let light=0,colored=0;
+    for(let y=0;y<90;y++)for(let x=0;x<160;x++){const p=(Math.floor(y*height/90)*width+Math.floor(x*width/160))*4;if(rgba[p]+rgba[p+1]+rgba[p+2]>30)light++;if(Math.abs(rgba[p]-rgba[p+1])+Math.abs(rgba[p+1]-rgba[p+2])>20)colored++;}
+    return{...end,pixel_width:width,pixel_height:height,pixel_samples:14400,light_pixels:light,colored_pixels:colored,sampled_sizes:end.processor_sizes,observation_ms:elapsed,processor_frames:frames,processor_source_fps:frames*1000/elapsed,distinct_marker_frames:changed,distinct_marker_fps:changed*1000/elapsed,marker_copy_calls_delta:end.marker_copy_calls-first.marker_copy_calls,marker_copy_total_ms_delta:end.marker_copy_total_ms-first.marker_copy_total_ms,measured_fps:measuredFps};
+   }finally{frame?.close();}
+  }
   let clone,reader,task,lastFrame,error=null,frames=0,changed=0,previous=null,reading=true;const sizes=new Set();
   const initial=video?.getVideoPlaybackQuality().totalVideoFrames??null,begin=performance.now();
   if(typeof MediaStreamTrackProcessor==='function'){

@@ -47,7 +47,8 @@ for column, (matrix, title) in enumerate(zip(matrices, ['Voz · RTT p95 por par'
 
 fps_axis = fig.add_subplot(grid[1, 0])
 video = [(client['index'], stream) for client in phases['screen']['clients']
-         for peer in client['peers'] for stream in peer['streams'] if stream['source'] == 'screen']
+         for peer in (client.get('sfu_peers', []) if phases['screen'].get('sfu', {}).get('enabled') else client['peers'])
+         for stream in peer['streams'] if stream['source'] == 'screen']
 positions = np.arange(len(video))
 fps = [stream['displayed_fps'] or 0 for _, stream in video]
 failed = {c['index'] for c in phases['screen']['clients'] if c['video_status'] == 'FAIL'}
