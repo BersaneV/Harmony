@@ -1,0 +1,65 @@
+name: Diagnose browser capture constraints in the published EXE
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: exe-browser-capture-diagnostic
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      cohort: ${{ steps.fixture.outputs.cohort }}
+      guild: ${{ steps.fixture.outputs.guild }}
+      guild_name: ${{ steps.fixture.outputs.guild_name }}
+      voice: ${{ steps.fixture.outputs.voice }}
+      control: ${{ steps.fixture.outputs.control }}
+      users: ${{ steps.fixture.outputs.users }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: '26.13.0'}
+      - name: Validate the diagnostic ownership and constraint boundaries
+        run: node --test scripts/exe-wan/browser-capture-diagnostic.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/fixture-contract.test.mjs
+      - name: Require the pinned published 0.4.4 manifest
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFile} from 'node:fs/promises';
+          const release=JSON.parse(await readFile('scripts/exe-wan/releases/0.4.4.json','utf8'));
+          assert.equal(release.version,'0.4.4');
+          assert.equal(release.installer_url,'https://github.com/BersaneV/Harmony/releases/download/v0.4.4/Harmony_0.4.4_x64-setup.exe');
+          assert.match(release.installer_sha256,/^[a-f0-9]{64}$/);
+          assert.match(release.main_sha256,/^[a-f0-9]{64}$/);
+          JS
+      - name: Create the private ordinary-account fixture; only its owner will run
+        id: fixture
+        env:
+          HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+        run: node scripts/exe-wan/prepare.mjs
+  diagnostic:
+    needs: prepare
+    runs-on: windows-2022
+    timeout-minutes: 12
+    env:
+      HARMONY_EXE_RELEASE: '0.4.4'
+      HARMONY_EXE_PROFILE: '720p30'
+      HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+      HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
+      HARMONY_GUILD_ID: ${{ needs.prepare.outputs.guild }}
+      HARMONY_GUILD_NAME: ${{ needs.prepare.outputs.guild_name }}
+      HARMONY_VOICE_ID: ${{ needs.prepare.outputs.voice }}
+      HARMONY_CONTROL_ID: ${{ needs.prepare.outputs.control }}
+      HARMONY_COHORT_USERS: ${{ needs.prepare.outputs.users }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: '26.13.0'}
+      - name: Verify and install the immutable published EXE
+        shell: pwsh
+        run: ./scripts/exe-wan/install.ps1
+      - name: Run four UI previews on the same owned HWND; diagnostic only
+        run: node scripts/exe-wan/browser-capture-diagnostic.mjs
