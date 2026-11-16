@@ -95,14 +95,34 @@ test("only immutable049 public hosted main and unchanged60 profiles are admitted
 });
 test("companion rejects IDs, nonnumeric payloads and unexpected event/phase/capacity", () => {
   const value = reply("ended", "instrumented", {
-    window: { start_utc_ms: 0, end_utc_ms: 10000 },
+    window: { start_utc_ms: 0, end_utc_ms: 2000 },
     trace: {
       status: "OBSERVED",
       integrity: "VERIFIED",
+      etl_bytes: null,
+      xml_bytes: null,
       roles: { capture: { wait_reason_counts: { 4: 3 } } },
     },
   });
   assert.equal(validateCompanionReply(value, "ended", "instrumented"), value);
+  assert.doesNotThrow(() =>
+    validateCompanionReply(
+      {
+        ...value,
+        trace: { ...value.trace, etl_bytes: 134217729, xml_bytes: 268435457 },
+      },
+      "ended",
+      "instrumented",
+    ),
+  );
+  for (const invalid of [-1, 0.5, true, Infinity])
+    assert.throws(() =>
+      validateCompanionReply(
+        { ...value, trace: { ...value.trace, xml_bytes: invalid } },
+        "ended",
+        "instrumented",
+      ),
+    );
   for (const patch of [
     { pid: 42 },
     { NativeId: 123 },
@@ -167,44 +187,57 @@ test("optional identity counts are exact nonnegative integers and contain no win
   );
 });
 test("counter/window validation never labels missing, regressive, short or disjoint clocks OBSERVED", () => {
-  const observation = phaseObservation([row(0), row(10000)], profile);
+  const observation = phaseObservation([row(0), row(2000)], profile);
   assert.equal(observation.original_source_fps_gate, "FAIL");
+  assert.equal(observation.nominal_window_ms, 2000);
   const ps = reply("ended", "instrumented", {
     window: {
       start_utc_ms: 0,
-      end_utc_ms: 10000,
+      end_utc_ms: 2000,
       start_qpc_ticks: 0,
-      end_qpc_ticks: 10000000,
+      end_qpc_ticks: 2000000,
       qpc_frequency: 1000000,
-      elapsed_ms: 10000,
+      elapsed_ms: 2000,
     },
   });
   assert.equal(overlapWindow(observation, ps).status, "OBSERVED");
   for (const patch of [
     { first_wall_utc_ms: NaN },
     { last_wall_utc_ms: -1 },
-    { observed_ms: 9999 },
+    { observed_ms: 1999 },
   ])
     assert.equal(
       overlapWindow({ ...observation, ...patch }, ps).status,
       "NOT_VERIFIED",
     );
   for (const patch of [
-    { start_utc_ms: 11000, end_utc_ms: 21000 },
+    { start_utc_ms: 3000, end_utc_ms: 5000 },
     { start_utc_ms: 1 },
-    { elapsed_ms: 10001 },
+    { elapsed_ms: 2001 },
     { qpc_frequency: 0 },
     { end_qpc_ticks: 0 },
+    { end_utc_ms: 5000, end_qpc_ticks: 5000000, elapsed_ms: 5000 },
   ])
     assert.equal(
       overlapWindow(observation, { ...ps, window: { ...ps.window, ...patch } })
         .status,
       "NOT_VERIFIED",
     );
-  const reset = row(10000);
+  const reset = row(2000);
   reset.capture.processor_frames = -1;
   assert.throws(() => phaseObservation([row(0), reset], profile));
-  assert.throws(() => phaseObservation([row(0), row(9999)], profile));
+  assert.throws(() => phaseObservation([row(0), row(1999)], profile));
+  const actual = overlapWindow(observation, {
+    ...ps,
+    window: {
+      ...ps.window,
+      end_utc_ms: 2200,
+      end_qpc_ticks: 2200000,
+      elapsed_ms: 2200,
+    },
+  });
+  assert.equal(actual.status, "OBSERVED");
+  assert.equal(actual.ps_elapsed_ms, 2200);
 });
 
 function fixture(
@@ -293,7 +326,9 @@ test("three simulated-clock controller phases preserve FAIL FPS and eight-client
     assert.equal(p.observation.original_source_fps_gate, "FAIL");
     assert.equal(p.start_receipts.voice_in, 56);
     assert.equal(p.end_receipts.screen_receivers, 7);
-    assert.ok(p.observation.observed_ms >= 10000);
+    assert.ok(p.observation.observed_ms >= 2000);
+    assert.ok(p.observation.observed_ms < 5000);
+    assert.equal(p.nominal_window_ms, 2000);
   }
   assert.ok(f.events.indexOf("end:control_after") < f.events.indexOf("close"));
   assert.ok(!f.events.some((e) => /install|VideoFrame|writer/.test(e)));
@@ -387,7 +422,15 @@ test("pipe sends only fixed operations, strips seed and waits for closed before 
           queueMicrotask(() => {
             child.stdout.write(
               JSON.stringify(
-                reply({ attach: "attached", close: "closed" }[q.command]),
+                reply(
+                  {
+                    attach: "attached",
+                    begin: "begun",
+                    end: "ended",
+                    close: "closed",
+                  }[q.command],
+                  q.phase ?? null,
+                ),
               ) + "\n",
             );
             callback();
@@ -400,8 +443,15 @@ test("pipe sends only fixed operations, strips seed and waits for closed before 
   });
   const budget = createBudget();
   await port.command("attach", undefined, budget);
+  await port.command("begin", "control_before", budget);
+  await port.command("end", "control_before", budget);
   await port.close();
-  assert.deepEqual(commands, [{ command: "attach" }, { command: "close" }]);
+  assert.deepEqual(commands, [
+    { command: "attach" },
+    { command: "begin", phase: "control_before", duration_ms: 2000 },
+    { command: "end", phase: "control_before" },
+    { command: "close" },
+  ]);
   assert.equal(seenEnv.HARMONY_EXE_WAN_SEED, undefined);
   assert.equal(seenEnv.GH_TOKEN, undefined);
   budget.close();

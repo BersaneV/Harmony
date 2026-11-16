@@ -525,7 +525,7 @@ function Parse-Command([string]$Line) {
         foreach($prop in $doc.RootElement.EnumerateObject()){
             if(-not $seen.Add($prop.Name) -or $prop.Name -cnotin @('command','phase','duration_ms')){throw 'command_schema'}
             if($prop.Name -eq 'duration_ms'){
-                [int]$n=0;if($prop.Value.ValueKind -ne [Text.Json.JsonValueKind]::Number -or -not $prop.Value.TryGetInt32([ref]$n) -or $n -ne 10000){throw 'duration_invalid'};$fields.duration_ms=$n
+                [int]$n=0;if($prop.Value.ValueKind -ne [Text.Json.JsonValueKind]::Number -or -not $prop.Value.TryGetInt32([ref]$n) -or $n -ne 2000){throw 'duration_invalid'};$fields.duration_ms=$n
             }else{if($prop.Value.ValueKind -ne [Text.Json.JsonValueKind]::String){throw 'command_schema'};$fields[$prop.Name]=$prop.Value.GetString()}
         }
         if(-not $fields.ContainsKey('command') -or $fields.command -cnotin @('attach','begin','end','close')){throw 'command_schema'}
@@ -577,15 +577,15 @@ function Read-PrivateField($Record,[string]$Name){
     return $null
 }
 function Decode-Trace {
-    $out=@{status='NOT_VERIFIED';failure_code='not_decoded';integrity='NOT_VERIFIED';events=0;malformed_scheduler=0;lost_events=$null;lost_buffers=$null;dropped_events=$dropped;roles=@{};schema_shape=@{provider_guid=0;extended_guid=0;opcode=0;named_fields=0;direct_fields=0;thread_headers=0;log_headers=0;header_fields_missing=0;header_fields_invalid=0};field_shapes=(New-FieldShapes);native_tools=$report.native_tool_results}
+    $out=@{status='NOT_VERIFIED';failure_code='not_decoded';integrity='NOT_VERIFIED';events=0;malformed_scheduler=0;lost_events=$null;lost_buffers=$null;dropped_events=$dropped;etl_bytes=$null;xml_bytes=$null;roles=@{};schema_shape=@{provider_guid=0;extended_guid=0;opcode=0;named_fields=0;direct_fields=0;thread_headers=0;log_headers=0;header_fields_missing=0;header_fields_invalid=0};field_shapes=(New-FieldShapes);native_tools=$report.native_tool_results}
     if($next -ne 3 -or -not $traceFlushed -or -not $windows.ContainsKey('instrumented')){$out.failure_code='trace_incomplete';return $out}
     $window=$windows.instrumented;$ledgers=@{};foreach($role in $roles){$ledgers[$role]=[SchedulerLedger]::new($owner.RoleId($role),$window.start.UtcTicks,$window.end.UtcTicks)}
     try{
-        $owner.Validate();$size=(Get-Item -LiteralPath $etl).Length;if($size -le 0 -or $size -gt 134217728){throw 'etl_size_bound'}
+        $owner.Validate();$size=(Get-Item -LiteralPath $etl).Length;$out.etl_bytes=$size;if($size -le 0 -or $size -gt 134217728){throw 'etl_size_bound'}
         $xml=Join-Path $private 'private.xml';$summary=Join-Path $private 'private-summary.txt'
         $converted=Invoke-Inbox $tracerpt @($etl,'-o',$xml,'-of','XML','-summary',$summary,'-y') 60
         if($converted.code -ne 0){throw 'native_tool_nonzero_exit'}
-        $size=(Get-Item -LiteralPath $xml).Length;if($size -le 0 -or $size -gt 268435456){throw 'xml_size_bound'}
+        $size=(Get-Item -LiteralPath $xml).Length;$out.xml_bytes=$size;if($size -le 0 -or $size -gt 268435456){throw 'xml_size_bound'}
         $settings=[Xml.XmlReaderSettings]::new();$settings.DtdProcessing=[Xml.DtdProcessing]::Prohibit;$settings.XmlResolver=$null;$settings.MaxCharactersInDocument=268435456
         $reader=[Xml.XmlReader]::Create($xml,$settings);$lost=[Collections.Generic.List[uint32]]::new();$buffers=[Collections.Generic.List[uint32]]::new()
         try{
@@ -623,7 +623,7 @@ try {
         $task=[SchedulingInput]::Read()
         while(-not $task.Wait(250)){
             if($loadClock.Elapsed.TotalSeconds -gt 600){throw 'global_deadline'}
-            if($null -ne $active -and (([Diagnostics.Stopwatch]::GetTimestamp()-$active.start.Qpc)*1000.0/[Diagnostics.Stopwatch]::Frequency) -ge 15000){throw 'window_deadline'}
+            if($null -ne $active -and (([Diagnostics.Stopwatch]::GetTimestamp()-$active.start.Qpc)*1000.0/[Diagnostics.Stopwatch]::Frequency) -ge 5000){throw 'window_deadline'}
         }
         $line=$task.GetAwaiter().GetResult();if($null -eq $line){throw 'input_eof'}
         $cmd=Parse-Command $line;$phase=if($cmd.ContainsKey('phase')){$cmd.phase}else{$null}
@@ -654,7 +654,7 @@ try {
                 $stop=[SchedulerNative]::Now();$cpu=@{};foreach($role in $roles){$cpu[$role]=[SchedulerNative]::Delta($active.samples[$role],$owner.Read($role))};$owner.Validate()
                 $window=Window-Data $active.start $stop;$windows[$phase]=@{start=$active.start;end=$stop};$active=$null;$next++
                 if($phase -eq 'instrumented'){Flush-Trace}
-                $code=if($window.elapsed_ms -lt 10000){'window_too_short'}elseif($window.elapsed_ms -ge 15000){'window_too_long'}else{'none'}
+                $code=if($window.elapsed_ms -lt 2000){'window_too_short'}elseif($window.elapsed_ms -ge 5000){'window_too_long'}else{'none'}
                 Emit-Reply 'ended' $phase $(if($code -eq 'none'){'OBSERVED'}else{'NOT_VERIFIED'}) $code $window $cpu;continue
             }
         }catch{

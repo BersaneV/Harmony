@@ -29,6 +29,8 @@ const { assertCallRoute } = await import(atRoot("fixture-contract.mjs"));
 const { createClientDiagnostics } = await import(
   atRoot("client-diagnostics.mjs")
 );
+export const schedulerWindowMs = 2000;
+const schedulerWindowMaxMs = 5000;
 export const MAIN_SHA =
   "6a1517c44ed45c996ac8d32c08767ea7306e897a4cb73d703d9286b68c86c2cc";
 export const INSTALLER_SHA =
@@ -156,6 +158,8 @@ const COMPANION_SCHEMA = {
     "schema_shape",
     "field_shapes",
     "native_tools",
+    "etl_bytes",
+    "xml_bytes",
   ],
   trace_roles: ["capture", "ui"],
   trace_role: [
@@ -371,6 +375,13 @@ export function validateCompanionReply(row, event, phase) {
     },
   };
   const primitive = (value, key) => {
+    if (["etl_bytes", "xml_bytes"].includes(key)) {
+      check(
+        value === null || (Number.isSafeInteger(value) && value >= 0),
+        "COMPANION_SCHEMA",
+      );
+      return;
+    }
     if (identityCountKeys.includes(key)) {
       check(Number.isSafeInteger(value) && value >= 0, "COMPANION_SCHEMA");
       return;
@@ -594,7 +605,9 @@ export function createCompanion({
             const row = {
               command,
               ...(phase ? { phase } : {}),
-              ...(command === "begin" ? { duration_ms: 10000 } : {}),
+              ...(command === "begin"
+                ? { duration_ms: schedulerWindowMs }
+                : {}),
             };
             child.stdin.write(JSON.stringify(row) + "\n", (error) => {
               if (error) fail("COMPANION_STDIN");
@@ -669,7 +682,7 @@ export function phaseObservation(rows, profile) {
   check(
     Number.isFinite(first.at) &&
       Number.isFinite(last.at) &&
-      duration >= 10000 &&
+      duration >= schedulerWindowMs &&
       Number.isFinite(first.wall_utc) &&
       Number.isFinite(last.wall_utc) &&
       last.wall_utc >= first.wall_utc,
@@ -695,6 +708,7 @@ export function phaseObservation(rows, profile) {
       last.capture.distinct_marker_frames -
       first.capture.distinct_marker_frames;
   return {
+    nominal_window_ms: schedulerWindowMs,
     observed_ms: duration,
     first_wall_utc_ms: first.wall_utc,
     last_wall_utc_ms: last.wall_utc,
@@ -721,8 +735,8 @@ export function overlapWindow(observation, reply) {
     ) ||
     end < start ||
     b < a ||
-    b - a < 10000 ||
-    observation.observed_ms < 10000
+    b - a < schedulerWindowMs ||
+    observation.observed_ms < schedulerWindowMs
   )
     return invalid;
   if (
@@ -737,15 +751,17 @@ export function overlapWindow(observation, reply) {
     ((w.end_qpc_ticks - w.start_qpc_ticks) * 1000) / w.qpc_frequency;
   if (
     elapsed !== w.elapsed_ms ||
-    elapsed < 10000 ||
-    elapsed >= 15000 ||
+    elapsed < schedulerWindowMs ||
+    elapsed >= schedulerWindowMaxMs ||
     elapsed < observation.observed_ms
   )
     return invalid;
   const overlap = Math.max(0, Math.min(end, b) - Math.max(start, a));
   return {
     status:
-      start <= a && end >= b && overlap >= 10000 ? "OBSERVED" : "NOT_VERIFIED",
+      start <= a && end >= b && overlap >= schedulerWindowMs
+        ? "OBSERVED"
+        : "NOT_VERIFIED",
     overlap_ms: overlap,
     ps_elapsed_ms: elapsed,
     ps_utc_elapsed_ms: end - start,
@@ -786,7 +802,12 @@ export async function runSchedulerPhases({
       await budget.pause(Math.min(3000, Math.max(0, settleEnd - budget.now())));
     }
     for (const name of timingLoadPhases) {
-      const phase = { name, capacity_approval: false, load_samples: [] };
+      const phase = {
+        name,
+        nominal_window_ms: schedulerWindowMs,
+        capacity_approval: false,
+        load_samples: [],
+      };
       phases.push(phase);
       await protocol.post("prepare", { stage: name });
       const ready = await sampleFor(budget, sample, emit, "barrier");
@@ -802,7 +823,7 @@ export async function runSchedulerPhases({
       );
       phase.begin = await invoke("begin", name);
       requireObserved(phase.begin.reply, "PS_NOT_VERIFIED");
-      const limit = budget.now() + 15000;
+      const limit = budget.now() + schedulerWindowMaxMs;
       let first = await sampleFor(
           budget,
           sample,
@@ -811,9 +832,11 @@ export async function runSchedulerPhases({
           phase.load_samples,
         ),
         last = first;
-      while (last.at - first.at < 10000) {
+      while (last.at - first.at < schedulerWindowMs) {
         check(budget.now() < limit, "WINDOW_NOT_OBSERVED");
-        await budget.pause(Math.min(3000, 10000 - (last.at - first.at)));
+        await budget.pause(
+          Math.min(3000, schedulerWindowMs - (last.at - first.at)),
+        );
         last = await sampleFor(budget, sample, emit, name, phase.load_samples);
       }
       phase.end = await invoke("end", name);
@@ -822,8 +845,8 @@ export async function runSchedulerPhases({
       phase.overlap = overlapWindow(phase.observation, phase.end.reply);
       check(
         phase.end.reply.status === "OBSERVED" &&
-          phase.end.reply.window?.elapsed_ms >= 10000 &&
-          phase.end.reply.window.elapsed_ms < 15000,
+          phase.end.reply.window?.elapsed_ms >= schedulerWindowMs &&
+          phase.end.reply.window.elapsed_ms < schedulerWindowMaxMs,
         "PS_NOT_VERIFIED",
       );
       await protocol.post("end", { stage: name });
@@ -876,6 +899,7 @@ async function main() {
     capacity_approval: false,
     completion: "RUNNING",
     release: "0.4.9",
+    nominal_window_ms: schedulerWindowMs,
     index,
     requested_profile: profile,
     host_cpu_context: {
@@ -886,12 +910,12 @@ async function main() {
       note: "OS model string and logical processor count; not a physical-core or isolated CPU allocation measurement.",
     },
     scope:
-      "Eight independent public Windows EXEs with generated microphones, one real WGC screen and seven SDK receivers. Only external publisher CPU/scheduler observation; no JavaScript wrappers or capacity approval.",
+      "Eight independent public Windows EXEs with generated microphones, one real WGC screen and seven SDK receivers. Three nominal 2s diagnostic windows, with actual durations reported; only external publisher CPU/scheduler observation, no JavaScript wrappers or capacity approval.",
     phases: [],
     limitations: [
-      "DIAGNOSTIC only: nominal 10s windows do not approve 180s/eight-person quality.",
+      "DIAGNOSTIC only: nominal 2s windows do not approve 180s/eight-person quality.",
       "External WPR changes scheduling; process/thread CPU is not GPU or exclusive encoder attribution.",
-      "Record actual PS/JS windows and overlap; start/flush/transport overhead is not silently counted as exact 10s.",
+      "Record actual PS/JS windows and overlap; start/flush/transport overhead is not silently counted as exact 2s.",
       "ETL/XML stay private and are not uploaded; schema/loss/target failures are NOT_VERIFIED.",
     ],
   };
