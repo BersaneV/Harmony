@@ -5,7 +5,7 @@ export class CDP {
     this.socket = new WebSocket(url); this.sequence = 0; this.pending = new Map();
     this.ready = new Promise((resolve, reject) => { this.socket.onopen = resolve; this.socket.onerror = () => reject(new Error('CDP connection failed')); });
     this.socket.onmessage = event => {
-      const value = JSON.parse(event.data), pending = this.pending.get(value.id);
+      const value = JSON.parse(event.data); if(value.method)this.onEvent?.(value); const pending = this.pending.get(value.id);
       if (!pending) return;
       this.pending.delete(value.id);
       value.error ? pending.reject(new Error('CDP command rejected')) : pending.resolve(value.result);
