@@ -252,7 +252,7 @@ for (const name of [
   "scripts/test_call_screen_sfu.mjs",
 ])
   evidence.source_hashes[name] = await digest(resolve(root, name));
-let report;
+let report, screenHandoffDiagnostic;
 try {
   const configPath = `${directory}/livekit.json`;
   await writeFile(
@@ -434,11 +434,44 @@ try {
  await rtcCall.setScreenProfile({height:720,fps:30,bitrate:2,content:'motion',audio:true});await rtcCall.setTrack('screen',qa.screen);qa.screenAudio=qa.tone(1200);await rtcCall.setTrack('screen_audio',qa.screenAudio);true;`,
     true,
   );
+  const summarizeScreenHandoff = (samples) => {
+    const ownerSenders = samples[0]?.p2p ?? [];
+    return {
+      owner_screens: ownerSenders.filter((p) => p.screen !== null).length,
+      owner_audios: ownerSenders.filter((p) => p.audio !== null).length,
+      mic_matches: samples.reduce(
+        (total, s) =>
+          total +
+          s.p2p.filter((p) => typeof s.mic === "string" && p.mic === s.mic)
+            .length,
+        0,
+      ),
+      mic_total: samples.reduce((total, s) => total + s.p2p.length, 0),
+      viewer_sfu: samples
+        .slice(1)
+        .filter(
+          (s) =>
+            s.participants.find((p) => p.user === owner.user.id)
+              ?.screenTransport === "sfu",
+        ).length,
+    };
+  };
+  screenHandoffDiagnostic = summarizeScreenHandoff([]);
   await until(
     async () => {
       const all = await snapshots();
+      screenHandoffDiagnostic = summarizeScreenHandoff(all);
+      assert.ok(
+        all.length === 8 &&
+          all.every((s) => s.p2p.length === 7) &&
+          screenHandoffDiagnostic.mic_total === 56 &&
+          screenHandoffDiagnostic.mic_matches === 56,
+        "All fifty-six original P2P microphone senders remain during SFU handoff",
+      );
       return (
         all[0].relayRef &&
+        all[0].p2p.length === 7 &&
+        all[0].p2p.every((p) => p.screen === null && p.audio === null) &&
         all
           .slice(1)
           .every(
@@ -448,15 +481,17 @@ try {
           )
       );
     },
-    "All seven receivers decode SFU screen and screen audio",
+    "All seven receivers decode SFU screen and screen audio; owner retires P2P screen senders",
     30000,
   );
   let all = await snapshots();
+  screenHandoffDiagnostic = summarizeScreenHandoff(all);
   check(
     all.every((s) => s.p2p.every((p) => p.mic === s.mic)) &&
       all[0].p2p.every((p) => p.screen === null && p.audio === null),
     "After confirmed SFU ACK only screen senders retire; original voice remains P2P",
   );
+  screenHandoffDiagnostic = undefined;
   await until(
     async () => {
       const all = await snapshots();
@@ -617,6 +652,9 @@ try {
     status: "FAIL",
     checks,
     error: String(error.message).replace(/eyJ[A-Za-z0-9_.-]+/g, "<token>"),
+    ...(screenHandoffDiagnostic
+      ? { screen_handoff: screenHandoffDiagnostic }
+      : {}),
     snapshots: await Promise.all(
       browsers.map(async (b) => {
         try {
@@ -663,6 +701,9 @@ try {
       status: report.status,
       checks: report.checks,
       error: report.error,
+      ...(report.screen_handoff
+        ? { screen_handoff: report.screen_handoff }
+        : {}),
       evidence_directory: directory,
     }),
   );

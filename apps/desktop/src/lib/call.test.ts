@@ -482,6 +482,28 @@ afterEach(() => {
 });
 
 describe("real call ownership and authority", () => {
+  it("retires the relay silent-video binding synchronously before enabling newly authorized screen audio", async () => {
+    const test = setup({ screenSfu: true }),
+      remote = capable("b");
+    remote.media.screen = true;
+    const socket = await test.connect([capable("a"), remote]);
+    await description(socket, "b");
+    const peer = test.peers[0],
+      audio = peer.slots[3].receiver.track;
+    peer.ontrack?.({ track: audio.media(), transceiver: peer.slots[3] });
+    expect(audio.enabled).toBe(false);
+    let retired = false;
+    test.relay.updateAuthority.mockImplementation((authority) => {
+      if (authority.peers.find((p) => p.peer_id === "b")?.media.screen_audio) {
+        expect(audio.enabled).toBe(false);
+        retired = true;
+      }
+    });
+    const next = { ...remote, media: { ...remote.media, screen_audio: true } };
+    socket.receive({ type: "roster", participants: [capable("a"), next] });
+    expect(retired).toBe(true);
+    expect(audio.enabled).toBe(true);
+  });
   it("returns a rejected promise, and releases its session listener, when socket creation fails", async () => {
     const test = setup();
     test.environment.socket = () => {

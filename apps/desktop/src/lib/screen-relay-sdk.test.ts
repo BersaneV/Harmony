@@ -512,3 +512,311 @@ describe("ScreenRelay: contrato real de republicação do SDK fixado", () => {
     expect(f.room.disconnect).toHaveBeenCalledWith(false);
   });
 });
+
+async function receiverFixture() {
+  const f = await connected();
+  const receiver = {
+    playoutDelayHint: 0.015,
+    getStats: vi.fn(async () => new Map() as unknown as RTCStatsReport),
+  };
+  const raw = {
+    id: "delay-screen",
+    kind: "video",
+    readyState: "live",
+    enabled: true,
+  } as MediaStreamTrack;
+  const track = new RemoteVideoTrack(
+    raw,
+    "TR_delay",
+    receiver as unknown as RTCRtpReceiver,
+  );
+  const publication = {
+    trackSid: "TR_delay",
+    trackName: "harmony-screen:delay_h1440_a0",
+    source: Track.Source.ScreenShare,
+    isMuted: false,
+    dimensions: { width: 2560, height: 1440 },
+    track,
+    setSubscribed: vi.fn(),
+  };
+  f.room.remoteParticipants.set("delay", {
+    identity: `${uuid(4)}:${uuid(6)}`,
+    metadata: JSON.stringify({ harmony_peer_id: uuid(2) }),
+    trackPublications: new Map([[publication.trackSid, publication]]),
+  });
+  const port = () =>
+    (
+      f.relay as unknown as { room: import("./screen-relay").RelayRoom }
+    ).room.participants()[0].publications[0].track!.playoutDelay!;
+  const ref = () => ({
+    track_sid: publication.trackSid,
+    generation: publication.trackName.split(":")[1],
+  });
+  return { ...f, receiver, raw, track, publication, port, ref };
+}
+describe("ScreenRelay: hint do receiver real do SDK fixado", () => {
+  it("usa segundos uma vez, confirma getter e restaura a baseline original sem parar mídia", async () => {
+    const f = await receiverFixture(),
+      retain = vi.fn();
+    const setter = vi.spyOn(f.track, "setPlayoutDelay"),
+      getter = vi.spyOn(f.track, "getPlayoutDelay");
+    const cleanup = f.port().apply(0.24, f.ref(), () => true, retain);
+    expect(setter).toHaveBeenCalledExactlyOnceWith(0.24);
+    expect(getter).toHaveBeenCalledTimes(1);
+    expect(retain).toHaveBeenCalledWith(cleanup);
+    expect(f.receiver.playoutDelayHint).toBe(0.24);
+    cleanup!();
+    cleanup!();
+    expect(f.receiver.playoutDelayHint).toBe(0.015);
+    expect(f.raw.enabled).toBe(true);
+  });
+  it("preserva a baseline ao reutilizar receiver: cleanup velho não limpa o novo e novo não restaura 240 ms", async () => {
+    const f = await receiverFixture();
+    const old = f.port().apply(
+      0.24,
+      f.ref(),
+      () => true,
+      () => {},
+    );
+    f.publication.trackSid = "TR_new";
+    f.publication.trackName = "harmony-screen:new_h1440_a0";
+    f.publication.track = new RemoteVideoTrack(
+      { ...f.raw, id: "new-media" },
+      "TR_new",
+      f.receiver as unknown as RTCRtpReceiver,
+    );
+    const next = f.port().apply(
+      0.24,
+      f.ref(),
+      () => true,
+      () => {},
+    );
+    old!();
+    expect(f.receiver.playoutDelayHint).toBe(0.24);
+    next!();
+    expect(f.receiver.playoutDelayHint).toBe(0.015);
+  });
+  it.each(["unsupported", "setter", "getter", "divergent"])(
+    "isola %s sem obrigar alteração do receiver",
+    async (mode) => {
+      const f = await receiverFixture();
+      if (mode === "unsupported")
+        delete (f.receiver as { playoutDelayHint?: number }).playoutDelayHint;
+      if (mode === "setter")
+        vi.spyOn(f.track, "setPlayoutDelay").mockImplementation((value) => {
+          f.receiver.playoutDelayHint = value;
+          throw new Error("setter");
+        });
+      if (mode === "getter")
+        vi.spyOn(f.track, "getPlayoutDelay").mockImplementation(() => {
+          throw new Error("getter");
+        });
+      if (mode === "divergent")
+        vi.spyOn(f.track, "getPlayoutDelay").mockReturnValue(0.1);
+      expect(() =>
+        f.port().apply(
+          0.24,
+          f.ref(),
+          () => true,
+          () => {},
+        ),
+      ).not.toThrow();
+      expect(f.receiver.playoutDelayHint).toBe(
+        mode === "unsupported" ? undefined : 0.015,
+      );
+    },
+  );
+  it.each(["receiver", "media", "sid", "generation", "authority", "ended"])(
+    "fence %s após setter impede getter e retira somente o hint próprio",
+    async (change) => {
+      const f = await receiverFixture();
+      let allowed = true;
+      const getter = vi.spyOn(f.track, "getPlayoutDelay");
+      vi.spyOn(f.track, "setPlayoutDelay").mockImplementation((value) => {
+        f.receiver.playoutDelayHint = value;
+        if (change === "receiver") f.track.receiver = {} as RTCRtpReceiver;
+        if (change === "media")
+          Object.defineProperty(f.track, "mediaStreamTrack", {
+            value: { ...f.raw },
+          });
+        if (change === "sid") f.publication.trackSid = "TR_other";
+        if (change === "generation")
+          f.publication.trackName = "harmony-screen:other_h1440_a1";
+        if (change === "authority") allowed = false;
+        if (change === "ended")
+          Object.defineProperty(f.raw, "readyState", { value: "ended" });
+      });
+      expect(
+        f.port().apply(
+          0.24,
+          f.ref(),
+          () => allowed,
+          () => {},
+        ),
+      ).toBeUndefined();
+      expect(getter).not.toHaveBeenCalled();
+      if (!["receiver", "media"].includes(change))
+        expect(f.receiver.playoutDelayHint).toBe(0.015);
+    },
+  );
+  it("retira sincronicamente em reentrância do setter e respeita alteração externa posterior", async () => {
+    const f = await receiverFixture();
+    let cleanup: (() => void) | undefined,
+      allowed = true;
+    vi.spyOn(f.track, "setPlayoutDelay").mockImplementation((value) => {
+      f.receiver.playoutDelayHint = value;
+      allowed = false;
+      cleanup!();
+      expect(f.receiver.playoutDelayHint).toBe(0.015);
+    });
+    expect(
+      f.port().apply(
+        0.24,
+        f.ref(),
+        () => allowed,
+        (value) => {
+          cleanup = value;
+        },
+      ),
+    ).toBeUndefined();
+    vi.mocked(f.track.setPlayoutDelay).mockRestore();
+    allowed = true;
+    const next = f.port().apply(
+      0.24,
+      f.ref(),
+      () => allowed,
+      () => {},
+    );
+    f.receiver.playoutDelayHint = 0.08;
+    next!();
+    expect(f.receiver.playoutDelayHint).toBe(0.08);
+  });
+  it.each(["authority", "receiver", "media", "sid", "generation"])(
+    "revalida %s também após getter, sem entregar cleanup confirmado obsoleto",
+    async (change) => {
+      const f = await receiverFixture();
+      let allowed = true;
+      vi.spyOn(f.track, "getPlayoutDelay").mockImplementation(() => {
+        if (change === "authority") allowed = false;
+        if (change === "receiver") f.track.receiver = {} as RTCRtpReceiver;
+        if (change === "media")
+          Object.defineProperty(f.track, "mediaStreamTrack", {
+            value: { ...f.raw },
+          });
+        if (change === "sid") f.publication.trackSid = "TR_other";
+        if (change === "generation")
+          f.publication.trackName = "harmony-screen:other_h1440_a1";
+        return 0.24;
+      });
+      expect(
+        f.port().apply(
+          0.24,
+          f.ref(),
+          () => allowed,
+          () => {},
+        ),
+      ).toBeUndefined();
+      if (!["receiver", "media"].includes(change))
+        expect(f.receiver.playoutDelayHint).toBe(0.015);
+    },
+  );
+  it("getter reentrante pode instalar novo binding sem perder a baseline nem ser limpo pelo antigo", async () => {
+    const f = await receiverFixture();
+    let next: (() => void) | undefined;
+    vi.spyOn(f.track, "getPlayoutDelay").mockImplementationOnce(() => {
+      f.publication.trackSid = "TR_new";
+      f.publication.trackName = "harmony-screen:new_h1440_a0";
+      f.publication.track = new RemoteVideoTrack(
+        { ...f.raw, id: "next" },
+        "TR_new",
+        f.receiver as unknown as RTCRtpReceiver,
+      );
+      next = f.port().apply(
+        0.24,
+        f.ref(),
+        () => true,
+        () => {},
+      );
+      return 0.24;
+    });
+    expect(
+      f.port().apply(
+        0.24,
+        f.ref(),
+        () => true,
+        () => {},
+      ),
+    ).toBeUndefined();
+    expect(f.receiver.playoutDelayHint).toBe(0.24);
+    next!();
+    expect(f.receiver.playoutDelayHint).toBe(0.015);
+  });
+  it.each(["camera", "audio", "a1", "legacy", "stale_ref"])(
+    "não chama o setter para %s",
+    async (kind) => {
+      const f = await receiverFixture(),
+        port = f.port(),
+        ref = f.ref();
+      const setter = vi.spyOn(f.track, "setPlayoutDelay");
+      if (kind === "camera") f.publication.source = Track.Source.Camera;
+      if (kind === "audio")
+        Object.defineProperty(f.raw, "kind", { value: "audio" });
+      if (kind === "a1") {
+        f.publication.trackName = "harmony-screen:delay_h1440_a1";
+        ref.generation = "delay_h1440_a1";
+      }
+      if (kind === "legacy") {
+        f.publication.trackName = "harmony-screen:delay_h1440";
+        ref.generation = "delay_h1440";
+      }
+      if (kind === "stale_ref") ref.track_sid = "TR_other";
+      expect(
+        port.apply(
+          0.24,
+          ref,
+          () => true,
+          () => {},
+        ),
+      ).toBeUndefined();
+      expect(setter).not.toHaveBeenCalled();
+      expect(f.receiver.playoutDelayHint).toBe(0.015);
+    },
+  );
+  it("retira o próprio hint antes do SDK stop/removetrack, que permanece livre para limpar o receiver", async () => {
+    const f = await receiverFixture();
+    const cleanup = f.port().apply(
+      0.24,
+      f.ref(),
+      () => true,
+      () => {},
+    );
+    cleanup!();
+    expect(f.receiver.playoutDelayHint).toBe(0.015);
+    f.track.stop();
+    expect(f.raw.enabled).toBe(false);
+    const stream = new EventTarget();
+    f.track.setMediaStream(stream as unknown as MediaStream);
+    const event = new Event("removetrack");
+    Object.assign(event, { track: f.raw });
+    stream.dispatchEvent(event);
+    cleanup!();
+    expect(f.receiver.playoutDelayHint).toBeUndefined();
+  });
+  it("não reinstala o hint se o SDK remover o track antes do cleanup", async () => {
+    const f = await receiverFixture();
+    const cleanup = f.port().apply(
+      0.24,
+      f.ref(),
+      () => true,
+      () => {},
+    );
+    const stream = new EventTarget();
+    f.track.setMediaStream(stream as unknown as MediaStream);
+    const event = new Event("removetrack");
+    Object.assign(event, { track: f.raw });
+    stream.dispatchEvent(event);
+    expect(f.track.receiver).toBeUndefined();
+    cleanup!();
+    expect(f.receiver.playoutDelayHint).toBeUndefined();
+  });
+});

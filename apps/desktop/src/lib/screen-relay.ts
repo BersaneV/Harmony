@@ -107,7 +107,19 @@ export interface RelayPublication {
   track?: {
     media: MediaStreamTrack;
     sample(): Promise<RelayDecodeSample | RelayAudioSample | null>;
+    playoutDelay?: RelayPlayoutDelay;
   };
+}
+/** Optional receiver control, scoped to one SDK track/receiver/publication binding.
+ * retain installs cleanup before any SDK call, including a reentrant setter.
+ * Readback confirms the requested hint, never the browser's effective delay. */
+export interface RelayPlayoutDelay {
+  apply(
+    seconds: number,
+    ref: ScreenRelayRef,
+    current: () => boolean,
+    retain: (cleanup: () => void) => void,
+  ): (() => void) | undefined;
 }
 export interface RelayParticipant {
   identity: string;
@@ -326,6 +338,11 @@ function senderBitrate(sender: RTCRtpSender | undefined): number | null {
   }
 }
 
+interface PlayoutOwner {
+  baseline: number | null | undefined;
+  retired: boolean;
+}
+const playoutOwners = new WeakMap<RTCRtpReceiver, PlayoutOwner>();
 function liveKitRoom(): RelayRoom {
   const room = new Room({
     adaptiveStream: false,
@@ -334,6 +351,125 @@ function liveKitRoom(): RelayRoom {
     disconnectOnPageLeave: false,
   });
   const local = new Map<RelayLocalPublication, LocalTrack>();
+  type Remote = NonNullable<RemoteTrackPublication["track"]>;
+  const delayBindings = new WeakMap<
+    Remote,
+    {
+      receiver: RTCRtpReceiver | undefined;
+      media: MediaStreamTrack;
+      sid: string;
+      name: string;
+      control: RelayPlayoutDelay;
+    }
+  >();
+  const playoutDelay = (
+    publication: RemoteTrackPublication,
+  ): RelayPlayoutDelay => {
+    const track = publication.track!,
+      receiver = track.receiver as
+        (RTCRtpReceiver & { playoutDelayHint?: number | null }) | undefined,
+      media = track.mediaStreamTrack,
+      sid = publication.trackSid,
+      name = publication.trackName;
+    const previous = delayBindings.get(track);
+    if (
+      previous &&
+      previous.receiver === receiver &&
+      previous.media === media &&
+      previous.sid === sid &&
+      previous.name === name
+    )
+      return previous.control;
+    const control: RelayPlayoutDelay = {
+      apply: (seconds, ref, current, retain) => {
+        let owner: PlayoutOwner | undefined;
+        let applying = true;
+        const valid = () =>
+          !!receiver &&
+          publication.track === track &&
+          track.receiver === receiver &&
+          track.mediaStreamTrack === media &&
+          media.kind === "video" &&
+          media.readyState === "live" &&
+          publication.source === Track.Source.ScreenShare &&
+          !publication.isMuted &&
+          publication.trackSid === sid &&
+          publication.trackName === name &&
+          sid === ref.track_sid &&
+          name === `${names.screen}${ref.generation}` &&
+          ref.generation.endsWith("_a0") &&
+          seconds === 0.24 &&
+          "playoutDelayHint" in receiver &&
+          current();
+        const cleanup = () => {
+          if (!receiver || !owner || playoutOwners.get(receiver) !== owner)
+            return;
+          owner.retired = true;
+          try {
+            // SDK removetrack clears the hint and receiver before our cleanup.
+            // Never overwrite another binding or a subsequently changed hint.
+            if (
+              track.receiver === receiver &&
+              track.mediaStreamTrack === media
+            ) {
+              const value = receiver.playoutDelayHint;
+              if (playoutOwners.get(receiver) === owner && value === seconds)
+                receiver.playoutDelayHint = owner.baseline;
+            }
+          } catch {
+            /* A disappearing optional receiver must not stop media. */
+          }
+          if (!applying && playoutOwners.get(receiver) === owner)
+            playoutOwners.delete(receiver);
+        };
+        try {
+          if (!valid() || !receiver) return;
+          const prior = playoutOwners.get(receiver);
+          const baseline = prior ? prior.baseline : receiver.playoutDelayHint;
+          if (!valid() || playoutOwners.get(receiver) !== prior) return;
+          owner = { baseline, retired: false };
+          playoutOwners.set(receiver, owner);
+          retain(cleanup);
+          if (
+            !valid() ||
+            owner.retired ||
+            playoutOwners.get(receiver) !== owner
+          ) {
+            cleanup();
+            return;
+          }
+          track.setPlayoutDelay(seconds);
+          if (
+            !valid() ||
+            owner.retired ||
+            playoutOwners.get(receiver) !== owner
+          ) {
+            cleanup();
+            return;
+          }
+          const requested = track.getPlayoutDelay();
+          if (
+            !valid() ||
+            owner.retired ||
+            playoutOwners.get(receiver) !== owner ||
+            requested !== seconds
+          ) {
+            cleanup();
+            return;
+          }
+          return cleanup;
+        } catch {
+          cleanup();
+          return;
+        } finally {
+          applying = false;
+          if (owner?.retired) cleanup();
+        }
+      },
+    };
+    delayBindings.set(track, { receiver, media, sid, name, control });
+    return control;
+  };
   const remotePublication = (
     publication: RemoteTrackPublication,
   ): RelayPublication => ({
@@ -353,6 +489,9 @@ function liveKitRoom(): RelayRoom {
       ? {
           track: {
             media: publication.track.mediaStreamTrack,
+            ...(publication.source === Track.Source.ScreenShare
+              ? { playoutDelay: playoutDelay(publication) }
+              : {}),
             sample: async () => {
               const track = publication.track,
                 sid = publication.trackSid;
@@ -536,6 +675,8 @@ interface Candidate {
   ready: boolean;
   blocked: boolean;
   sampling: boolean;
+  playoutAttempted?: boolean;
+  playoutCleanup?: () => void;
   emitted: Partial<Record<RelaySource, MediaStreamTrack>>;
 }
 interface LocalScreen {
@@ -961,6 +1102,7 @@ export class ScreenRelay {
         next.video.sid !== current.ref.track_sid ||
         next.generation !== current.ref.generation ||
         next.video.track?.media !== current.video.track?.media ||
+        next.video.track?.playoutDelay !== current.video.track?.playoutDelay ||
         (next.member.media.screen_audio ||
           generationRequiresAudio(next.generation)) !== current.audioRequired ||
         next.audio?.sid !== current.audio?.sid ||
@@ -1007,6 +1149,14 @@ export class ScreenRelay {
     }
   }
   private withdraw(candidate: Candidate) {
+    // Retire the silent-screen hint before unsubscribe or an audio-enabled epoch.
+    const cleanup = candidate.playoutCleanup;
+    candidate.playoutCleanup = undefined;
+    try {
+      cleanup?.();
+    } catch {
+      /* Optional receiver control cannot block fallback. */
+    }
     this.clearMeasurements(
       (event) =>
         event.direction === "received" &&
@@ -1171,6 +1321,97 @@ export class ScreenRelay {
             }
             audioStats = sample.stats;
             audioSid = publication?.sid;
+          }
+          const delay = track.playoutDelay;
+          if (
+            ref.generation.endsWith("_a0") &&
+            !candidate.audioRequired &&
+            delay &&
+            !candidate.playoutAttempted
+          ) {
+            const current = () => {
+              const room = this.room;
+              if (
+                !this.connected ||
+                !room?.connected() ||
+                this.candidates.get(candidate.peer_id) !== candidate ||
+                candidate.blocked ||
+                candidate.video.sid !== ref.track_sid ||
+                candidate.ref.track_sid !== ref.track_sid ||
+                candidate.ref.generation !== ref.generation ||
+                candidate.video.name !== `${names.screen}${ref.generation}` ||
+                candidate.video.source !== "screen" ||
+                candidate.video.muted ||
+                candidate.video.track?.media !== track.media ||
+                candidate.video.track?.playoutDelay !== delay ||
+                track.media.kind !== "video" ||
+                track.media.readyState !== "live" ||
+                candidate.audioRequired ||
+                candidate.audio ||
+                !Number.isFinite(sample.framesDecoded) ||
+                sample.framesDecoded < 1 ||
+                !Number.isFinite(sample.bytesReceived) ||
+                sample.bytesReceived < 1 ||
+                !Number.isFinite(sample.width) ||
+                sample.width <= 0 ||
+                !Number.isFinite(sample.height) ||
+                sample.height <= 0
+              )
+                return false;
+              const height = this.heights.get(candidate.peer_id) ?? 0;
+              if (
+                height &&
+                (candidate.maxHeight === undefined ||
+                  sample.height > Math.min(height, candidate.maxHeight))
+              )
+                return false;
+              const participants = room
+                .participants()
+                .filter((p) => p.identity === candidate.identity);
+              if (participants.length !== 1) return false;
+              const member = this.member(participants[0]);
+              if (
+                !member ||
+                member.peer_id !== candidate.peer_id ||
+                member.media.screen_audio
+              )
+                return false;
+              const videos = participants[0].publications.filter(
+                (p) =>
+                  p.source === "screen" && !p.muted && !!namedGeneration(p),
+              );
+              return (
+                videos.length === 1 &&
+                videos[0].sid === ref.track_sid &&
+                namedGeneration(videos[0]) === ref.generation &&
+                videos[0].track?.media === track.media &&
+                videos[0].track?.playoutDelay === delay &&
+                (!height ||
+                  videos[0].height == null ||
+                  videos[0].height <= Math.min(height, candidate.maxHeight!))
+              );
+            };
+            if (!current()) return;
+            candidate.playoutAttempted = true;
+            try {
+              const cleanup = delay.apply(0.24, ref, current, (cleanup) => {
+                candidate.playoutCleanup = cleanup;
+              });
+              if (!current()) {
+                cleanup?.();
+                return;
+              }
+              candidate.playoutCleanup = cleanup;
+            } catch {
+              const cleanup = candidate.playoutCleanup;
+              candidate.playoutCleanup = undefined;
+              try {
+                cleanup?.();
+              } catch {
+                /* Optional hint failure keeps the existing media/ACK path. */
+              }
+            }
+            if (!current()) return;
           }
           if (!candidate.ready) {
             candidate.ready = true;

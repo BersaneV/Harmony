@@ -9,6 +9,7 @@ import {
   type RelayLocalPublication,
   type RelayAudioSample,
   type RelayRtpSample,
+  type RelayPlayoutDelay,
 } from "./screen-relay";
 import type { StreamProfile } from "./stream";
 
@@ -931,5 +932,155 @@ describe("ScreenRelay: tela opcional sobre SFU", () => {
       generation: "generation-1_u_a1",
     });
     await f.relay.close();
+  });
+});
+
+describe("ScreenRelay: atraso opcional apenas para epoch explícito sem áudio", () => {
+  const decoded = () => ({
+    framesDecoded: 1,
+    bytesReceived: 100,
+    width: 2560,
+    height: 1440,
+  });
+  function silent() {
+    const f = fixture(),
+      video = publication("screen", "capture_h1440_a0");
+    const cleanup = vi.fn();
+    const apply = vi.fn<RelayPlayoutDelay["apply"]>(
+      (_seconds, _ref, current, retain) => {
+        expect(current()).toBe(true);
+        retain(cleanup);
+        return cleanup;
+      },
+    );
+    video.track!.playoutDelay = { apply };
+    vi.mocked(video.track!.sample).mockResolvedValue(decoded());
+    f.remote.publications = [video];
+    return { ...f, video, apply, cleanup };
+  }
+  it("aplica 0.24 uma vez após decode e antes de entregar vídeo/ACK; restaura antes de unsubscribe", async () => {
+    vi.useFakeTimers();
+    const f = silent(),
+      order: string[] = [];
+    f.apply.mockImplementation((_seconds, _ref, current, retain) => {
+      expect(current()).toBe(true);
+      order.push("delay");
+      retain(f.cleanup);
+      return f.cleanup;
+    });
+    f.callbacks.onTrack.mockImplementation(() => order.push("track"));
+    f.callbacks.onAck.mockImplementation(() => order.push("ack"));
+    vi.mocked(f.video.track!.sample).mockResolvedValueOnce(null);
+    await f.connect();
+    await tick();
+    expect(f.apply).not.toHaveBeenCalled();
+    await tick();
+    await tick();
+    expect(f.apply).toHaveBeenCalledTimes(1);
+    expect(f.apply.mock.calls[0].slice(0, 2)).toEqual([
+      0.24,
+      { track_sid: f.video.sid, generation: "capture_h1440_a0" },
+    ]);
+    expect(order).toEqual(["delay", "track", "ack"]);
+    f.cleanup.mockImplementation(() => order.push("restore"));
+    vi.mocked(f.video.subscribe).mockImplementation((enabled) => {
+      if (!enabled) order.push("unsubscribe");
+    });
+    await f.relay.close();
+    expect(order.indexOf("restore")).toBeLessThan(order.indexOf("unsubscribe"));
+  });
+  it.each(["capture_h1440_a1", "legacy_h1440", "legacy"])(
+    "não aplica na geração %s",
+    async (generation) => {
+      vi.useFakeTimers();
+      const f = silent();
+      f.video.name = `harmony-screen:${generation}`;
+      await f.connect();
+      await tick();
+      expect(f.apply).not.toHaveBeenCalled();
+      if (!generation.endsWith("_a1"))
+        expect(f.callbacks.onAck).toHaveBeenCalled();
+    },
+  );
+  it.each(["unsupported", "throw"])(
+    "falha opcional %s não interrompe mídia nem ACK e não repete",
+    async (mode) => {
+      vi.useFakeTimers();
+      const f = silent();
+      f.apply.mockImplementation(() => {
+        if (mode === "throw") throw new Error("unsupported");
+        return undefined;
+      });
+      await f.connect();
+      await tick();
+      await tick();
+      expect(f.apply).toHaveBeenCalledTimes(1);
+      expect(f.callbacks.onTrack).toHaveBeenCalledWith(
+        expect.objectContaining({ track: f.video.track!.media }),
+      );
+      expect(f.callbacks.onAck).toHaveBeenCalledWith(
+        expect.objectContaining({ screen_sfu: expect.any(Object) }),
+      );
+      expect(f.callbacks.onError).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["authority", "cap", "generation", "media", "close"])(
+    "descarta reentrância %s sem ACK/track antigo",
+    async (change) => {
+      vi.useFakeTimers();
+      const f = silent();
+      f.apply.mockImplementation((_seconds, _ref, current, retain) => {
+        retain(f.cleanup);
+        if (change === "authority") {
+          const a = authority();
+          a.peers[0].can_publish = false;
+          f.relay.updateAuthority(a);
+        }
+        if (change === "cap") f.relay.setReceiveHeight(peerB, 720);
+        if (change === "generation") {
+          f.video.name = "harmony-screen:new_h1440_a0";
+          f.change();
+        }
+        if (change === "media") {
+          f.video.track = { ...f.video.track!, media: media() };
+          f.change();
+        }
+        if (change === "close") void f.relay.close();
+        expect(current()).toBe(false);
+        return f.cleanup;
+      });
+      await f.connect();
+      await tick();
+      expect(f.cleanup).toHaveBeenCalled();
+      expect(f.callbacks.onTrack).not.toHaveBeenCalled();
+      expect(f.callbacks.onAck).not.toHaveBeenCalled();
+    },
+  );
+  it("retira sincronicamente o hint antes de assinar áudio e entregar epoch a1", async () => {
+    vi.useFakeTimers();
+    const f = silent(),
+      order: string[] = [];
+    await f.connect();
+    await tick();
+    f.cleanup.mockImplementation(() => order.push("restore"));
+    const audio = publication("screen_audio", "new_h1440_a1");
+    vi.mocked(audio.subscribe).mockImplementation((enabled) => {
+      if (enabled) order.push("audio");
+    });
+    vi.mocked(audio.track!.sample).mockResolvedValue(decodedAudio());
+    f.video.name = "harmony-screen:new_h1440_a1";
+    f.remote.publications = [f.video, audio];
+    const next = authority();
+    next.peers[0].media.screen_audio = true;
+    f.relay.updateAuthority(next);
+    expect(order).toEqual(["restore", "audio"]);
+    await tick();
+    expect(f.apply).toHaveBeenCalledTimes(1);
+    expect(f.callbacks.onTrack).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "screen_audio",
+        track: audio.track!.media,
+      }),
+    );
   });
 });
