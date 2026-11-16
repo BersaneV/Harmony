@@ -1,0 +1,3681 @@
+{
+  "kind": "exe_content_hint_public_projection",
+  "status": "DIAGNOSTIC",
+  "capacity_approval": false,
+  "exe_release": "0.4.7",
+  "projection_policy": "Observed numerical phase summaries remain unrounded. Identity values become within-run stability checks and ordinal segment numbers. Absent receiver metrics are omitted. No rates are interpolated across phase/settle boundaries.",
+  "scope": {
+    "participants_per_run": 1,
+    "generated_microphones_per_run": 1,
+    "receivers_per_run": 0,
+    "screen_audio": "disabled by runner UI and source guards",
+    "same_vm_and_source_within_each_run": true,
+    "separate_vm_runs_between_profiles": true
+  },
+  "not_evaluated": {
+    "capacity_180s": "NOT_RUN",
+    "eight_participant_capacity": "NOT_RUN",
+    "receiver_fps": "NOT_RUN",
+    "receiver_freezes": "NOT_RUN",
+    "mos": "NOT_RUN",
+    "gpu_or_thread_attribution": "NOT_VERIFIED",
+    "effective_denoising_state": "NOT_VERIFIED"
+  },
+  "runs": [
+    {
+      "run_id": "43886682915",
+      "profile": "1080p60",
+      "status": "DIAGNOSTIC",
+      "completion": "COMPLETE",
+      "capacity_approval": false,
+      "qa_source_commit": "c61d3fc67b406a232ca831e022bd4f5a05b1a4b1",
+      "runner_sha256": "11e923f69f9aa180fbc9fb756ee80a6de381321a21a5f1d74a6c84f6d5222cc5",
+      "exe_main_sha256": "71ba4f59373953f35a35cb917c691cb050d23179e847a046d57ecf618b5cd55d",
+      "environment": {
+        "browser": "Edg/131.0.2903.86",
+        "protocol_version": "1.3",
+        "one_exe_per_vm": true,
+        "logical_cores": 4,
+        "capture_backend": "native-wgc",
+        "microphone_source": "windows_synthesized_speech"
+      },
+      "original_inputs": [
+        {
+          "name": "hint-1080-r1-full.json",
+          "bytes": 943834,
+          "sha256": "e72dca1f09763fe08d90abf0a446aed505b82b2a53535c91afb26a0b17e5d444"
+        },
+        {
+          "name": "hint-1080-r1-full.log",
+          "bytes": 960682,
+          "sha256": "50fbcee976486767bd45eff90ca0ca12b2c55b3b967be25487f6a34f77521fdc"
+        }
+      ],
+      "sample_accounting": {
+        "phase_samples": 96,
+        "unique_live_log_samples": 96,
+        "unique_public_inventory_samples": 96,
+        "unique_raw_payload_digests": 96,
+        "settle_samples": 33,
+        "measure_samples": 63,
+        "production_probe_samples_excluded": 3,
+        "live_log_samples_equal_final_json_phase_samples": true,
+        "log_final_result_equals_json_input": true,
+        "canonical_phase_samples_sha256": "6d43b1476a750d327683d2db7bbe3a3b9d43bcb1c60d12f37d56300a0a27ea6b"
+      },
+      "invariants_observed": {
+        "single_capture_object": true,
+        "single_rtp_binding": true,
+        "single_sdk_media_source_identity": true,
+        "same_binding_across_three_phases": true,
+        "source_geometry": "1920x1080",
+        "encoded_geometry": "1920x1080",
+        "codec": "video/VP8",
+        "active_video_encodings": 1,
+        "max_bitrate_bps": 8000000,
+        "max_framerate": 60,
+        "scale_resolution_down_by": 1,
+        "degradation_preference": "maintain-resolution",
+        "cpu_protection_not_disabled_by_diagnostic": true,
+        "measurement_summary_boundary_count": 0,
+        "between_phase_counter_reset_count": 2,
+        "settle_to_measure_duplicate_rtp_timestamp_count": 3,
+        "sample_inventory_clock": "page monotonic milliseconds; no interpolation across segments",
+        "position_numbering": "1-based ordinal in sample_inventory"
+      },
+      "between_phase_counter_resets": [
+        {
+          "before_sample": 32,
+          "after_sample": 33,
+          "from_phase": "A_motion",
+          "to_phase": "B_detail",
+          "at_ms": 112119.19999999995,
+          "decreased_counters": {
+            "framesEncoded": {
+              "before": 5335,
+              "after": 57
+            },
+            "bytesSent": {
+              "before": 37626426,
+              "after": 414193
+            },
+            "totalEncodeTime": {
+              "before": 49.286,
+              "after": 0.499
+            },
+            "sdk_source_frames": {
+              "before": 5337,
+              "after": 58
+            },
+            "quality_duration_none": {
+              "before": 96.729,
+              "after": 1.045
+            }
+          },
+          "same_binding_and_source_identity": true,
+          "interpolated": false,
+          "page_timestamp_before_ms": 111049.5,
+          "page_timestamp_after_ms": 112119.19999999995
+        },
+        {
+          "before_sample": 64,
+          "after_sample": 65,
+          "from_phase": "B_detail",
+          "to_phase": "A2_motion",
+          "at_ms": 203458.5,
+          "decreased_counters": {
+            "framesEncoded": {
+              "before": 5057,
+              "after": 57
+            },
+            "bytesSent": {
+              "before": 14479892,
+              "after": 401123
+            },
+            "totalEncodeTime": {
+              "before": 33.609,
+              "after": 0.622
+            },
+            "sdk_source_frames": {
+              "before": 5058,
+              "after": 57
+            },
+            "quality_duration_none": {
+              "before": 91.358,
+              "after": 1.019
+            }
+          },
+          "same_binding_and_source_identity": true,
+          "interpolated": false,
+          "page_timestamp_before_ms": 202428.19999999995,
+          "page_timestamp_after_ms": 203458.5
+        }
+      ],
+      "settle_to_measure_repeated_rtp_timestamps": [
+        {
+          "before_sample": 11,
+          "after_sample": 12,
+          "phase": "A_motion",
+          "from_segment": "settle",
+          "to_segment": "measure",
+          "page_clock_advanced": true,
+          "rtp_timestamp_repeated": true,
+          "interpolated": false,
+          "page_timestamp_before_ms": 50854.89999999991,
+          "page_timestamp_after_ms": 50863.5,
+          "rtp_timestamp_before_ms": 1794839624696.747,
+          "rtp_timestamp_after_ms": 1794839624696.747
+        },
+        {
+          "before_sample": 43,
+          "after_sample": 44,
+          "phase": "B_detail",
+          "from_segment": "settle",
+          "to_segment": "measure",
+          "page_clock_advanced": true,
+          "rtp_timestamp_repeated": true,
+          "interpolated": false,
+          "page_timestamp_before_ms": 142224.2999999998,
+          "page_timestamp_after_ms": 142228,
+          "rtp_timestamp_before_ms": 1794839716064.729,
+          "rtp_timestamp_after_ms": 1794839716064.729
+        },
+        {
+          "before_sample": 75,
+          "after_sample": 76,
+          "phase": "A2_motion",
+          "from_segment": "settle",
+          "to_segment": "measure",
+          "page_clock_advanced": true,
+          "rtp_timestamp_repeated": true,
+          "interpolated": false,
+          "page_timestamp_before_ms": 233550.19999999995,
+          "page_timestamp_after_ms": 233556.69999999995,
+          "rtp_timestamp_before_ms": 1794839807391.847,
+          "rtp_timestamp_after_ms": 1794839807391.847
+        }
+      ],
+      "restoration": {
+        "experiment_restored_motion": true,
+        "final_restored_motion": true,
+        "restored_object_matches_captured_object": true,
+        "restore_before_teardown_verified": true,
+        "ordering_basis": "Restored flags and clicked flags in the final result, unchanged reviewed runner order, and ordered completion of its final four Runtime.evaluate commands. Expressions are intentionally absent from the sanitized trace.",
+        "ordered_completions": [
+          {
+            "action": "experiment_restore_motion",
+            "completed_utc": "2026-11-16T14:37:47.584Z"
+          },
+          {
+            "action": "final_restore_motion",
+            "completed_utc": "2026-11-16T14:37:47.585Z"
+          },
+          {
+            "action": "stop_screen_ui",
+            "completed_utc": "2026-11-16T14:37:47.590Z"
+          },
+          {
+            "action": "leave_call_ui",
+            "completed_utc": "2026-11-16T14:37:47.619Z"
+          }
+        ]
+      },
+      "phases": [
+        {
+          "name": "A_motion",
+          "requested_hint": "motion",
+          "capacity_approval": false,
+          "settle_samples": 11,
+          "measure_samples": 21,
+          "observed_windows": {
+            "settle": {
+              "first_at": 20750.399999999907,
+              "last_at": 50854.89999999991,
+              "observed_ms": 30104.5
+            },
+            "measure": {
+              "first_at": 50863.5,
+              "last_at": 111049.5,
+              "observed_ms": 60186
+            }
+          },
+          "full_frame_inspection_outside_measurement": {
+            "pixel_width": 1920,
+            "pixel_height": 1080,
+            "pixel_samples": 14400,
+            "light_pixels": 14400,
+            "colored_pixels": 14323,
+            "sampled_sizes": [
+              "1920x1080"
+            ],
+            "observation_ms": 1001.6000000000931
+          },
+          "original_summary_canonical_sha256": "b796e79ff10164b8b082f28e854c25703ca8b8bf3e010e45d9372306ae5a1b2c",
+          "summary": {
+            "capacity_approval": false,
+            "original_180s_capacity_gate": "NOT_RUN",
+            "requested_profile": {
+              "id": "1080p60",
+              "width": 1920,
+              "height": 1080,
+              "fps": 60,
+              "bitrate_mbps": 8,
+              "min_displayed_fps": 54,
+              "min_source_fps": 54
+            },
+            "measurement_seconds": 60.186,
+            "samples": 21,
+            "missing_fields": {
+              "timestamp": 0,
+              "framesEncoded": 0,
+              "totalEncodeTime": 0,
+              "media_source": 0,
+              "content_type": 21,
+              "encoder_implementation": 0,
+              "power_efficient_encoder": 0,
+              "quality_limitation_reason": 0
+            },
+            "missing_sender_samples": 0,
+            "segments": [
+              {
+                "ordinal": 1,
+                "samples": 21
+              }
+            ],
+            "boundaries": [],
+            "encode": {
+              "status": "OBSERVED",
+              "frames_delta": 3319,
+              "covered_seconds": 60.18600000000001,
+              "fps": 55.14571495032067,
+              "paired_frames": 3319,
+              "total_encode_seconds": 30.506,
+              "mean_ms_per_frame": 9.191322687556493
+            },
+            "source": {
+              "native_frames_delta": 3318,
+              "native_covered_seconds": 60.18600000000001,
+              "native_fps": 55.12909979064898,
+              "distinct_frames_delta": 3121,
+              "distinct_fps": 51.855913335327145,
+              "sdk_frames_delta": 3319,
+              "sdk_covered_seconds": 60.18600000000001,
+              "sdk_fps": 55.14571495032067,
+              "native_producer_fps": {
+                "status": "OBSERVED",
+                "count": 21,
+                "min": 53.76007951713095,
+                "p50": 55.424505192781275,
+                "p95": 56.61085134675725,
+                "max": 57.22938910685941
+              },
+              "native_sizes": [
+                "1920x1080"
+              ],
+              "encoded_sizes": [
+                "1920x1080"
+              ]
+            },
+            "content_type": {
+              "present_samples": 0,
+              "absent_samples": 21,
+              "observed_values": []
+            },
+            "quality_limitation": {
+              "reason_counts": {
+                "none": 21
+              },
+              "duration_deltas": {
+                "cpu": 0,
+                "bandwidth": 0,
+                "none": 60.195,
+                "other": 0
+              },
+              "duration_covered_seconds": {
+                "cpu": 60.18600000000001,
+                "bandwidth": 60.18600000000001,
+                "none": 60.18600000000001,
+                "other": 60.18600000000001
+              }
+            },
+            "observed_hints": [
+              "motion"
+            ],
+            "host_cpu": {
+              "status": "OBSERVED",
+              "scope": "Entire owned disposable Windows VM including fixture, app, observer and encoding; IRQ already included in sys, not process or encoder CPU attribution",
+              "duration_seconds": 60.18573779999999,
+              "samples": 21,
+              "logical_cores": 4,
+              "busy_fraction": 0.4955804409590111,
+              "busy_core_equivalent": 1.9823217638360444,
+              "per_core": [
+                {
+                  "total_ms": 60186,
+                  "busy_ms": 28452,
+                  "busy_fraction": 0.47273452297876584
+                },
+                {
+                  "total_ms": 60187,
+                  "busy_ms": 27687,
+                  "busy_fraction": 0.46001628258594046
+                },
+                {
+                  "total_ms": 60187,
+                  "busy_ms": 32577,
+                  "busy_fraction": 0.5412630634522405
+                },
+                {
+                  "total_ms": 60188,
+                  "busy_ms": 30594,
+                  "busy_fraction": 0.5083073037814847
+                }
+              ]
+            },
+            "remote": {
+              "status": "NOT_RUN_NO_RECEIVER"
+            }
+          }
+        },
+        {
+          "name": "B_detail",
+          "requested_hint": "detail",
+          "capacity_approval": false,
+          "settle_samples": 11,
+          "measure_samples": 21,
+          "observed_windows": {
+            "settle": {
+              "first_at": 112119.19999999995,
+              "last_at": 142224.2999999998,
+              "observed_ms": 30105.09999999986
+            },
+            "measure": {
+              "first_at": 142228,
+              "last_at": 202428.19999999995,
+              "observed_ms": 60200.19999999995
+            }
+          },
+          "full_frame_inspection_outside_measurement": {
+            "pixel_width": 1920,
+            "pixel_height": 1080,
+            "pixel_samples": 14400,
+            "light_pixels": 14400,
+            "colored_pixels": 14332,
+            "sampled_sizes": [
+              "1920x1080"
+            ],
+            "observation_ms": 1001
+          },
+          "original_summary_canonical_sha256": "bcd37c632dffa90e3ec28beb191685a4c53c2a1808c551d140c52d975f1e52aa",
+          "summary": {
+            "capacity_approval": false,
+            "original_180s_capacity_gate": "NOT_RUN",
+            "requested_profile": {
+              "id": "1080p60",
+              "width": 1920,
+              "height": 1080,
+              "fps": 60,
+              "bitrate_mbps": 8,
+              "min_displayed_fps": 54,
+              "min_source_fps": 54
+            },
+            "measurement_seconds": 60.20019999999995,
+            "samples": 21,
+            "missing_fields": {
+              "timestamp": 0,
+              "framesEncoded": 0,
+              "totalEncodeTime": 0,
+              "media_source": 0,
+              "content_type": 0,
+              "encoder_implementation": 0,
+              "power_efficient_encoder": 0,
+              "quality_limitation_reason": 0
+            },
+            "missing_sender_samples": 0,
+            "segments": [
+              {
+                "ordinal": 1,
+                "samples": 21
+              }
+            ],
+            "boundaries": [],
+            "encode": {
+              "status": "OBSERVED",
+              "frames_delta": 3330,
+              "covered_seconds": 60.20019999999995,
+              "fps": 55.31543084574474,
+              "paired_frames": 3330,
+              "total_encode_seconds": 21.814000000000004,
+              "mean_ms_per_frame": 6.550750750750752
+            },
+            "source": {
+              "native_frames_delta": 3329,
+              "native_covered_seconds": 60.20019999999995,
+              "native_fps": 55.29881960525052,
+              "distinct_frames_delta": 3148,
+              "distinct_fps": 52.29218507579713,
+              "sdk_frames_delta": 3329,
+              "sdk_covered_seconds": 60.20019999999995,
+              "sdk_fps": 55.29881960525052,
+              "native_producer_fps": {
+                "status": "OBSERVED",
+                "count": 21,
+                "min": 53.27891779862168,
+                "p50": 55.75731628088744,
+                "p95": 56.75868477580718,
+                "max": 56.76755389705772
+              },
+              "native_sizes": [
+                "1920x1080"
+              ],
+              "encoded_sizes": [
+                "1920x1080"
+              ]
+            },
+            "content_type": {
+              "present_samples": 21,
+              "absent_samples": 0,
+              "observed_values": [
+                "screenshare"
+              ]
+            },
+            "quality_limitation": {
+              "reason_counts": {
+                "none": 21
+              },
+              "duration_deltas": {
+                "cpu": 0,
+                "bandwidth": 0,
+                "none": 60.205000000000005,
+                "other": 0
+              },
+              "duration_covered_seconds": {
+                "cpu": 60.20019999999995,
+                "bandwidth": 60.20019999999995,
+                "none": 60.20019999999995,
+                "other": 60.20019999999995
+              }
+            },
+            "observed_hints": [
+              "detail"
+            ],
+            "host_cpu": {
+              "status": "OBSERVED",
+              "scope": "Entire owned disposable Windows VM including fixture, app, observer and encoding; IRQ already included in sys, not process or encoder CPU attribution",
+              "duration_seconds": 60.20249540000002,
+              "samples": 21,
+              "logical_cores": 4,
+              "busy_fraction": 0.4290816072288756,
+              "busy_core_equivalent": 1.7163264289155025,
+              "per_core": [
+                {
+                  "total_ms": 60203,
+                  "busy_ms": 25485,
+                  "busy_fraction": 0.42331777486171784
+                },
+                {
+                  "total_ms": 60203,
+                  "busy_ms": 23531,
+                  "busy_fraction": 0.39086092055213195
+                },
+                {
+                  "total_ms": 60203,
+                  "busy_ms": 28734,
+                  "busy_fraction": 0.4772851851236649
+                },
+                {
+                  "total_ms": 60203,
+                  "busy_ms": 25578,
+                  "busy_fraction": 0.4248625483779878
+                }
+              ]
+            },
+            "remote": {
+              "status": "NOT_RUN_NO_RECEIVER"
+            }
+          }
+        },
+        {
+          "name": "A2_motion",
+          "requested_hint": "motion",
+          "capacity_approval": false,
+          "settle_samples": 11,
+          "measure_samples": 21,
+          "observed_windows": {
+            "settle": {
+              "first_at": 203458.5,
+              "last_at": 233550.19999999995,
+              "observed_ms": 30091.699999999953
+            },
+            "measure": {
+              "first_at": 233556.69999999995,
+              "last_at": 293738.2999999998,
+              "observed_ms": 60181.59999999986
+            }
+          },
+          "full_frame_inspection_outside_measurement": {
+            "pixel_width": 1920,
+            "pixel_height": 1080,
+            "pixel_samples": 14400,
+            "light_pixels": 14400,
+            "colored_pixels": 14333,
+            "sampled_sizes": [
+              "1920x1080"
+            ],
+            "observation_ms": 1002.1000000000931
+          },
+          "original_summary_canonical_sha256": "3b7b05232147707832bf0f924b63e02fe5551a89509d2112ad2a3f6ff9a5fcf3",
+          "summary": {
+            "capacity_approval": false,
+            "original_180s_capacity_gate": "NOT_RUN",
+            "requested_profile": {
+              "id": "1080p60",
+              "width": 1920,
+              "height": 1080,
+              "fps": 60,
+              "bitrate_mbps": 8,
+              "min_displayed_fps": 54,
+              "min_source_fps": 54
+            },
+            "measurement_seconds": 60.18159999999986,
+            "samples": 21,
+            "missing_fields": {
+              "timestamp": 0,
+              "framesEncoded": 0,
+              "totalEncodeTime": 0,
+              "media_source": 0,
+              "content_type": 21,
+              "encoder_implementation": 0,
+              "power_efficient_encoder": 0,
+              "quality_limitation_reason": 0
+            },
+            "missing_sender_samples": 0,
+            "segments": [
+              {
+                "ordinal": 1,
+                "samples": 21
+              }
+            ],
+            "boundaries": [],
+            "encode": {
+              "status": "OBSERVED",
+              "frames_delta": 3320,
+              "covered_seconds": 60.181599999999854,
+              "fps": 55.166363140893694,
+              "paired_frames": 3320,
+              "total_encode_seconds": 31.654000000000003,
+              "mean_ms_per_frame": 9.53433734939759
+            },
+            "source": {
+              "native_frames_delta": 3319,
+              "native_covered_seconds": 60.181599999999854,
+              "native_fps": 55.14974676645367,
+              "distinct_frames_delta": 3111,
+              "distinct_fps": 51.6935408829278,
+              "sdk_frames_delta": 3319,
+              "sdk_covered_seconds": 60.181599999999854,
+              "sdk_fps": 55.14974676645367,
+              "native_producer_fps": {
+                "status": "OBSERVED",
+                "count": 21,
+                "min": 50.824599225612495,
+                "p50": 54.97149178436064,
+                "p95": 56.398309000596235,
+                "max": 56.71796425096564
+              },
+              "native_sizes": [
+                "1920x1080"
+              ],
+              "encoded_sizes": [
+                "1920x1080"
+              ]
+            },
+            "content_type": {
+              "present_samples": 0,
+              "absent_samples": 21,
+              "observed_values": []
+            },
+            "quality_limitation": {
+              "reason_counts": {
+                "none": 21
+              },
+              "duration_deltas": {
+                "cpu": 0,
+                "bandwidth": 0,
+                "none": 60.185,
+                "other": 0
+              },
+              "duration_covered_seconds": {
+                "cpu": 60.181599999999854,
+                "bandwidth": 60.181599999999854,
+                "none": 60.181599999999854,
+                "other": 60.181599999999854
+              }
+            },
+            "observed_hints": [
+              "motion"
+            ],
+            "host_cpu": {
+              "status": "OBSERVED",
+              "scope": "Entire owned disposable Windows VM including fixture, app, observer and encoding; IRQ already included in sys, not process or encoder CPU attribution",
+              "duration_seconds": 60.183762499999986,
+              "samples": 21,
+              "logical_cores": 4,
+              "busy_fraction": 0.5212308050255933,
+              "busy_core_equivalent": 2.084923220102373,
+              "per_core": [
+                {
+                  "total_ms": 60173,
+                  "busy_ms": 30282,
+                  "busy_fraction": 0.5032489654828578
+                },
+                {
+                  "total_ms": 60172,
+                  "busy_ms": 29141,
+                  "busy_fraction": 0.48429502093997207
+                },
+                {
+                  "total_ms": 60171,
+                  "busy_ms": 34187,
+                  "busy_fraction": 0.5681640657459573
+                },
+                {
+                  "total_ms": 60172,
+                  "busy_ms": 31844,
+                  "busy_fraction": 0.52921624675929
+                }
+              ]
+            },
+            "remote": {
+              "status": "NOT_RUN_NO_RECEIVER"
+            }
+          }
+        }
+      ],
+      "sample_inventory": [
+        {
+          "ordinal": 1,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 20750.399999999907,
+          "native_frame_counter": 437,
+          "distinct_frame_counter": 410,
+          "sdk_source_frame_counter": 356,
+          "encoded_frame_counter": 354,
+          "encode_time_counter_seconds": 3.326,
+          "raw_payload_sha256": "b0a20e132a4c2362c7e02cdf674d6eb85d1637fa586e84d14694d310d759baa1"
+        },
+        {
+          "ordinal": 2,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 23760.799999999814,
+          "native_frame_counter": 603,
+          "distinct_frame_counter": 570,
+          "sdk_source_frame_counter": 522,
+          "encoded_frame_counter": 519,
+          "encode_time_counter_seconds": 4.867,
+          "raw_payload_sha256": "7de729d0ff5afee24e784c0ccc2391cd648aea4ce46422433f5e310734cb7779"
+        },
+        {
+          "ordinal": 3,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 26767.199999999953,
+          "native_frame_counter": 769,
+          "distinct_frame_counter": 727,
+          "sdk_source_frame_counter": 688,
+          "encoded_frame_counter": 686,
+          "encode_time_counter_seconds": 6.395,
+          "raw_payload_sha256": "a396587fe6b4424052256086aebfa7b6302e9fd5f11a79e96dec142d9a90e42a"
+        },
+        {
+          "ordinal": 4,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 29782.899999999907,
+          "native_frame_counter": 934,
+          "distinct_frame_counter": 886,
+          "sdk_source_frame_counter": 853,
+          "encoded_frame_counter": 851,
+          "encode_time_counter_seconds": 8.002,
+          "raw_payload_sha256": "f69d55f3c504e7da1e14314052516ad3b479668e44f2317c883027ab2a248b9f"
+        },
+        {
+          "ordinal": 5,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 32791.5,
+          "native_frame_counter": 1102,
+          "distinct_frame_counter": 1046,
+          "sdk_source_frame_counter": 1021,
+          "encoded_frame_counter": 1019,
+          "encode_time_counter_seconds": 9.554,
+          "raw_payload_sha256": "5480d50c2dfc0c16144cddc1d6b965200fcf4e9cbe66635c0d9995b1ed3b9069"
+        },
+        {
+          "ordinal": 6,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 35804.19999999995,
+          "native_frame_counter": 1270,
+          "distinct_frame_counter": 1205,
+          "sdk_source_frame_counter": 1189,
+          "encoded_frame_counter": 1186,
+          "encode_time_counter_seconds": 11.136,
+          "raw_payload_sha256": "4dd76578da32c1abfdc1e2c277fa9e11601751a0b372a2a84d51b14925290ab7"
+        },
+        {
+          "ordinal": 7,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 38812.19999999995,
+          "native_frame_counter": 1437,
+          "distinct_frame_counter": 1364,
+          "sdk_source_frame_counter": 1356,
+          "encoded_frame_counter": 1353,
+          "encode_time_counter_seconds": 12.661,
+          "raw_payload_sha256": "4ca3d16d921d754c0de7f2cdd2735be2db1725d0b42625d254464d3a17d0711d"
+        },
+        {
+          "ordinal": 8,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 41820.299999999814,
+          "native_frame_counter": 1600,
+          "distinct_frame_counter": 1519,
+          "sdk_source_frame_counter": 1519,
+          "encoded_frame_counter": 1517,
+          "encode_time_counter_seconds": 14.203,
+          "raw_payload_sha256": "e2db58b72c27389e9ccac826f6f58aba1e1e2bbf5ebfd36165707e4bf7e3dacf"
+        },
+        {
+          "ordinal": 9,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 44836.59999999986,
+          "native_frame_counter": 1767,
+          "distinct_frame_counter": 1675,
+          "sdk_source_frame_counter": 1686,
+          "encoded_frame_counter": 1683,
+          "encode_time_counter_seconds": 15.724,
+          "raw_payload_sha256": "b3699d9050b38839a7d36c3ea976b29985ad65382b2cc85d1c2be737bbdeeb51"
+        },
+        {
+          "ordinal": 10,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 47844.89999999991,
+          "native_frame_counter": 1932,
+          "distinct_frame_counter": 1832,
+          "sdk_source_frame_counter": 1851,
+          "encoded_frame_counter": 1849,
+          "encode_time_counter_seconds": 17.225,
+          "raw_payload_sha256": "aa470707331a5a6c850c16f5ab25a052c6f060b3d629402f4bb667daed5078f2"
+        },
+        {
+          "ordinal": 11,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 50854.89999999991,
+          "native_frame_counter": 2099,
+          "distinct_frame_counter": 1988,
+          "sdk_source_frame_counter": 2018,
+          "encoded_frame_counter": 2016,
+          "encode_time_counter_seconds": 18.78,
+          "raw_payload_sha256": "fedf6744782f58fff9c483ad247961f9f4592b28b657caaa0f31070f75ab3a2e"
+        },
+        {
+          "ordinal": 12,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 50863.5,
+          "native_frame_counter": 2100,
+          "distinct_frame_counter": 1989,
+          "sdk_source_frame_counter": 2018,
+          "encoded_frame_counter": 2016,
+          "encode_time_counter_seconds": 18.78,
+          "raw_payload_sha256": "41b51c16385d3de4eec940a02bbad6cf941bcdd43617ce439e9e59eaf62f82da"
+        },
+        {
+          "ordinal": 13,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 53872.09999999986,
+          "native_frame_counter": 2264,
+          "distinct_frame_counter": 2144,
+          "sdk_source_frame_counter": 2183,
+          "encoded_frame_counter": 2180,
+          "encode_time_counter_seconds": 20.316,
+          "raw_payload_sha256": "8e79fc59c7fd73b9afb70a3c7989e33693fae205a235907273ef5900308c73e5"
+        },
+        {
+          "ordinal": 14,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 56879.299999999814,
+          "native_frame_counter": 2426,
+          "distinct_frame_counter": 2298,
+          "sdk_source_frame_counter": 2345,
+          "encoded_frame_counter": 2343,
+          "encode_time_counter_seconds": 21.81,
+          "raw_payload_sha256": "e3589a72d214681e821aa78723240d1bb4bcbb21c69320cfec5b3da0c9d01400"
+        },
+        {
+          "ordinal": 15,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 59893.799999999814,
+          "native_frame_counter": 2594,
+          "distinct_frame_counter": 2457,
+          "sdk_source_frame_counter": 2513,
+          "encoded_frame_counter": 2511,
+          "encode_time_counter_seconds": 23.398,
+          "raw_payload_sha256": "6357c8667a65062cba932d4e83597c99aaa5e0dcc92612fbaa83f39bb3f61212"
+        },
+        {
+          "ordinal": 16,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 62905.59999999986,
+          "native_frame_counter": 2760,
+          "distinct_frame_counter": 2617,
+          "sdk_source_frame_counter": 2679,
+          "encoded_frame_counter": 2677,
+          "encode_time_counter_seconds": 24.961,
+          "raw_payload_sha256": "4be86c6180c9c93a058344845362facdf648566eaf76c8ad611729f0e5993087"
+        },
+        {
+          "ordinal": 17,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 65914,
+          "native_frame_counter": 2926,
+          "distinct_frame_counter": 2774,
+          "sdk_source_frame_counter": 2845,
+          "encoded_frame_counter": 2842,
+          "encode_time_counter_seconds": 26.502,
+          "raw_payload_sha256": "dffed242ab4472b193493686b79acecbd6e9a0c12ba96cb94ff2222ec52d74ec"
+        },
+        {
+          "ordinal": 18,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 68923,
+          "native_frame_counter": 3092,
+          "distinct_frame_counter": 2929,
+          "sdk_source_frame_counter": 3011,
+          "encoded_frame_counter": 3008,
+          "encode_time_counter_seconds": 28.058,
+          "raw_payload_sha256": "63282934adadec5c016e01ef66549c090a282cf6967714b0da7f44a8186aa1a4"
+        },
+        {
+          "ordinal": 19,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 71928.59999999986,
+          "native_frame_counter": 3261,
+          "distinct_frame_counter": 3084,
+          "sdk_source_frame_counter": 3180,
+          "encoded_frame_counter": 3178,
+          "encode_time_counter_seconds": 29.635,
+          "raw_payload_sha256": "8f6dc4a011911ea897d871858794872a2ed1aa1549c3b5a993fd79b30833d333"
+        },
+        {
+          "ordinal": 20,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 74940.19999999995,
+          "native_frame_counter": 3428,
+          "distinct_frame_counter": 3243,
+          "sdk_source_frame_counter": 3347,
+          "encoded_frame_counter": 3344,
+          "encode_time_counter_seconds": 31.146,
+          "raw_payload_sha256": "ebae92931525102e029643de76d1bfe357202c0430198d9dfde928ff75f2c7e3"
+        },
+        {
+          "ordinal": 21,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 77948.09999999986,
+          "native_frame_counter": 3593,
+          "distinct_frame_counter": 3395,
+          "sdk_source_frame_counter": 3512,
+          "encoded_frame_counter": 3510,
+          "encode_time_counter_seconds": 32.635,
+          "raw_payload_sha256": "73fc8c2de0ab5f6707f5decd13430de19a7c6cb6c9092428c666b105efc5a72b"
+        },
+        {
+          "ordinal": 22,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 80959,
+          "native_frame_counter": 3760,
+          "distinct_frame_counter": 3551,
+          "sdk_source_frame_counter": 3679,
+          "encoded_frame_counter": 3676,
+          "encode_time_counter_seconds": 34.127,
+          "raw_payload_sha256": "5c78f05fcebece1132b4d287091f5d6b842d068dbc83e2501e5d83dc8817d6dc"
+        },
+        {
+          "ordinal": 23,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 83968.8999999999,
+          "native_frame_counter": 3925,
+          "distinct_frame_counter": 3709,
+          "sdk_source_frame_counter": 3844,
+          "encoded_frame_counter": 3841,
+          "encode_time_counter_seconds": 35.625,
+          "raw_payload_sha256": "27f44f3f162c6b411c23188c109fc0ed822f345b27d8205dde74dee7f8de6271"
+        },
+        {
+          "ordinal": 24,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 86977,
+          "native_frame_counter": 4089,
+          "distinct_frame_counter": 3861,
+          "sdk_source_frame_counter": 4008,
+          "encoded_frame_counter": 4006,
+          "encode_time_counter_seconds": 37.12,
+          "raw_payload_sha256": "43bfbe8cc83eaa60668625e36ae3d6b685a8877a953fe2136bb2cc90022d8481"
+        },
+        {
+          "ordinal": 25,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 89991,
+          "native_frame_counter": 4254,
+          "distinct_frame_counter": 4021,
+          "sdk_source_frame_counter": 4172,
+          "encoded_frame_counter": 4170,
+          "encode_time_counter_seconds": 38.595,
+          "raw_payload_sha256": "8645355fb886d4f0ebd9cd3169549b5ddb62f21184828098288109af5eac12d6"
+        },
+        {
+          "ordinal": 26,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 93000.5,
+          "native_frame_counter": 4421,
+          "distinct_frame_counter": 4182,
+          "sdk_source_frame_counter": 4339,
+          "encoded_frame_counter": 4336,
+          "encode_time_counter_seconds": 40.172,
+          "raw_payload_sha256": "1726449d1a671ee596d94a3cc759d912068efc6e73ffe981078a31a02f03fb67"
+        },
+        {
+          "ordinal": 27,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 96015.29999999981,
+          "native_frame_counter": 4586,
+          "distinct_frame_counter": 4334,
+          "sdk_source_frame_counter": 4503,
+          "encoded_frame_counter": 4501,
+          "encode_time_counter_seconds": 41.678,
+          "raw_payload_sha256": "42f0f29b7e44e60cc05f95ef90d6ff1ffa4e1d0db3bea40b212c92f2434f8860"
+        },
+        {
+          "ordinal": 28,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 99021.69999999995,
+          "native_frame_counter": 4756,
+          "distinct_frame_counter": 4493,
+          "sdk_source_frame_counter": 4673,
+          "encoded_frame_counter": 4671,
+          "encode_time_counter_seconds": 43.216,
+          "raw_payload_sha256": "1c7e583aa79252f66bd45948a5d3789e6caf30e3feca57dee0870f32aa754625"
+        },
+        {
+          "ordinal": 29,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 102030.59999999986,
+          "native_frame_counter": 4921,
+          "distinct_frame_counter": 4649,
+          "sdk_source_frame_counter": 4837,
+          "encoded_frame_counter": 4835,
+          "encode_time_counter_seconds": 44.699,
+          "raw_payload_sha256": "b351c36a6b5f3b68e19f81f1c5051148db4b36d3b7f431b81c4beb7161d4efbc"
+        },
+        {
+          "ordinal": 30,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 105037.29999999981,
+          "native_frame_counter": 5089,
+          "distinct_frame_counter": 4804,
+          "sdk_source_frame_counter": 5008,
+          "encoded_frame_counter": 5006,
+          "encode_time_counter_seconds": 46.224,
+          "raw_payload_sha256": "3599f3d29a5089d1ee1e8898dcfbc36eda415b7436c6ab79b40be8f821e26292"
+        },
+        {
+          "ordinal": 31,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 108044.29999999981,
+          "native_frame_counter": 5252,
+          "distinct_frame_counter": 4954,
+          "sdk_source_frame_counter": 5171,
+          "encoded_frame_counter": 5168,
+          "encode_time_counter_seconds": 47.731,
+          "raw_payload_sha256": "824ccd76a6c8c502db0f07aeb782bcb219b1e2b1c4c170403605ecf4ef82a03c"
+        },
+        {
+          "ordinal": 32,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 111049.5,
+          "native_frame_counter": 5418,
+          "distinct_frame_counter": 5110,
+          "sdk_source_frame_counter": 5337,
+          "encoded_frame_counter": 5335,
+          "encode_time_counter_seconds": 49.286,
+          "raw_payload_sha256": "e41c501463fac2c2664855b209e794c1fd8980b06e46d4204f3452c1ca138f45"
+        },
+        {
+          "ordinal": 33,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 112119.19999999995,
+          "native_frame_counter": 5477,
+          "distinct_frame_counter": 5165,
+          "sdk_source_frame_counter": 58,
+          "encoded_frame_counter": 57,
+          "encode_time_counter_seconds": 0.499,
+          "raw_payload_sha256": "5ca3efa19e4175fb3edf6b1a49470d05ca8f996138191864195c000495a517f4"
+        },
+        {
+          "ordinal": 34,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 115139.19999999995,
+          "native_frame_counter": 5646,
+          "distinct_frame_counter": 5323,
+          "sdk_source_frame_counter": 227,
+          "encoded_frame_counter": 225,
+          "encode_time_counter_seconds": 1.817,
+          "raw_payload_sha256": "17d6802f79bcf2745f9d1d7f7bdb96ee2afe507db5555ee040b188628d644c8b"
+        },
+        {
+          "ordinal": 35,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 118146,
+          "native_frame_counter": 5814,
+          "distinct_frame_counter": 5481,
+          "sdk_source_frame_counter": 395,
+          "encoded_frame_counter": 394,
+          "encode_time_counter_seconds": 3.097,
+          "raw_payload_sha256": "146c5d025768b72208f5f18e902581197e9f0303f63348b3a1fffa062596d2cc"
+        },
+        {
+          "ordinal": 36,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 121155,
+          "native_frame_counter": 5979,
+          "distinct_frame_counter": 5639,
+          "sdk_source_frame_counter": 560,
+          "encoded_frame_counter": 559,
+          "encode_time_counter_seconds": 4.117,
+          "raw_payload_sha256": "d7ad9903f2235e105a6ec4639517395ccb8adc48e940ef964e662d9f7498922e"
+        },
+        {
+          "ordinal": 37,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 124162.29999999981,
+          "native_frame_counter": 6143,
+          "distinct_frame_counter": 5796,
+          "sdk_source_frame_counter": 724,
+          "encoded_frame_counter": 723,
+          "encode_time_counter_seconds": 5.185,
+          "raw_payload_sha256": "2c46311f513be18afdb28c342d7c51a5ffd050130a805a3ce449e83ff1494c4a"
+        },
+        {
+          "ordinal": 38,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 127171.3999999999,
+          "native_frame_counter": 6309,
+          "distinct_frame_counter": 5954,
+          "sdk_source_frame_counter": 890,
+          "encoded_frame_counter": 889,
+          "encode_time_counter_seconds": 6.321,
+          "raw_payload_sha256": "080e907de1a0ea29db0f232635d16114e07a6dae60087e5175f44a842898f116"
+        },
+        {
+          "ordinal": 39,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 130179,
+          "native_frame_counter": 6477,
+          "distinct_frame_counter": 6115,
+          "sdk_source_frame_counter": 1058,
+          "encoded_frame_counter": 1057,
+          "encode_time_counter_seconds": 7.373,
+          "raw_payload_sha256": "48fcbed66ed29a2b3419c9c1840e7e5b34e0230c4729583673a5957edd721bf6"
+        },
+        {
+          "ordinal": 40,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 133188.59999999986,
+          "native_frame_counter": 6644,
+          "distinct_frame_counter": 6276,
+          "sdk_source_frame_counter": 1225,
+          "encoded_frame_counter": 1223,
+          "encode_time_counter_seconds": 8.468,
+          "raw_payload_sha256": "da60b0e1af45988ef7124fbcd7e83dbccd43e6bbb246311bb59573d7247e3942"
+        },
+        {
+          "ordinal": 41,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 136194.5,
+          "native_frame_counter": 6811,
+          "distinct_frame_counter": 6434,
+          "sdk_source_frame_counter": 1392,
+          "encoded_frame_counter": 1391,
+          "encode_time_counter_seconds": 9.562,
+          "raw_payload_sha256": "6c796facac06d791577a33f02ce8162749d1947459bf52d640de5bb061e3f7bf"
+        },
+        {
+          "ordinal": 42,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 139207.3999999999,
+          "native_frame_counter": 6981,
+          "distinct_frame_counter": 6593,
+          "sdk_source_frame_counter": 1562,
+          "encoded_frame_counter": 1561,
+          "encode_time_counter_seconds": 10.671,
+          "raw_payload_sha256": "7acbeb37e0029d36e9fd4cd36b183d00fb124b5dc388ccc52ec6e885a2df6919"
+        },
+        {
+          "ordinal": 43,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 142224.2999999998,
+          "native_frame_counter": 7148,
+          "distinct_frame_counter": 6751,
+          "sdk_source_frame_counter": 1729,
+          "encoded_frame_counter": 1727,
+          "encode_time_counter_seconds": 11.795,
+          "raw_payload_sha256": "df6db376ead5ce8f1af2f8e12c0cfd3702fb6489a61a3ea929809a4de4523884"
+        },
+        {
+          "ordinal": 44,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 142228,
+          "native_frame_counter": 7148,
+          "distinct_frame_counter": 6751,
+          "sdk_source_frame_counter": 1729,
+          "encoded_frame_counter": 1727,
+          "encode_time_counter_seconds": 11.795,
+          "raw_payload_sha256": "1a80c3e32c91300da5b43c87d3093b3575b410d3ea6e142d6329f0461b434123"
+        },
+        {
+          "ordinal": 45,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 145234.19999999995,
+          "native_frame_counter": 7309,
+          "distinct_frame_counter": 6906,
+          "sdk_source_frame_counter": 1890,
+          "encoded_frame_counter": 1889,
+          "encode_time_counter_seconds": 12.805,
+          "raw_payload_sha256": "9d467d4d4bf37282ebc81a80c6765380050b02245918974dcfa68bd6f163afa7"
+        },
+        {
+          "ordinal": 46,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 148243.3999999999,
+          "native_frame_counter": 7475,
+          "distinct_frame_counter": 7065,
+          "sdk_source_frame_counter": 2056,
+          "encoded_frame_counter": 2055,
+          "encode_time_counter_seconds": 13.908,
+          "raw_payload_sha256": "bdb686b0f7f4d4af54e8e2bb2c149f2e0625b0b6f65bda51565be5be69bde66d"
+        },
+        {
+          "ordinal": 47,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 151257.7999999998,
+          "native_frame_counter": 7642,
+          "distinct_frame_counter": 7221,
+          "sdk_source_frame_counter": 2223,
+          "encoded_frame_counter": 2222,
+          "encode_time_counter_seconds": 14.994,
+          "raw_payload_sha256": "5890aefe708c2590e301d9e7f416a78e31bf97d1074f5aa7f82dc04fe565c213"
+        },
+        {
+          "ordinal": 48,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 154267.09999999986,
+          "native_frame_counter": 7811,
+          "distinct_frame_counter": 7382,
+          "sdk_source_frame_counter": 2392,
+          "encoded_frame_counter": 2390,
+          "encode_time_counter_seconds": 16.078,
+          "raw_payload_sha256": "f2630f92c0f6efe5598545adb33028fc6a25fd35fe8bfd3d4ca2f55ebc15c4fa"
+        },
+        {
+          "ordinal": 49,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 157273.7999999998,
+          "native_frame_counter": 7979,
+          "distinct_frame_counter": 7538,
+          "sdk_source_frame_counter": 2560,
+          "encoded_frame_counter": 2559,
+          "encode_time_counter_seconds": 17.176,
+          "raw_payload_sha256": "f88dcca6aff4c6da72a520b317e2d8c94ddc35f1f91a244c521446eedbf17065"
+        },
+        {
+          "ordinal": 50,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 160281.2999999998,
+          "native_frame_counter": 8143,
+          "distinct_frame_counter": 7694,
+          "sdk_source_frame_counter": 2724,
+          "encoded_frame_counter": 2723,
+          "encode_time_counter_seconds": 18.224,
+          "raw_payload_sha256": "b719cabbe1c7d4f330981f17ac79eddffd6a5e8fbcb1f55fe117b8e462bb5475"
+        },
+        {
+          "ordinal": 51,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 163290.59999999986,
+          "native_frame_counter": 8309,
+          "distinct_frame_counter": 7849,
+          "sdk_source_frame_counter": 2890,
+          "encoded_frame_counter": 2889,
+          "encode_time_counter_seconds": 19.304,
+          "raw_payload_sha256": "b75c0d939283b8e9ded1114254fe930736b5e4820136b92695675840fe5b8da0"
+        },
+        {
+          "ordinal": 52,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 166305,
+          "native_frame_counter": 8476,
+          "distinct_frame_counter": 8008,
+          "sdk_source_frame_counter": 3057,
+          "encoded_frame_counter": 3056,
+          "encode_time_counter_seconds": 20.466,
+          "raw_payload_sha256": "9d9014e86980d6ba74db4204ebc0a88e6e2adf31e88efc95420fce117a2103d9"
+        },
+        {
+          "ordinal": 53,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 169314.2999999998,
+          "native_frame_counter": 8645,
+          "distinct_frame_counter": 8170,
+          "sdk_source_frame_counter": 3226,
+          "encoded_frame_counter": 3225,
+          "encode_time_counter_seconds": 21.568,
+          "raw_payload_sha256": "916498ca34fb68d6c600819045ca6631aaea02a42e07058d5d04770237b3b768"
+        },
+        {
+          "ordinal": 54,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 172327.7999999998,
+          "native_frame_counter": 8811,
+          "distinct_frame_counter": 8324,
+          "sdk_source_frame_counter": 3392,
+          "encoded_frame_counter": 3391,
+          "encode_time_counter_seconds": 22.673,
+          "raw_payload_sha256": "22c6584dd0709bdea07810ff05a891380e2763f0ab6944900acb749e3d9e8f8c"
+        },
+        {
+          "ordinal": 55,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 175338.3999999999,
+          "native_frame_counter": 8978,
+          "distinct_frame_counter": 8483,
+          "sdk_source_frame_counter": 3559,
+          "encoded_frame_counter": 3557,
+          "encode_time_counter_seconds": 23.789,
+          "raw_payload_sha256": "7027c48c50f4137b5a941e552e560601b901def27a38f69f7325a45b1882648b"
+        },
+        {
+          "ordinal": 56,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 178344.69999999995,
+          "native_frame_counter": 9145,
+          "distinct_frame_counter": 8644,
+          "sdk_source_frame_counter": 3725,
+          "encoded_frame_counter": 3723,
+          "encode_time_counter_seconds": 24.863,
+          "raw_payload_sha256": "7a6c5e11ec4ae07e8dbff1cfcf34c19ca8a2d6e1ac37cfe300f9797817bb0023"
+        },
+        {
+          "ordinal": 57,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 181354.2999999998,
+          "native_frame_counter": 9310,
+          "distinct_frame_counter": 8801,
+          "sdk_source_frame_counter": 3891,
+          "encoded_frame_counter": 3890,
+          "encode_time_counter_seconds": 25.926,
+          "raw_payload_sha256": "eedee3ac3c66c6c9a283c3e256d6b1371913be32d7326c19c78c4b79fb6c2be4"
+        },
+        {
+          "ordinal": 58,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 184375.5,
+          "native_frame_counter": 9477,
+          "distinct_frame_counter": 8960,
+          "sdk_source_frame_counter": 4055,
+          "encoded_frame_counter": 4054,
+          "encode_time_counter_seconds": 26.982,
+          "raw_payload_sha256": "f2e915d6b35ab873f78e16f0e239ce2583b0d7a0ed8608aa2f6499a0ff86d72f"
+        },
+        {
+          "ordinal": 59,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 187382.3999999999,
+          "native_frame_counter": 9643,
+          "distinct_frame_counter": 9117,
+          "sdk_source_frame_counter": 4224,
+          "encoded_frame_counter": 4223,
+          "encode_time_counter_seconds": 28.124,
+          "raw_payload_sha256": "ce732e29d01c9450a1855ae0f1853d7472cadc0abd642416e34a572fca2eeb12"
+        },
+        {
+          "ordinal": 60,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 190395.2999999998,
+          "native_frame_counter": 9810,
+          "distinct_frame_counter": 9276,
+          "sdk_source_frame_counter": 4391,
+          "encoded_frame_counter": 4389,
+          "encode_time_counter_seconds": 29.218,
+          "raw_payload_sha256": "c0b0a4a6d61a3cb25ce355011c89ab4ab324249585addb01d39f510062148bd0"
+        },
+        {
+          "ordinal": 61,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 193401.2999999998,
+          "native_frame_counter": 9976,
+          "distinct_frame_counter": 9437,
+          "sdk_source_frame_counter": 4557,
+          "encoded_frame_counter": 4556,
+          "encode_time_counter_seconds": 30.347,
+          "raw_payload_sha256": "d159070f1a8bf359247fb2b8330ebc91b5fdcb8bc22fc7a54468296ff8956e0e"
+        },
+        {
+          "ordinal": 62,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 196412.3999999999,
+          "native_frame_counter": 10144,
+          "distinct_frame_counter": 9585,
+          "sdk_source_frame_counter": 4725,
+          "encoded_frame_counter": 4724,
+          "encode_time_counter_seconds": 31.41,
+          "raw_payload_sha256": "8adccd0115c1614a6435c83925f66b676d9b6aca05c311f11e5a4174c53713c7"
+        },
+        {
+          "ordinal": 63,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 199421.59999999986,
+          "native_frame_counter": 10312,
+          "distinct_frame_counter": 9744,
+          "sdk_source_frame_counter": 4893,
+          "encoded_frame_counter": 4892,
+          "encode_time_counter_seconds": 32.523,
+          "raw_payload_sha256": "45c6ae32a14778461fc0f261cb5c9b3eb0ee6e91ce749505c8c287b15efa5deb"
+        },
+        {
+          "ordinal": 64,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 202428.19999999995,
+          "native_frame_counter": 10477,
+          "distinct_frame_counter": 9899,
+          "sdk_source_frame_counter": 5058,
+          "encoded_frame_counter": 5057,
+          "encode_time_counter_seconds": 33.609,
+          "raw_payload_sha256": "13f61227d8f07ba1e2f2ddf119147d260e374ca339e827fa5d962d01607165e2"
+        },
+        {
+          "ordinal": 65,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 203458.5,
+          "native_frame_counter": 10534,
+          "distinct_frame_counter": 9950,
+          "sdk_source_frame_counter": 57,
+          "encoded_frame_counter": 57,
+          "encode_time_counter_seconds": 0.622,
+          "raw_payload_sha256": "62ec3c69aa470fa0d5c682eee6aa017a791da8be667d0860460f71f0a841775d"
+        },
+        {
+          "ordinal": 66,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 206471,
+          "native_frame_counter": 10702,
+          "distinct_frame_counter": 10108,
+          "sdk_source_frame_counter": 225,
+          "encoded_frame_counter": 224,
+          "encode_time_counter_seconds": 2.231,
+          "raw_payload_sha256": "989374b203f7de811fc6c8dfd27718a83dec9f9046b67fc4e3d337ddee1ff449"
+        },
+        {
+          "ordinal": 67,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 209477.5,
+          "native_frame_counter": 10863,
+          "distinct_frame_counter": 10259,
+          "sdk_source_frame_counter": 386,
+          "encoded_frame_counter": 386,
+          "encode_time_counter_seconds": 3.839,
+          "raw_payload_sha256": "a63c7a9d8612bee8b5492637dad5208b97956108c1aa60a41825d00a6f8b6fb5"
+        },
+        {
+          "ordinal": 68,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 212487,
+          "native_frame_counter": 11026,
+          "distinct_frame_counter": 10413,
+          "sdk_source_frame_counter": 549,
+          "encoded_frame_counter": 548,
+          "encode_time_counter_seconds": 5.433,
+          "raw_payload_sha256": "377af5d2449b35373ef7de7512831505476b88cabb135da8c4268a433f423dc6"
+        },
+        {
+          "ordinal": 69,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 215496.3999999999,
+          "native_frame_counter": 11195,
+          "distinct_frame_counter": 10566,
+          "sdk_source_frame_counter": 717,
+          "encoded_frame_counter": 717,
+          "encode_time_counter_seconds": 7.063,
+          "raw_payload_sha256": "eabec836d3599b066a28b60c4deb0f30f984ae20ddfc626a96369e155e458221"
+        },
+        {
+          "ordinal": 70,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 218504.7999999998,
+          "native_frame_counter": 11359,
+          "distinct_frame_counter": 10722,
+          "sdk_source_frame_counter": 881,
+          "encoded_frame_counter": 881,
+          "encode_time_counter_seconds": 8.647,
+          "raw_payload_sha256": "662726712b235d76a363aa97a4c34a0ef13d11e204b727142b416444b4d8909e"
+        },
+        {
+          "ordinal": 71,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 221514.09999999986,
+          "native_frame_counter": 11523,
+          "distinct_frame_counter": 10878,
+          "sdk_source_frame_counter": 1045,
+          "encoded_frame_counter": 1044,
+          "encode_time_counter_seconds": 10.208,
+          "raw_payload_sha256": "70fecd9fcca3c1fff1211bf16b55ac945b7b88714a801728796136aa3ec43668"
+        },
+        {
+          "ordinal": 72,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 224525.7999999998,
+          "native_frame_counter": 11687,
+          "distinct_frame_counter": 11026,
+          "sdk_source_frame_counter": 1208,
+          "encoded_frame_counter": 1207,
+          "encode_time_counter_seconds": 11.76,
+          "raw_payload_sha256": "ac2b8611c6f15ea0f7b0b77647a5be5f97f24b13971109936e5b4ed96eecbdd5"
+        },
+        {
+          "ordinal": 73,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 227532.5,
+          "native_frame_counter": 11854,
+          "distinct_frame_counter": 11182,
+          "sdk_source_frame_counter": 1374,
+          "encoded_frame_counter": 1373,
+          "encode_time_counter_seconds": 13.337,
+          "raw_payload_sha256": "42b00005334678ac28d5558bf2672658549fe4d7efde8e9eca1f03776dcf83c9"
+        },
+        {
+          "ordinal": 74,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 230540.5,
+          "native_frame_counter": 12020,
+          "distinct_frame_counter": 11335,
+          "sdk_source_frame_counter": 1543,
+          "encoded_frame_counter": 1543,
+          "encode_time_counter_seconds": 14.951,
+          "raw_payload_sha256": "ee41c1b2e769e21c78aead84843f89a36e02e9390ab33f4288ee1fd40904ac51"
+        },
+        {
+          "ordinal": 75,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 233550.19999999995,
+          "native_frame_counter": 12187,
+          "distinct_frame_counter": 11493,
+          "sdk_source_frame_counter": 1710,
+          "encoded_frame_counter": 1709,
+          "encode_time_counter_seconds": 16.552,
+          "raw_payload_sha256": "b960cb145ffe2dcf16cc918612b7471bfef9963ffa97e7fe8b92c9af8df9dcab"
+        },
+        {
+          "ordinal": 76,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 233556.69999999995,
+          "native_frame_counter": 12187,
+          "distinct_frame_counter": 11493,
+          "sdk_source_frame_counter": 1710,
+          "encoded_frame_counter": 1709,
+          "encode_time_counter_seconds": 16.552,
+          "raw_payload_sha256": "8effd2901d88c600aec78bbef89a5ed8bfc0a75d4cf9a50d22e09abe99f25971"
+        },
+        {
+          "ordinal": 77,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 236566.69999999995,
+          "native_frame_counter": 12353,
+          "distinct_frame_counter": 11647,
+          "sdk_source_frame_counter": 1876,
+          "encoded_frame_counter": 1876,
+          "encode_time_counter_seconds": 18.116,
+          "raw_payload_sha256": "30a892c8082bed4520797ce5db761f932a68dd934d921c1dd8896a93123eb34d"
+        },
+        {
+          "ordinal": 78,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 239575.3999999999,
+          "native_frame_counter": 12520,
+          "distinct_frame_counter": 11802,
+          "sdk_source_frame_counter": 2043,
+          "encoded_frame_counter": 2043,
+          "encode_time_counter_seconds": 19.717,
+          "raw_payload_sha256": "ab8942bd64f3fd16def8ae4db86e19152a83cd9774dc36f2cb608543e44e9d8d"
+        },
+        {
+          "ordinal": 79,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 242584.59999999986,
+          "native_frame_counter": 12685,
+          "distinct_frame_counter": 11957,
+          "sdk_source_frame_counter": 2208,
+          "encoded_frame_counter": 2207,
+          "encode_time_counter_seconds": 21.333,
+          "raw_payload_sha256": "619c49733b0b8d75ddeff08fcbe6f93116cbcb430e6fbd69ddc28f47a37e6a5d"
+        },
+        {
+          "ordinal": 80,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 245592.2999999998,
+          "native_frame_counter": 12854,
+          "distinct_frame_counter": 12117,
+          "sdk_source_frame_counter": 2377,
+          "encoded_frame_counter": 2377,
+          "encode_time_counter_seconds": 22.984,
+          "raw_payload_sha256": "436951594086934904ec771423645e3ed94219aff7886976336025b863a04318"
+        },
+        {
+          "ordinal": 81,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 248600.7999999998,
+          "native_frame_counter": 13022,
+          "distinct_frame_counter": 12271,
+          "sdk_source_frame_counter": 2545,
+          "encoded_frame_counter": 2544,
+          "encode_time_counter_seconds": 24.602,
+          "raw_payload_sha256": "b2edda5416d5e47bbd5852a2d595f4064c33ebfa8990e5769d7472299163d980"
+        },
+        {
+          "ordinal": 82,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 251609.8999999999,
+          "native_frame_counter": 13189,
+          "distinct_frame_counter": 12426,
+          "sdk_source_frame_counter": 2712,
+          "encoded_frame_counter": 2712,
+          "encode_time_counter_seconds": 26.186,
+          "raw_payload_sha256": "9f19d82b1f8b187a6c227331c914336fc8bf7e2b075bb404c0d52fb0ba4349b6"
+        },
+        {
+          "ordinal": 83,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 254617.09999999986,
+          "native_frame_counter": 13355,
+          "distinct_frame_counter": 12583,
+          "sdk_source_frame_counter": 2878,
+          "encoded_frame_counter": 2878,
+          "encode_time_counter_seconds": 27.789,
+          "raw_payload_sha256": "cd7eb54338c5da00706b08fd3836796915b43c84f606f561502fb0955b1d2281"
+        },
+        {
+          "ordinal": 84,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 257624.69999999995,
+          "native_frame_counter": 13520,
+          "distinct_frame_counter": 12741,
+          "sdk_source_frame_counter": 3043,
+          "encoded_frame_counter": 3042,
+          "encode_time_counter_seconds": 29.443,
+          "raw_payload_sha256": "7e0ccd8b31cee02f1c1d155fdd7b5deb588e33fa49c3e2790f7bfb032b9b5000"
+        },
+        {
+          "ordinal": 85,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 260633,
+          "native_frame_counter": 13685,
+          "distinct_frame_counter": 12896,
+          "sdk_source_frame_counter": 3208,
+          "encoded_frame_counter": 3207,
+          "encode_time_counter_seconds": 31.048,
+          "raw_payload_sha256": "92a6822daed748c8937f1089d8251cf70a14e42cc1db8fd005b92d87ef959ef8"
+        },
+        {
+          "ordinal": 86,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 263644.59999999986,
+          "native_frame_counter": 13852,
+          "distinct_frame_counter": 13053,
+          "sdk_source_frame_counter": 3375,
+          "encoded_frame_counter": 3374,
+          "encode_time_counter_seconds": 32.606,
+          "raw_payload_sha256": "c8d6f38fa42c413b304626871b66e47bd73df218f09a9ed1a74c3073d179a012"
+        },
+        {
+          "ordinal": 87,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 266653.2999999998,
+          "native_frame_counter": 14015,
+          "distinct_frame_counter": 13203,
+          "sdk_source_frame_counter": 3538,
+          "encoded_frame_counter": 3538,
+          "encode_time_counter_seconds": 34.21,
+          "raw_payload_sha256": "002cee83cf85039bb25244fed1f23351b199ce99cf4cdecec549ab18535b733b"
+        },
+        {
+          "ordinal": 88,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 269664.3999999999,
+          "native_frame_counter": 14184,
+          "distinct_frame_counter": 13360,
+          "sdk_source_frame_counter": 3707,
+          "encoded_frame_counter": 3706,
+          "encode_time_counter_seconds": 35.784,
+          "raw_payload_sha256": "eaffe827daf9b65b4ebac9e968e5b43537a5522830996c1417500862fd06b1a8"
+        },
+        {
+          "ordinal": 89,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 272676.59999999986,
+          "native_frame_counter": 14350,
+          "distinct_frame_counter": 13517,
+          "sdk_source_frame_counter": 3873,
+          "encoded_frame_counter": 3872,
+          "encode_time_counter_seconds": 37.348,
+          "raw_payload_sha256": "457a20d46163bf37a997437e799a53c923b5ce3c6fd8ac437867e91d85b5d1e6"
+        },
+        {
+          "ordinal": 90,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 275685,
+          "native_frame_counter": 14518,
+          "distinct_frame_counter": 13674,
+          "sdk_source_frame_counter": 4041,
+          "encoded_frame_counter": 4040,
+          "encode_time_counter_seconds": 38.904,
+          "raw_payload_sha256": "fcf3920384b8d10bbfdbd6935d422b1ba47ca019a42f152ae95d26a12636adda"
+        },
+        {
+          "ordinal": 91,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 278693,
+          "native_frame_counter": 14681,
+          "distinct_frame_counter": 13830,
+          "sdk_source_frame_counter": 4204,
+          "encoded_frame_counter": 4203,
+          "encode_time_counter_seconds": 40.409,
+          "raw_payload_sha256": "d7d5e775b7db9f56595595855f7d7eaa68f37260218f48a6089ab8bbfc643068"
+        },
+        {
+          "ordinal": 92,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 281701.2999999998,
+          "native_frame_counter": 14847,
+          "distinct_frame_counter": 13983,
+          "sdk_source_frame_counter": 4370,
+          "encoded_frame_counter": 4370,
+          "encode_time_counter_seconds": 41.99,
+          "raw_payload_sha256": "e91e6004cc8ceef320fd0456516ef2f27ca56e18693b8e59ab34a2da748fb9cd"
+        },
+        {
+          "ordinal": 93,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 284708.3999999999,
+          "native_frame_counter": 15006,
+          "distinct_frame_counter": 14135,
+          "sdk_source_frame_counter": 4529,
+          "encoded_frame_counter": 4529,
+          "encode_time_counter_seconds": 43.632,
+          "raw_payload_sha256": "50c2fb4dc701be6f83e4c012ca4fc5b80aac90dc698544da8057e057313ad70f"
+        },
+        {
+          "ordinal": 94,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 287719.09999999986,
+          "native_frame_counter": 15174,
+          "distinct_frame_counter": 14292,
+          "sdk_source_frame_counter": 4697,
+          "encoded_frame_counter": 4696,
+          "encode_time_counter_seconds": 45.167,
+          "raw_payload_sha256": "830319555f12761395655412b0bd74120916addd3fac53bf34559543523a97c5"
+        },
+        {
+          "ordinal": 95,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 290727.3999999999,
+          "native_frame_counter": 15339,
+          "distinct_frame_counter": 14447,
+          "sdk_source_frame_counter": 4862,
+          "encoded_frame_counter": 4862,
+          "encode_time_counter_seconds": 46.647,
+          "raw_payload_sha256": "6f9cd3e50d07af9617278d56ea4ae87ac80211fff5960758f48f7a8b8092e7db"
+        },
+        {
+          "ordinal": 96,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 293738.2999999998,
+          "native_frame_counter": 15506,
+          "distinct_frame_counter": 14604,
+          "sdk_source_frame_counter": 5029,
+          "encoded_frame_counter": 5029,
+          "encode_time_counter_seconds": 48.206,
+          "raw_payload_sha256": "6851d906a5c927ce5d5dd99df6923965fcbcd43c7900356ca0d249b96b83e178"
+        }
+      ]
+    },
+    {
+      "run_id": "43884983772",
+      "profile": "1440p60",
+      "status": "DIAGNOSTIC",
+      "completion": "COMPLETE",
+      "capacity_approval": false,
+      "qa_source_commit": "7d470cc5f5c75e4ecb1733ebd45889aec2993c24",
+      "runner_sha256": "11e923f69f9aa180fbc9fb756ee80a6de381321a21a5f1d74a6c84f6d5222cc5",
+      "exe_main_sha256": "71ba4f59373953f35a35cb917c691cb050d23179e847a046d57ecf618b5cd55d",
+      "environment": {
+        "browser": "Edg/131.0.2903.86",
+        "protocol_version": "1.3",
+        "one_exe_per_vm": true,
+        "logical_cores": 4,
+        "capture_backend": "native-wgc",
+        "microphone_source": "windows_synthesized_speech"
+      },
+      "original_inputs": [
+        {
+          "name": "hint-1440-r1-full.json",
+          "bytes": 944818,
+          "sha256": "de8d98b32391b5ccf1e1ca9b3591449c4d4250558477d6956e550e63946ff15d"
+        },
+        {
+          "name": "hint-1440-r1-full.log",
+          "bytes": 962532,
+          "sha256": "c891474d103f60e9d58f5a236726be1224cbe3df3c0110ec3f2e4aee73275219"
+        }
+      ],
+      "sample_accounting": {
+        "phase_samples": 96,
+        "unique_live_log_samples": 96,
+        "unique_public_inventory_samples": 96,
+        "unique_raw_payload_digests": 96,
+        "settle_samples": 33,
+        "measure_samples": 63,
+        "production_probe_samples_excluded": 3,
+        "live_log_samples_equal_final_json_phase_samples": true,
+        "log_final_result_equals_json_input": true,
+        "canonical_phase_samples_sha256": "462aa241f12e2925ced2d8e96b062a4bb54f0de7fcbf062a66a15b0eff4d9ef3"
+      },
+      "invariants_observed": {
+        "single_capture_object": true,
+        "single_rtp_binding": true,
+        "single_sdk_media_source_identity": true,
+        "same_binding_across_three_phases": true,
+        "source_geometry": "2560x1440",
+        "encoded_geometry": "2560x1440",
+        "codec": "video/VP8",
+        "active_video_encodings": 1,
+        "max_bitrate_bps": 16000000,
+        "max_framerate": 60,
+        "scale_resolution_down_by": 1,
+        "degradation_preference": "maintain-resolution",
+        "cpu_protection_not_disabled_by_diagnostic": true,
+        "measurement_summary_boundary_count": 0,
+        "between_phase_counter_reset_count": 2,
+        "settle_to_measure_duplicate_rtp_timestamp_count": 3,
+        "sample_inventory_clock": "page monotonic milliseconds; no interpolation across segments",
+        "position_numbering": "1-based ordinal in sample_inventory"
+      },
+      "between_phase_counter_resets": [
+        {
+          "before_sample": 32,
+          "after_sample": 33,
+          "from_phase": "A_motion",
+          "to_phase": "B_detail",
+          "at_ms": 110384.80000000002,
+          "decreased_counters": {
+            "framesEncoded": {
+              "before": 4061,
+              "after": 42
+            },
+            "bytesSent": {
+              "before": 57574262,
+              "after": 388211
+            },
+            "totalEncodeTime": {
+              "before": 73.354,
+              "after": 0.759
+            },
+            "sdk_source_frames": {
+              "before": 4069,
+              "after": 47
+            },
+            "quality_duration_cpu": {
+              "before": 21.521,
+              "after": 0
+            },
+            "quality_duration_none": {
+              "before": 75.209,
+              "after": 1.051
+            }
+          },
+          "same_binding_and_source_identity": true,
+          "interpolated": false,
+          "page_timestamp_before_ms": 109292.4,
+          "page_timestamp_after_ms": 110384.80000000002
+        },
+        {
+          "before_sample": 64,
+          "after_sample": 65,
+          "from_phase": "B_detail",
+          "to_phase": "A2_motion",
+          "at_ms": 201798.80000000002,
+          "decreased_counters": {
+            "framesEncoded": {
+              "before": 4524,
+              "after": 37
+            },
+            "bytesSent": {
+              "before": 20656605,
+              "after": 366273
+            },
+            "totalEncodeTime": {
+              "before": 55.192,
+              "after": 0.894
+            },
+            "sdk_source_frames": {
+              "before": 4529,
+              "after": 45
+            },
+            "quality_duration_none": {
+              "before": 91.406,
+              "after": 1.04
+            }
+          },
+          "same_binding_and_source_identity": true,
+          "interpolated": false,
+          "page_timestamp_before_ms": 200739.6,
+          "page_timestamp_after_ms": 201798.80000000002
+        }
+      ],
+      "settle_to_measure_repeated_rtp_timestamps": [
+        {
+          "before_sample": 11,
+          "after_sample": 12,
+          "phase": "A_motion",
+          "from_segment": "settle",
+          "to_segment": "measure",
+          "page_clock_advanced": true,
+          "rtp_timestamp_repeated": true,
+          "interpolated": false,
+          "page_timestamp_before_ms": 49060.19999999998,
+          "page_timestamp_after_ms": 49067.19999999998,
+          "rtp_timestamp_before_ms": 1794839041963.881,
+          "rtp_timestamp_after_ms": 1794839041963.881
+        },
+        {
+          "before_sample": 43,
+          "after_sample": 44,
+          "phase": "B_detail",
+          "from_segment": "settle",
+          "to_segment": "measure",
+          "page_clock_advanced": true,
+          "rtp_timestamp_repeated": true,
+          "interpolated": false,
+          "page_timestamp_before_ms": 140497.00000000003,
+          "page_timestamp_after_ms": 140515.1,
+          "rtp_timestamp_before_ms": 1794839133403.823,
+          "rtp_timestamp_after_ms": 1794839133403.823
+        },
+        {
+          "before_sample": 75,
+          "after_sample": 76,
+          "phase": "A2_motion",
+          "from_segment": "settle",
+          "to_segment": "measure",
+          "page_clock_advanced": true,
+          "rtp_timestamp_repeated": true,
+          "interpolated": false,
+          "page_timestamp_before_ms": 231935.19999999998,
+          "page_timestamp_after_ms": 231942.50000000003,
+          "rtp_timestamp_before_ms": 1794839224844.197,
+          "rtp_timestamp_after_ms": 1794839224844.197
+        }
+      ],
+      "restoration": {
+        "experiment_restored_motion": true,
+        "final_restored_motion": true,
+        "restored_object_matches_captured_object": true,
+        "restore_before_teardown_verified": true,
+        "ordering_basis": "Restored flags and clicked flags in the final result, unchanged reviewed runner order, and ordered completion of its final four Runtime.evaluate commands. Expressions are intentionally absent from the sanitized trace.",
+        "ordered_completions": [
+          {
+            "action": "experiment_restore_motion",
+            "completed_utc": "2026-11-16T14:28:05.065Z"
+          },
+          {
+            "action": "final_restore_motion",
+            "completed_utc": "2026-11-16T14:28:05.066Z"
+          },
+          {
+            "action": "stop_screen_ui",
+            "completed_utc": "2026-11-16T14:28:05.072Z"
+          },
+          {
+            "action": "leave_call_ui",
+            "completed_utc": "2026-11-16T14:28:05.110Z"
+          }
+        ]
+      },
+      "phases": [
+        {
+          "name": "A_motion",
+          "requested_hint": "motion",
+          "capacity_approval": false,
+          "settle_samples": 11,
+          "measure_samples": 21,
+          "observed_windows": {
+            "settle": {
+              "first_at": 18962.100000000006,
+              "last_at": 49060.19999999998,
+              "observed_ms": 30098.099999999977
+            },
+            "measure": {
+              "first_at": 49067.19999999998,
+              "last_at": 109292.4,
+              "observed_ms": 60225.20000000001
+            }
+          },
+          "full_frame_inspection_outside_measurement": {
+            "pixel_width": 2560,
+            "pixel_height": 1440,
+            "pixel_samples": 14400,
+            "light_pixels": 14400,
+            "colored_pixels": 14339,
+            "sampled_sizes": [
+              "2560x1440"
+            ],
+            "observation_ms": 1001
+          },
+          "original_summary_canonical_sha256": "3e08b6265669f8fd075858fddc0758a5a2f9d44c83991543bc05796206a41adc",
+          "summary": {
+            "capacity_approval": false,
+            "original_180s_capacity_gate": "NOT_RUN",
+            "requested_profile": {
+              "id": "1440p60",
+              "width": 2560,
+              "height": 1440,
+              "fps": 60,
+              "bitrate_mbps": 16,
+              "min_displayed_fps": 54,
+              "min_source_fps": 54
+            },
+            "measurement_seconds": 60.225200000000015,
+            "samples": 21,
+            "missing_fields": {
+              "timestamp": 0,
+              "framesEncoded": 0,
+              "totalEncodeTime": 0,
+              "media_source": 0,
+              "content_type": 21,
+              "encoder_implementation": 0,
+              "power_efficient_encoder": 0,
+              "quality_limitation_reason": 0
+            },
+            "missing_sender_samples": 0,
+            "segments": [
+              {
+                "ordinal": 1,
+                "samples": 21
+              }
+            ],
+            "boundaries": [],
+            "encode": {
+              "status": "OBSERVED",
+              "frames_delta": 2376,
+              "covered_seconds": 60.22520000000001,
+              "fps": 39.45192377941459,
+              "paired_frames": 2376,
+              "total_encode_seconds": 44.331,
+              "mean_ms_per_frame": 18.657828282828284
+            },
+            "source": {
+              "native_frames_delta": 2810,
+              "native_covered_seconds": 60.22520000000001,
+              "native_fps": 46.658209520267256,
+              "distinct_frames_delta": 2639,
+              "distinct_fps": 43.81886652099121,
+              "sdk_frames_delta": 2380,
+              "sdk_covered_seconds": 60.22520000000001,
+              "sdk_fps": 39.51834115951462,
+              "native_producer_fps": {
+                "status": "OBSERVED",
+                "count": 21,
+                "min": 42.44532030966132,
+                "p50": 46.86214562621137,
+                "p95": 48.761991548961724,
+                "max": 49.47463381102411
+              },
+              "native_sizes": [
+                "2560x1440"
+              ],
+              "encoded_sizes": [
+                "2560x1440"
+              ]
+            },
+            "content_type": {
+              "present_samples": 0,
+              "absent_samples": 21,
+              "observed_values": []
+            },
+            "quality_limitation": {
+              "reason_counts": {
+                "none": 13,
+                "cpu": 8
+              },
+              "duration_deltas": {
+                "cpu": 21.521,
+                "bandwidth": 0,
+                "none": 38.717000000000006,
+                "other": 0
+              },
+              "duration_covered_seconds": {
+                "cpu": 60.22520000000001,
+                "bandwidth": 60.22520000000001,
+                "none": 60.22520000000001,
+                "other": 60.22520000000001
+              }
+            },
+            "observed_hints": [
+              "motion"
+            ],
+            "host_cpu": {
+              "status": "OBSERVED",
+              "scope": "Entire owned disposable Windows VM including fixture, app, observer and encoding; IRQ already included in sys, not process or encoder CPU attribution",
+              "duration_seconds": 60.225469900000014,
+              "samples": 21,
+              "logical_cores": 4,
+              "busy_fraction": 0.7929423975090815,
+              "busy_core_equivalent": 3.171769590036326,
+              "per_core": [
+                {
+                  "total_ms": 60219,
+                  "busy_ms": 47453,
+                  "busy_fraction": 0.7880071073913549
+                },
+                {
+                  "total_ms": 60219,
+                  "busy_ms": 47094,
+                  "busy_fraction": 0.7820455338016241
+                },
+                {
+                  "total_ms": 60219,
+                  "busy_ms": 48969,
+                  "busy_fraction": 0.8131818861156778
+                },
+                {
+                  "total_ms": 60218,
+                  "busy_ms": 47484,
+                  "busy_fraction": 0.7885349895380119
+                }
+              ]
+            },
+            "remote": {
+              "status": "NOT_RUN_NO_RECEIVER"
+            }
+          }
+        },
+        {
+          "name": "B_detail",
+          "requested_hint": "detail",
+          "capacity_approval": false,
+          "settle_samples": 11,
+          "measure_samples": 21,
+          "observed_windows": {
+            "settle": {
+              "first_at": 110384.80000000002,
+              "last_at": 140497.00000000003,
+              "observed_ms": 30112.20000000001
+            },
+            "measure": {
+              "first_at": 140515.1,
+              "last_at": 200739.6,
+              "observed_ms": 60224.5
+            }
+          },
+          "full_frame_inspection_outside_measurement": {
+            "pixel_width": 2560,
+            "pixel_height": 1440,
+            "pixel_samples": 14400,
+            "light_pixels": 14400,
+            "colored_pixels": 14335,
+            "sampled_sizes": [
+              "2560x1440"
+            ],
+            "observation_ms": 1001.3999999999651
+          },
+          "original_summary_canonical_sha256": "2cbe432cd96981ac12ed41ffe538e335a58f3ff1df0b706e19ecd380ab792260",
+          "summary": {
+            "capacity_approval": false,
+            "original_180s_capacity_gate": "NOT_RUN",
+            "requested_profile": {
+              "id": "1440p60",
+              "width": 2560,
+              "height": 1440,
+              "fps": 60,
+              "bitrate_mbps": 16,
+              "min_displayed_fps": 54,
+              "min_source_fps": 54
+            },
+            "measurement_seconds": 60.2245,
+            "samples": 21,
+            "missing_fields": {
+              "timestamp": 0,
+              "framesEncoded": 0,
+              "totalEncodeTime": 0,
+              "media_source": 0,
+              "content_type": 0,
+              "encoder_implementation": 0,
+              "power_efficient_encoder": 0,
+              "quality_limitation_reason": 0
+            },
+            "missing_sender_samples": 0,
+            "segments": [
+              {
+                "ordinal": 1,
+                "samples": 21
+              }
+            ],
+            "boundaries": [],
+            "encode": {
+              "status": "OBSERVED",
+              "frames_delta": 2986,
+              "covered_seconds": 60.224500000000006,
+              "fps": 49.581150528439416,
+              "paired_frames": 2986,
+              "total_encode_seconds": 36.232,
+              "mean_ms_per_frame": 12.13395847287341
+            },
+            "source": {
+              "native_frames_delta": 2985,
+              "native_covered_seconds": 60.224500000000006,
+              "native_fps": 49.56454599041918,
+              "distinct_frames_delta": 2778,
+              "distinct_fps": 46.1274066202293,
+              "sdk_frames_delta": 2986,
+              "sdk_covered_seconds": 60.224500000000006,
+              "sdk_fps": 49.581150528439416,
+              "native_producer_fps": {
+                "status": "OBSERVED",
+                "count": 21,
+                "min": 48.4453013001137,
+                "p50": 49.44978216381961,
+                "p95": 50.974339517486904,
+                "max": 52.30311331814899
+              },
+              "native_sizes": [
+                "2560x1440"
+              ],
+              "encoded_sizes": [
+                "2560x1440"
+              ]
+            },
+            "content_type": {
+              "present_samples": 21,
+              "absent_samples": 0,
+              "observed_values": [
+                "screenshare"
+              ]
+            },
+            "quality_limitation": {
+              "reason_counts": {
+                "none": 21
+              },
+              "duration_deltas": {
+                "cpu": 0,
+                "bandwidth": 0,
+                "none": 60.242000000000004,
+                "other": 0
+              },
+              "duration_covered_seconds": {
+                "cpu": 60.224500000000006,
+                "bandwidth": 60.224500000000006,
+                "none": 60.224500000000006,
+                "other": 60.224500000000006
+              }
+            },
+            "observed_hints": [
+              "detail"
+            ],
+            "host_cpu": {
+              "status": "OBSERVED",
+              "scope": "Entire owned disposable Windows VM including fixture, app, observer and encoding; IRQ already included in sys, not process or encoder CPU attribution",
+              "duration_seconds": 60.22372930000001,
+              "samples": 21,
+              "logical_cores": 4,
+              "busy_fraction": 0.729054777577634,
+              "busy_core_equivalent": 2.916219110310536,
+              "per_core": [
+                {
+                  "total_ms": 60236,
+                  "busy_ms": 44220,
+                  "busy_fraction": 0.7341124908692477
+                },
+                {
+                  "total_ms": 60233,
+                  "busy_ms": 43140,
+                  "busy_fraction": 0.7162186841100393
+                },
+                {
+                  "total_ms": 60234,
+                  "busy_ms": 45578,
+                  "busy_fraction": 0.7566822724706976
+                },
+                {
+                  "total_ms": 60235,
+                  "busy_ms": 42719,
+                  "busy_fraction": 0.7092056113555242
+                }
+              ]
+            },
+            "remote": {
+              "status": "NOT_RUN_NO_RECEIVER"
+            }
+          }
+        },
+        {
+          "name": "A2_motion",
+          "requested_hint": "motion",
+          "capacity_approval": false,
+          "settle_samples": 11,
+          "measure_samples": 21,
+          "observed_windows": {
+            "settle": {
+              "first_at": 201798.80000000002,
+              "last_at": 231935.19999999998,
+              "observed_ms": 30136.399999999965
+            },
+            "measure": {
+              "first_at": 231942.50000000003,
+              "last_at": 292149.29999999993,
+              "observed_ms": 60206.7999999999
+            }
+          },
+          "full_frame_inspection_outside_measurement": {
+            "pixel_width": 2560,
+            "pixel_height": 1440,
+            "pixel_samples": 14400,
+            "light_pixels": 14400,
+            "colored_pixels": 14341,
+            "sampled_sizes": [
+              "2560x1440"
+            ],
+            "observation_ms": 1000.7000000000116
+          },
+          "original_summary_canonical_sha256": "3b11d004d817817c67de35ebac34a9f713b52cefc528c1bf3d78b389293674a3",
+          "summary": {
+            "capacity_approval": false,
+            "original_180s_capacity_gate": "NOT_RUN",
+            "requested_profile": {
+              "id": "1440p60",
+              "width": 2560,
+              "height": 1440,
+              "fps": 60,
+              "bitrate_mbps": 16,
+              "min_displayed_fps": 54,
+              "min_source_fps": 54
+            },
+            "measurement_seconds": 60.2067999999999,
+            "samples": 21,
+            "missing_fields": {
+              "timestamp": 0,
+              "framesEncoded": 0,
+              "totalEncodeTime": 0,
+              "media_source": 0,
+              "content_type": 21,
+              "encoder_implementation": 0,
+              "power_efficient_encoder": 0,
+              "quality_limitation_reason": 0
+            },
+            "missing_sender_samples": 0,
+            "segments": [
+              {
+                "ordinal": 1,
+                "samples": 21
+              }
+            ],
+            "boundaries": [],
+            "encode": {
+              "status": "OBSERVED",
+              "frames_delta": 1807,
+              "covered_seconds": 60.20679999999991,
+              "fps": 30.013221097949113,
+              "paired_frames": 1807,
+              "total_encode_seconds": 37.937,
+              "mean_ms_per_frame": 20.99446596568899
+            },
+            "source": {
+              "native_frames_delta": 2921,
+              "native_covered_seconds": 60.20679999999991,
+              "native_fps": 48.516114458831964,
+              "distinct_frames_delta": 2696,
+              "distinct_fps": 44.77899506368058,
+              "sdk_frames_delta": 1806,
+              "sdk_covered_seconds": 60.20679999999991,
+              "sdk_fps": 29.996611678415107,
+              "native_producer_fps": {
+                "status": "OBSERVED",
+                "count": 21,
+                "min": 44.642316829101865,
+                "p50": 48.751765759107776,
+                "p95": 50.28619748395476,
+                "max": 50.62519635875794
+              },
+              "native_sizes": [
+                "2560x1440"
+              ],
+              "encoded_sizes": [
+                "2560x1440"
+              ]
+            },
+            "content_type": {
+              "present_samples": 0,
+              "absent_samples": 21,
+              "observed_values": []
+            },
+            "quality_limitation": {
+              "reason_counts": {
+                "cpu": 21
+              },
+              "duration_deltas": {
+                "cpu": 60.213,
+                "bandwidth": 0,
+                "none": 0,
+                "other": 0
+              },
+              "duration_covered_seconds": {
+                "cpu": 60.20679999999991,
+                "bandwidth": 60.20679999999991,
+                "none": 60.20679999999991,
+                "other": 60.20679999999991
+              }
+            },
+            "observed_hints": [
+              "motion"
+            ],
+            "host_cpu": {
+              "status": "OBSERVED",
+              "scope": "Entire owned disposable Windows VM including fixture, app, observer and encoding; IRQ already included in sys, not process or encoder CPU attribution",
+              "duration_seconds": 60.2067047,
+              "samples": 21,
+              "logical_cores": 4,
+              "busy_fraction": 0.747665181407826,
+              "busy_core_equivalent": 2.990660725631304,
+              "per_core": [
+                {
+                  "total_ms": 60203,
+                  "busy_ms": 44734,
+                  "busy_fraction": 0.7430526717937644
+                },
+                {
+                  "total_ms": 60203,
+                  "busy_ms": 44297,
+                  "busy_fraction": 0.7357938973140873
+                },
+                {
+                  "total_ms": 60202,
+                  "busy_ms": 46312,
+                  "busy_fraction": 0.7692767682136806
+                },
+                {
+                  "total_ms": 60203,
+                  "busy_ms": 44703,
+                  "busy_fraction": 0.7425377472883411
+                }
+              ]
+            },
+            "remote": {
+              "status": "NOT_RUN_NO_RECEIVER"
+            }
+          }
+        }
+      ],
+      "sample_inventory": [
+        {
+          "ordinal": 1,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 18962.100000000006,
+          "native_frame_counter": 360,
+          "distinct_frame_counter": 338,
+          "sdk_source_frame_counter": 292,
+          "encoded_frame_counter": 287,
+          "encode_time_counter_seconds": 5.181,
+          "raw_payload_sha256": "f130dd5d4973ff08acedc77103b575a2f31d627eda372ac4d8d23ad8054d9d36"
+        },
+        {
+          "ordinal": 2,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 21976.600000000006,
+          "native_frame_counter": 493,
+          "distinct_frame_counter": 465,
+          "sdk_source_frame_counter": 425,
+          "encoded_frame_counter": 420,
+          "encode_time_counter_seconds": 7.552,
+          "raw_payload_sha256": "d943bea32eb157edf6e59c318f597113de8d38d8392347cd1d133cee0590a1d8"
+        },
+        {
+          "ordinal": 3,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 24987.399999999994,
+          "native_frame_counter": 634,
+          "distinct_frame_counter": 597,
+          "sdk_source_frame_counter": 566,
+          "encoded_frame_counter": 561,
+          "encode_time_counter_seconds": 9.977,
+          "raw_payload_sha256": "412c7df2b149b135aa2cc4288d957a65d3796bf263df8d63fc10236cc348120b"
+        },
+        {
+          "ordinal": 4,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 27995.300000000017,
+          "native_frame_counter": 771,
+          "distinct_frame_counter": 728,
+          "sdk_source_frame_counter": 703,
+          "encoded_frame_counter": 698,
+          "encode_time_counter_seconds": 12.287,
+          "raw_payload_sha256": "8a762a3e054751c377d47cb94a8f0631431afd48c588e95d972bb609de1636bd"
+        },
+        {
+          "ordinal": 5,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 31005.00000000003,
+          "native_frame_counter": 908,
+          "distinct_frame_counter": 856,
+          "sdk_source_frame_counter": 840,
+          "encoded_frame_counter": 835,
+          "encode_time_counter_seconds": 14.671,
+          "raw_payload_sha256": "ec59f66eb0f5ada4c8d18ed4942e94f06897b8121f4df2f43e2078536ea8776e"
+        },
+        {
+          "ordinal": 6,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 34013.399999999994,
+          "native_frame_counter": 1049,
+          "distinct_frame_counter": 987,
+          "sdk_source_frame_counter": 980,
+          "encoded_frame_counter": 976,
+          "encode_time_counter_seconds": 17.083,
+          "raw_payload_sha256": "c612a95357e9e14dad4f193553759f22cf0f641f51c6e8b79a99d0e646ecb0d6"
+        },
+        {
+          "ordinal": 7,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 37021.30000000002,
+          "native_frame_counter": 1191,
+          "distinct_frame_counter": 1119,
+          "sdk_source_frame_counter": 1123,
+          "encoded_frame_counter": 1118,
+          "encode_time_counter_seconds": 19.467,
+          "raw_payload_sha256": "6a488dbc2d1acd5efaeb1676540cc361601848c8391dd2b7bfee9821ecbae8c3"
+        },
+        {
+          "ordinal": 8,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 40030.69999999998,
+          "native_frame_counter": 1332,
+          "distinct_frame_counter": 1253,
+          "sdk_source_frame_counter": 1263,
+          "encoded_frame_counter": 1258,
+          "encode_time_counter_seconds": 21.815,
+          "raw_payload_sha256": "56d7bf63985ffbdcc4ff4525367790770f73e343c83b437b327c625a045248f9"
+        },
+        {
+          "ordinal": 9,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 43038.100000000006,
+          "native_frame_counter": 1476,
+          "distinct_frame_counter": 1389,
+          "sdk_source_frame_counter": 1406,
+          "encoded_frame_counter": 1401,
+          "encode_time_counter_seconds": 24.213,
+          "raw_payload_sha256": "f7b730e169498f4a5659df96ba144663278885187d8e3551b0756f9607d77aa8"
+        },
+        {
+          "ordinal": 10,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 46047.19999999998,
+          "native_frame_counter": 1620,
+          "distinct_frame_counter": 1522,
+          "sdk_source_frame_counter": 1550,
+          "encoded_frame_counter": 1545,
+          "encode_time_counter_seconds": 26.627,
+          "raw_payload_sha256": "8650dcd38464ff8839df00b8a61b53da91a5770c1c3bece14b6e318689f8c18a"
+        },
+        {
+          "ordinal": 11,
+          "phase": "A_motion",
+          "segment": "settle",
+          "at_ms": 49060.19999999998,
+          "native_frame_counter": 1757,
+          "distinct_frame_counter": 1651,
+          "sdk_source_frame_counter": 1689,
+          "encoded_frame_counter": 1685,
+          "encode_time_counter_seconds": 29.023,
+          "raw_payload_sha256": "f2af054f0617fab35e2c8adc22dd1a4e247893edbe2476c7a54c34489fdcec79"
+        },
+        {
+          "ordinal": 12,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 49067.19999999998,
+          "native_frame_counter": 1758,
+          "distinct_frame_counter": 1652,
+          "sdk_source_frame_counter": 1689,
+          "encoded_frame_counter": 1685,
+          "encode_time_counter_seconds": 29.023,
+          "raw_payload_sha256": "fd6a1a660b70545985eb7d60aa9b22b6480c07c231643c5be324786b6bc26292"
+        },
+        {
+          "ordinal": 13,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 52079.19999999998,
+          "native_frame_counter": 1898,
+          "distinct_frame_counter": 1783,
+          "sdk_source_frame_counter": 1830,
+          "encoded_frame_counter": 1826,
+          "encode_time_counter_seconds": 31.397,
+          "raw_payload_sha256": "6bce95418847d886b90d335ad9f5a0407c0e36eaa813d3482fa57e2f58e340a8"
+        },
+        {
+          "ordinal": 14,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 55088.50000000003,
+          "native_frame_counter": 2038,
+          "distinct_frame_counter": 1917,
+          "sdk_source_frame_counter": 1970,
+          "encoded_frame_counter": 1966,
+          "encode_time_counter_seconds": 33.77,
+          "raw_payload_sha256": "cc22914c70353a0e4f4a52e31401f7f202e8cfd50b97ae773851ea0a32305573"
+        },
+        {
+          "ordinal": 15,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 58100.69999999998,
+          "native_frame_counter": 2176,
+          "distinct_frame_counter": 2047,
+          "sdk_source_frame_counter": 2108,
+          "encoded_frame_counter": 2103,
+          "encode_time_counter_seconds": 36.077,
+          "raw_payload_sha256": "098f9e55744b4595461fb92047536a46e01bbca5625bddd88cca3abd2afd263c"
+        },
+        {
+          "ordinal": 16,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 61113.100000000006,
+          "native_frame_counter": 2320,
+          "distinct_frame_counter": 2182,
+          "sdk_source_frame_counter": 2252,
+          "encoded_frame_counter": 2247,
+          "encode_time_counter_seconds": 38.499,
+          "raw_payload_sha256": "f452c2bee1330e5e38968ab0843766fde050596472f429e8daf8f902c1287898"
+        },
+        {
+          "ordinal": 17,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 64127.100000000006,
+          "native_frame_counter": 2459,
+          "distinct_frame_counter": 2307,
+          "sdk_source_frame_counter": 2391,
+          "encoded_frame_counter": 2386,
+          "encode_time_counter_seconds": 40.84,
+          "raw_payload_sha256": "df11f1da4798970ac80d081de49f379f5ad9fb3adecbad1451ab8aea32daa915"
+        },
+        {
+          "ordinal": 18,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 67134.69999999998,
+          "native_frame_counter": 2600,
+          "distinct_frame_counter": 2441,
+          "sdk_source_frame_counter": 2532,
+          "encoded_frame_counter": 2528,
+          "encode_time_counter_seconds": 43.273,
+          "raw_payload_sha256": "9a714329499291aa16ee1992dc4a4c46f6c2f49e9e78e6e89e4905163fa1a777"
+        },
+        {
+          "ordinal": 19,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 70150.80000000002,
+          "native_frame_counter": 2740,
+          "distinct_frame_counter": 2573,
+          "sdk_source_frame_counter": 2672,
+          "encoded_frame_counter": 2667,
+          "encode_time_counter_seconds": 45.67,
+          "raw_payload_sha256": "56ada45f04a77dc97b95cbf0c8e9780ea6baa8f7918e5b4a36b6bd9f3d4f716d"
+        },
+        {
+          "ordinal": 20,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 73160.80000000002,
+          "native_frame_counter": 2879,
+          "distinct_frame_counter": 2701,
+          "sdk_source_frame_counter": 2811,
+          "encoded_frame_counter": 2806,
+          "encode_time_counter_seconds": 48.038,
+          "raw_payload_sha256": "b52ee260de8bc1c451041e67c25a0846dd29e3913ca1721e71291a88b7d1216a"
+        },
+        {
+          "ordinal": 21,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 76171.1,
+          "native_frame_counter": 3023,
+          "distinct_frame_counter": 2833,
+          "sdk_source_frame_counter": 2955,
+          "encoded_frame_counter": 2950,
+          "encode_time_counter_seconds": 50.463,
+          "raw_payload_sha256": "44bb28a5ab7e1359b11907c66e842c6b90eddb04d2b6209491366476b7614b99"
+        },
+        {
+          "ordinal": 22,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 79182.4,
+          "native_frame_counter": 3160,
+          "distinct_frame_counter": 2963,
+          "sdk_source_frame_counter": 3092,
+          "encoded_frame_counter": 3085,
+          "encode_time_counter_seconds": 53.099,
+          "raw_payload_sha256": "e02034d293a4321cacd9cf1c437e8aa5ad4f3288858511d7056dc5cf31c9bc05"
+        },
+        {
+          "ordinal": 23,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 82196.69999999998,
+          "native_frame_counter": 3292,
+          "distinct_frame_counter": 3088,
+          "sdk_source_frame_counter": 3224,
+          "encoded_frame_counter": 3217,
+          "encode_time_counter_seconds": 55.763,
+          "raw_payload_sha256": "f15c0993a3af23dab4934feb2b8b41bcb7c105a570105eaeaf812056a22b1bfb"
+        },
+        {
+          "ordinal": 24,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 85204.80000000002,
+          "native_frame_counter": 3423,
+          "distinct_frame_counter": 3215,
+          "sdk_source_frame_counter": 3355,
+          "encoded_frame_counter": 3346,
+          "encode_time_counter_seconds": 58.52,
+          "raw_payload_sha256": "2ca19ae8cee38790cce137cf9fa67abc73665599ffc06069f012d5fbfd12901d"
+        },
+        {
+          "ordinal": 25,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 88216.69999999998,
+          "native_frame_counter": 3553,
+          "distinct_frame_counter": 3342,
+          "sdk_source_frame_counter": 3479,
+          "encoded_frame_counter": 3470,
+          "encode_time_counter_seconds": 61.166,
+          "raw_payload_sha256": "3e8eea757c449dfb6a5b253a2350ab5ead824ba0d9ae2622e7d3a6314dd0a1e2"
+        },
+        {
+          "ordinal": 26,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 91228.30000000002,
+          "native_frame_counter": 3698,
+          "distinct_frame_counter": 3478,
+          "sdk_source_frame_counter": 3563,
+          "encoded_frame_counter": 3555,
+          "encode_time_counter_seconds": 62.92,
+          "raw_payload_sha256": "919aa1fec6c74071c719409fbe32ccc007c9e36e2adb68f7e088d648934161b3"
+        },
+        {
+          "ordinal": 27,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 94246.00000000003,
+          "native_frame_counter": 3841,
+          "distinct_frame_counter": 3610,
+          "sdk_source_frame_counter": 3648,
+          "encoded_frame_counter": 3639,
+          "encode_time_counter_seconds": 64.663,
+          "raw_payload_sha256": "aa5b8fad09fb62105f9f044091c82e09f32c7992b5da952cbe0e70f956dec533"
+        },
+        {
+          "ordinal": 28,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 97255.69999999998,
+          "native_frame_counter": 3984,
+          "distinct_frame_counter": 3742,
+          "sdk_source_frame_counter": 3732,
+          "encoded_frame_counter": 3724,
+          "encode_time_counter_seconds": 66.42,
+          "raw_payload_sha256": "f7c1d35ff7544f14e462557c927787dc42ba09f193a0e1fa07e505caffbfd208"
+        },
+        {
+          "ordinal": 29,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 100264.30000000002,
+          "native_frame_counter": 4129,
+          "distinct_frame_counter": 3876,
+          "sdk_source_frame_counter": 3816,
+          "encoded_frame_counter": 3807,
+          "encode_time_counter_seconds": 68.13,
+          "raw_payload_sha256": "810e13badf90c1294f1a9c101e8c55d9c69a8421b03da42b1c39c144ed96ebb5"
+        },
+        {
+          "ordinal": 30,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 103275.30000000002,
+          "native_frame_counter": 4275,
+          "distinct_frame_counter": 4015,
+          "sdk_source_frame_counter": 3901,
+          "encoded_frame_counter": 3892,
+          "encode_time_counter_seconds": 69.863,
+          "raw_payload_sha256": "c69b8e06f2c60fcdb12100c3e763d907e1c81b71e462433c8de2302c33d28815"
+        },
+        {
+          "ordinal": 31,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 106284.30000000002,
+          "native_frame_counter": 4422,
+          "distinct_frame_counter": 4151,
+          "sdk_source_frame_counter": 3985,
+          "encoded_frame_counter": 3976,
+          "encode_time_counter_seconds": 71.574,
+          "raw_payload_sha256": "7837e0af2d87c9c98f5087a27279334e9093827dde6331d0f8ed22871499763a"
+        },
+        {
+          "ordinal": 32,
+          "phase": "A_motion",
+          "segment": "measure",
+          "at_ms": 109292.4,
+          "native_frame_counter": 4568,
+          "distinct_frame_counter": 4291,
+          "sdk_source_frame_counter": 4069,
+          "encoded_frame_counter": 4061,
+          "encode_time_counter_seconds": 73.354,
+          "raw_payload_sha256": "adbd67d88e69c1dce317dc1637fb80d97a4cf3384a62bba419ae1bda6f692ad7"
+        },
+        {
+          "ordinal": 33,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 110384.80000000002,
+          "native_frame_counter": 4617,
+          "distinct_frame_counter": 4338,
+          "sdk_source_frame_counter": 47,
+          "encoded_frame_counter": 42,
+          "encode_time_counter_seconds": 0.759,
+          "raw_payload_sha256": "9a3d5a4936f7b9ffefc71a9402bb741e36bac9ac135a18411c5c5916aab98c4f"
+        },
+        {
+          "ordinal": 34,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 113397.00000000003,
+          "native_frame_counter": 4764,
+          "distinct_frame_counter": 4476,
+          "sdk_source_frame_counter": 194,
+          "encoded_frame_counter": 189,
+          "encode_time_counter_seconds": 2.646,
+          "raw_payload_sha256": "3774b656f49d8f35e33c2a24f2bfe241d868852c758da75b0d44939319585f34"
+        },
+        {
+          "ordinal": 35,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 116408.1,
+          "native_frame_counter": 4911,
+          "distinct_frame_counter": 4614,
+          "sdk_source_frame_counter": 341,
+          "encoded_frame_counter": 336,
+          "encode_time_counter_seconds": 4.398,
+          "raw_payload_sha256": "0151fd653e2389c7297d252aed3556d042b6a3741eb1b9fa4f03678e872cb07d"
+        },
+        {
+          "ordinal": 36,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 119417.50000000003,
+          "native_frame_counter": 5060,
+          "distinct_frame_counter": 4753,
+          "sdk_source_frame_counter": 490,
+          "encoded_frame_counter": 485,
+          "encode_time_counter_seconds": 6.202,
+          "raw_payload_sha256": "cb501abb4f9cd39dd96ee4b8f721d297df1e0bd7efe383e47362e652ee6908d1"
+        },
+        {
+          "ordinal": 37,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 122427.1,
+          "native_frame_counter": 5210,
+          "distinct_frame_counter": 4890,
+          "sdk_source_frame_counter": 640,
+          "encoded_frame_counter": 635,
+          "encode_time_counter_seconds": 8.055,
+          "raw_payload_sha256": "be48a68de346620b04a5f66293a0770977833a49dcf52296e9381d29e7aff40e"
+        },
+        {
+          "ordinal": 38,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 125442.30000000002,
+          "native_frame_counter": 5358,
+          "distinct_frame_counter": 5027,
+          "sdk_source_frame_counter": 788,
+          "encoded_frame_counter": 783,
+          "encode_time_counter_seconds": 9.86,
+          "raw_payload_sha256": "f5b29710f93bcb9c677d32e62be26ec4a6e3b312f67f20eccaf696f46024d415"
+        },
+        {
+          "ordinal": 39,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 128451.1,
+          "native_frame_counter": 5505,
+          "distinct_frame_counter": 5165,
+          "sdk_source_frame_counter": 935,
+          "encoded_frame_counter": 930,
+          "encode_time_counter_seconds": 11.663,
+          "raw_payload_sha256": "dae4d0e36ae24fd82db4b894c96f2514df4a0a4d4e35fd1dc2f96d5942a91fc2"
+        },
+        {
+          "ordinal": 40,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 131461.30000000002,
+          "native_frame_counter": 5655,
+          "distinct_frame_counter": 5308,
+          "sdk_source_frame_counter": 1085,
+          "encoded_frame_counter": 1080,
+          "encode_time_counter_seconds": 13.525,
+          "raw_payload_sha256": "c23740788bfd336e3bb89a3945d0c28a4a3cb8a83ed01752aedf46170be242b2"
+        },
+        {
+          "ordinal": 41,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 134472.9,
+          "native_frame_counter": 5807,
+          "distinct_frame_counter": 5447,
+          "sdk_source_frame_counter": 1237,
+          "encoded_frame_counter": 1232,
+          "encode_time_counter_seconds": 15.372,
+          "raw_payload_sha256": "3d009ec13367b8a808112e258ad80cfda96c040974e88fbadd49bbc38e64ed60"
+        },
+        {
+          "ordinal": 42,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 137482.80000000002,
+          "native_frame_counter": 5961,
+          "distinct_frame_counter": 5593,
+          "sdk_source_frame_counter": 1391,
+          "encoded_frame_counter": 1387,
+          "encode_time_counter_seconds": 17.192,
+          "raw_payload_sha256": "42160b84474b4db99560eaec9f797b34acef487681fa8756addfacc120296e19"
+        },
+        {
+          "ordinal": 43,
+          "phase": "B_detail",
+          "segment": "settle",
+          "at_ms": 140497.00000000003,
+          "native_frame_counter": 6113,
+          "distinct_frame_counter": 5734,
+          "sdk_source_frame_counter": 1543,
+          "encoded_frame_counter": 1538,
+          "encode_time_counter_seconds": 18.96,
+          "raw_payload_sha256": "a9a52354f62fd1c3fca2b1224a6810612e4d15aa9f4595944a91f9b4fb1450ca"
+        },
+        {
+          "ordinal": 44,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 140515.1,
+          "native_frame_counter": 6114,
+          "distinct_frame_counter": 5735,
+          "sdk_source_frame_counter": 1543,
+          "encoded_frame_counter": 1538,
+          "encode_time_counter_seconds": 18.96,
+          "raw_payload_sha256": "69e098c136440ebea68a7e8b6d09284f313d86463f19fa4d0dfa49bcef0de6e7"
+        },
+        {
+          "ordinal": 45,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 143523.6,
+          "native_frame_counter": 6264,
+          "distinct_frame_counter": 5880,
+          "sdk_source_frame_counter": 1693,
+          "encoded_frame_counter": 1688,
+          "encode_time_counter_seconds": 20.803,
+          "raw_payload_sha256": "9f637880d24d486f8d8b27ff4f755f4d059cd9b0c6de78fbb8c299dcfef56e10"
+        },
+        {
+          "ordinal": 46,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 146534.69999999998,
+          "native_frame_counter": 6412,
+          "distinct_frame_counter": 6015,
+          "sdk_source_frame_counter": 1840,
+          "encoded_frame_counter": 1836,
+          "encode_time_counter_seconds": 22.609,
+          "raw_payload_sha256": "66b55434177e0deb33cd53181f3a9633eb4e4d355b3d4b3e026772f963dd357d"
+        },
+        {
+          "ordinal": 47,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 149544.9,
+          "native_frame_counter": 6560,
+          "distinct_frame_counter": 6148,
+          "sdk_source_frame_counter": 1987,
+          "encoded_frame_counter": 1983,
+          "encode_time_counter_seconds": 24.466,
+          "raw_payload_sha256": "063b4d07987700277975b1d097dab2fea61ab1f5470a82cb23354bf16a5b6e3f"
+        },
+        {
+          "ordinal": 48,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 152552.00000000003,
+          "native_frame_counter": 6708,
+          "distinct_frame_counter": 6285,
+          "sdk_source_frame_counter": 2138,
+          "encoded_frame_counter": 2133,
+          "encode_time_counter_seconds": 26.234,
+          "raw_payload_sha256": "63109e1539db85860bc60d9db4c5862ec433ed50cdd76e4a1196be2ce641388b"
+        },
+        {
+          "ordinal": 49,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 155566.80000000002,
+          "native_frame_counter": 6857,
+          "distinct_frame_counter": 6422,
+          "sdk_source_frame_counter": 2287,
+          "encoded_frame_counter": 2282,
+          "encode_time_counter_seconds": 28.134,
+          "raw_payload_sha256": "a29f0091cabd8c42f5b86208c0c70af0fca064b67dc9e932aada2e394bd6205e"
+        },
+        {
+          "ordinal": 50,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 158572.6,
+          "native_frame_counter": 7006,
+          "distinct_frame_counter": 6564,
+          "sdk_source_frame_counter": 2436,
+          "encoded_frame_counter": 2431,
+          "encode_time_counter_seconds": 29.951,
+          "raw_payload_sha256": "bf7594069d95caa2e6d8c48bde78c5e4e100a33afeb302a302a098a7d901eb2f"
+        },
+        {
+          "ordinal": 51,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 161586.50000000003,
+          "native_frame_counter": 7155,
+          "distinct_frame_counter": 6706,
+          "sdk_source_frame_counter": 2585,
+          "encoded_frame_counter": 2580,
+          "encode_time_counter_seconds": 31.75,
+          "raw_payload_sha256": "a6825b70763c50e50162c40513a56746dfdaed55daaae29419261d5a052d57a5"
+        },
+        {
+          "ordinal": 52,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 164594.50000000003,
+          "native_frame_counter": 7304,
+          "distinct_frame_counter": 6845,
+          "sdk_source_frame_counter": 2733,
+          "encoded_frame_counter": 2728,
+          "encode_time_counter_seconds": 33.514,
+          "raw_payload_sha256": "ac5760ed74543ed084eaa972795ec98b4f110fbcb1b7f37c14614cacc1f29a2e"
+        },
+        {
+          "ordinal": 53,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 167610.19999999998,
+          "native_frame_counter": 7455,
+          "distinct_frame_counter": 6983,
+          "sdk_source_frame_counter": 2885,
+          "encoded_frame_counter": 2880,
+          "encode_time_counter_seconds": 35.309,
+          "raw_payload_sha256": "c50b0f4f8fdcc69761d602e643d604057590330f7b9c4ea90b2e53929a4fa119"
+        },
+        {
+          "ordinal": 54,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 170617.4,
+          "native_frame_counter": 7600,
+          "distinct_frame_counter": 7118,
+          "sdk_source_frame_counter": 3029,
+          "encoded_frame_counter": 3024,
+          "encode_time_counter_seconds": 37.222,
+          "raw_payload_sha256": "e2d4d4f1b8ab0bd65c57791b0cc3f57a6f9a4fffbeed7a84f9ee223c551f07fe"
+        },
+        {
+          "ordinal": 55,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 173632.4,
+          "native_frame_counter": 7747,
+          "distinct_frame_counter": 7252,
+          "sdk_source_frame_counter": 3177,
+          "encoded_frame_counter": 3173,
+          "encode_time_counter_seconds": 39.071,
+          "raw_payload_sha256": "42cbd0c88c91ec04a936a799c8336910f47d9a2a3bd32f99a22b94fed38bb817"
+        },
+        {
+          "ordinal": 56,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 176648.80000000002,
+          "native_frame_counter": 7901,
+          "distinct_frame_counter": 7395,
+          "sdk_source_frame_counter": 3331,
+          "encoded_frame_counter": 3327,
+          "encode_time_counter_seconds": 40.877,
+          "raw_payload_sha256": "44c5eb9a26ad25a8ff90f4d8082e3895fa4b21fb635747b338c9b4fcc45a5383"
+        },
+        {
+          "ordinal": 57,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 179658.6,
+          "native_frame_counter": 8050,
+          "distinct_frame_counter": 7538,
+          "sdk_source_frame_counter": 3480,
+          "encoded_frame_counter": 3476,
+          "encode_time_counter_seconds": 42.731,
+          "raw_payload_sha256": "775be461117e85543360a4c0b2441632c1c1d0653fd8290b66de51785db1a1ac"
+        },
+        {
+          "ordinal": 58,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 182671.80000000002,
+          "native_frame_counter": 8200,
+          "distinct_frame_counter": 7678,
+          "sdk_source_frame_counter": 3630,
+          "encoded_frame_counter": 3625,
+          "encode_time_counter_seconds": 44.513,
+          "raw_payload_sha256": "c0d227de3993352278e81b1e85595dc63145a2f140df615c4f13ab8f80c1a0a1"
+        },
+        {
+          "ordinal": 59,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 185685.1,
+          "native_frame_counter": 8350,
+          "distinct_frame_counter": 7821,
+          "sdk_source_frame_counter": 3780,
+          "encoded_frame_counter": 3776,
+          "encode_time_counter_seconds": 46.357,
+          "raw_payload_sha256": "3ff8182a18b2c839907e293f970f5ba82cc4cf6a6e7b620fc40e5ef6fa016213"
+        },
+        {
+          "ordinal": 60,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 188696.19999999998,
+          "native_frame_counter": 8506,
+          "distinct_frame_counter": 7964,
+          "sdk_source_frame_counter": 3936,
+          "encoded_frame_counter": 3931,
+          "encode_time_counter_seconds": 48.129,
+          "raw_payload_sha256": "0888a8bda181aa56d139c73bffff12ded67ca8ce0de868cae865926b9557e83a"
+        },
+        {
+          "ordinal": 61,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 191707.50000000003,
+          "native_frame_counter": 8654,
+          "distinct_frame_counter": 8102,
+          "sdk_source_frame_counter": 4084,
+          "encoded_frame_counter": 4079,
+          "encode_time_counter_seconds": 49.915,
+          "raw_payload_sha256": "7970cfaa7c41e2428c5b1ac5f15da34d4a2c5d6a3018100352029e4353cd95b4"
+        },
+        {
+          "ordinal": 62,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 194716.19999999998,
+          "native_frame_counter": 8804,
+          "distinct_frame_counter": 8240,
+          "sdk_source_frame_counter": 4234,
+          "encoded_frame_counter": 4229,
+          "encode_time_counter_seconds": 51.644,
+          "raw_payload_sha256": "98b17920480abf37e4e69d280cb4e0be676bbe1eb53bdb1da0ea2d74353484e3"
+        },
+        {
+          "ordinal": 63,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 197729.30000000002,
+          "native_frame_counter": 8953,
+          "distinct_frame_counter": 8379,
+          "sdk_source_frame_counter": 4383,
+          "encoded_frame_counter": 4378,
+          "encode_time_counter_seconds": 53.449,
+          "raw_payload_sha256": "7037b2f182edf26d30b1ff0902dd933ada93b2bf62d64bdd4f08c9dee09a52ee"
+        },
+        {
+          "ordinal": 64,
+          "phase": "B_detail",
+          "segment": "measure",
+          "at_ms": 200739.6,
+          "native_frame_counter": 9099,
+          "distinct_frame_counter": 8513,
+          "sdk_source_frame_counter": 4529,
+          "encoded_frame_counter": 4524,
+          "encode_time_counter_seconds": 55.192,
+          "raw_payload_sha256": "772ae1641ba639a2ee6a9762be3fa27b692eb83a2049a768d5521c527295351b"
+        },
+        {
+          "ordinal": 65,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 201798.80000000002,
+          "native_frame_counter": 9144,
+          "distinct_frame_counter": 8556,
+          "sdk_source_frame_counter": 45,
+          "encoded_frame_counter": 37,
+          "encode_time_counter_seconds": 0.894,
+          "raw_payload_sha256": "e78608e90d115881eaa34c3cfc580c25eefc78f5615dda1f2e5947410ab52c0f"
+        },
+        {
+          "ordinal": 66,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 204813.30000000002,
+          "native_frame_counter": 9278,
+          "distinct_frame_counter": 8683,
+          "sdk_source_frame_counter": 179,
+          "encoded_frame_counter": 170,
+          "encode_time_counter_seconds": 3.574,
+          "raw_payload_sha256": "6d036d0dcd1d0e42686237b9e3af7dd6958c4518ff2fac107aea2a78902f8f27"
+        },
+        {
+          "ordinal": 67,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 207825.30000000002,
+          "native_frame_counter": 9412,
+          "distinct_frame_counter": 8812,
+          "sdk_source_frame_counter": 313,
+          "encoded_frame_counter": 304,
+          "encode_time_counter_seconds": 6.312,
+          "raw_payload_sha256": "34e640297dc3fceaf30c1f40957df119e389ccc818f733a25212f0053b745b7c"
+        },
+        {
+          "ordinal": 68,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 210843.6,
+          "native_frame_counter": 9546,
+          "distinct_frame_counter": 8945,
+          "sdk_source_frame_counter": 447,
+          "encoded_frame_counter": 436,
+          "encode_time_counter_seconds": 9.08,
+          "raw_payload_sha256": "f66a36c1782a2f4334513e4a954831af86da21e91766c167e4e2451249fb7a92"
+        },
+        {
+          "ordinal": 69,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 213853.4,
+          "native_frame_counter": 9678,
+          "distinct_frame_counter": 9073,
+          "sdk_source_frame_counter": 578,
+          "encoded_frame_counter": 565,
+          "encode_time_counter_seconds": 11.879,
+          "raw_payload_sha256": "6ce646dee3bac0fca3b652e72235aebfc530700acca01886c1c96d9332638bd5"
+        },
+        {
+          "ordinal": 70,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 216864.30000000002,
+          "native_frame_counter": 9813,
+          "distinct_frame_counter": 9200,
+          "sdk_source_frame_counter": 713,
+          "encoded_frame_counter": 696,
+          "encode_time_counter_seconds": 14.731,
+          "raw_payload_sha256": "7528e48c740c6536a99a8399f7851b25cbbe74fbbfebbd9f1e297bbd4a90a86d"
+        },
+        {
+          "ordinal": 71,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 219879.50000000003,
+          "native_frame_counter": 9946,
+          "distinct_frame_counter": 9329,
+          "sdk_source_frame_counter": 847,
+          "encoded_frame_counter": 828,
+          "encode_time_counter_seconds": 17.572,
+          "raw_payload_sha256": "a848c6938780915c55d69670cd3b52ef568b31de902b228413ce01c19e9206be"
+        },
+        {
+          "ordinal": 72,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 222902.69999999998,
+          "native_frame_counter": 10089,
+          "distinct_frame_counter": 9466,
+          "sdk_source_frame_counter": 954,
+          "encoded_frame_counter": 933,
+          "encode_time_counter_seconds": 19.795,
+          "raw_payload_sha256": "2194efcae1850dfee55683a2bd01a5fee65631695d499a22422df54401d7e13e"
+        },
+        {
+          "ordinal": 73,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 225916.69999999998,
+          "native_frame_counter": 10237,
+          "distinct_frame_counter": 9602,
+          "sdk_source_frame_counter": 1044,
+          "encoded_frame_counter": 1024,
+          "encode_time_counter_seconds": 21.684,
+          "raw_payload_sha256": "aa7e2f1a448400790fe96b6447e46dbbb65dd0ab2de985eca5c0db8c2e0e9f6d"
+        },
+        {
+          "ordinal": 74,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 228929.19999999998,
+          "native_frame_counter": 10386,
+          "distinct_frame_counter": 9739,
+          "sdk_source_frame_counter": 1135,
+          "encoded_frame_counter": 1114,
+          "encode_time_counter_seconds": 23.535,
+          "raw_payload_sha256": "aad20cbf93314bf0165509e94c8dbe94836f802397eb60ba02e2779c83b0057c"
+        },
+        {
+          "ordinal": 75,
+          "phase": "A2_motion",
+          "segment": "settle",
+          "at_ms": 231935.19999999998,
+          "native_frame_counter": 10533,
+          "distinct_frame_counter": 9875,
+          "sdk_source_frame_counter": 1225,
+          "encoded_frame_counter": 1204,
+          "encode_time_counter_seconds": 25.39,
+          "raw_payload_sha256": "e65bb502a1ab85102da96d49df3058eb9e26b1cc51c794dc404bbea4c271446d"
+        },
+        {
+          "ordinal": 76,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 231942.50000000003,
+          "native_frame_counter": 10533,
+          "distinct_frame_counter": 9875,
+          "sdk_source_frame_counter": 1225,
+          "encoded_frame_counter": 1204,
+          "encode_time_counter_seconds": 25.39,
+          "raw_payload_sha256": "f0b3173f3428cb87a4586de1d78e69aaceb36d386ef763689c04a3e57e470266"
+        },
+        {
+          "ordinal": 77,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 234951.1,
+          "native_frame_counter": 10679,
+          "distinct_frame_counter": 10010,
+          "sdk_source_frame_counter": 1315,
+          "encoded_frame_counter": 1295,
+          "encode_time_counter_seconds": 27.291,
+          "raw_payload_sha256": "2008119e46e0757edd46900074a4afb475084b78696f8c2025e08c810cf2c817"
+        },
+        {
+          "ordinal": 78,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 237960.4,
+          "native_frame_counter": 10826,
+          "distinct_frame_counter": 10147,
+          "sdk_source_frame_counter": 1405,
+          "encoded_frame_counter": 1385,
+          "encode_time_counter_seconds": 29.159,
+          "raw_payload_sha256": "61cc04c46ecc50e4a167b45e0bd8915d6636d3bbc6ffee0f296f5879e1f0c96b"
+        },
+        {
+          "ordinal": 79,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 240968.50000000003,
+          "native_frame_counter": 10973,
+          "distinct_frame_counter": 10285,
+          "sdk_source_frame_counter": 1496,
+          "encoded_frame_counter": 1475,
+          "encode_time_counter_seconds": 31.033,
+          "raw_payload_sha256": "e142d88caff939e1850228ab5ad28723a08284b91af29ac46a6c8e1ea4f0ec3c"
+        },
+        {
+          "ordinal": 80,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 243978.6,
+          "native_frame_counter": 11122,
+          "distinct_frame_counter": 10423,
+          "sdk_source_frame_counter": 1586,
+          "encoded_frame_counter": 1565,
+          "encode_time_counter_seconds": 32.914,
+          "raw_payload_sha256": "b89a854247a832eb6187cfec9577f427f4d12e2ec1a059fe9b70d080f64fe0ab"
+        },
+        {
+          "ordinal": 81,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 246986.4,
+          "native_frame_counter": 11268,
+          "distinct_frame_counter": 10556,
+          "sdk_source_frame_counter": 1676,
+          "encoded_frame_counter": 1656,
+          "encode_time_counter_seconds": 34.802,
+          "raw_payload_sha256": "3aaf71a0ebb0de747206f9a6476a500f2ec707385e2d4ad4904b15c87ef78e10"
+        },
+        {
+          "ordinal": 82,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 249994.1,
+          "native_frame_counter": 11415,
+          "distinct_frame_counter": 10694,
+          "sdk_source_frame_counter": 1766,
+          "encoded_frame_counter": 1746,
+          "encode_time_counter_seconds": 36.645,
+          "raw_payload_sha256": "b229d829775587f0018e7dcc567679250243dd0f3e493f1eef97e1672a604f9f"
+        },
+        {
+          "ordinal": 83,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 253013.6,
+          "native_frame_counter": 11562,
+          "distinct_frame_counter": 10825,
+          "sdk_source_frame_counter": 1857,
+          "encoded_frame_counter": 1836,
+          "encode_time_counter_seconds": 38.507,
+          "raw_payload_sha256": "a4c9f4b09f9ff3af585784ba39b2440f3b9ca70f6c64d39080c5087b0cf96762"
+        },
+        {
+          "ordinal": 84,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 256022.19999999998,
+          "native_frame_counter": 11710,
+          "distinct_frame_counter": 10960,
+          "sdk_source_frame_counter": 1947,
+          "encoded_frame_counter": 1926,
+          "encode_time_counter_seconds": 40.366,
+          "raw_payload_sha256": "e868f4fba527dd2a7586b629c027ad2e6015316acbd1bfe375f6bb4662efdb9b"
+        },
+        {
+          "ordinal": 85,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 259029.6,
+          "native_frame_counter": 11851,
+          "distinct_frame_counter": 11089,
+          "sdk_source_frame_counter": 2037,
+          "encoded_frame_counter": 2016,
+          "encode_time_counter_seconds": 42.272,
+          "raw_payload_sha256": "b0f1a4b3d5969cd96160e6ec4ef284afdeb1d33322c88eb9f3ec3ae2bfe483e5"
+        },
+        {
+          "ordinal": 86,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 262042.80000000002,
+          "native_frame_counter": 12001,
+          "distinct_frame_counter": 11228,
+          "sdk_source_frame_counter": 2127,
+          "encoded_frame_counter": 2106,
+          "encode_time_counter_seconds": 44.161,
+          "raw_payload_sha256": "055f275ea3c125045ac88237e4a7db15149cc0e94b7d87e01c2cacbb77815f6a"
+        },
+        {
+          "ordinal": 87,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 265054.4,
+          "native_frame_counter": 12148,
+          "distinct_frame_counter": 11364,
+          "sdk_source_frame_counter": 2218,
+          "encoded_frame_counter": 2198,
+          "encode_time_counter_seconds": 46.081,
+          "raw_payload_sha256": "cc15687d9e00e26b5cd4b1c59110a553668324888f1469e8674fff52f72f97be"
+        },
+        {
+          "ordinal": 88,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 268066.1,
+          "native_frame_counter": 12293,
+          "distinct_frame_counter": 11498,
+          "sdk_source_frame_counter": 2309,
+          "encoded_frame_counter": 2288,
+          "encode_time_counter_seconds": 47.999,
+          "raw_payload_sha256": "7d69dcf01d225126c230c061c2dc929c9178b9b76b147bde4e312ba4c9151946"
+        },
+        {
+          "ordinal": 89,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 271076,
+          "native_frame_counter": 12438,
+          "distinct_frame_counter": 11631,
+          "sdk_source_frame_counter": 2399,
+          "encoded_frame_counter": 2378,
+          "encode_time_counter_seconds": 49.904,
+          "raw_payload_sha256": "4280772fe645bf5f04353ed0f7d8f2e65c3a39b20f504e1cd4087cd11a459d3b"
+        },
+        {
+          "ordinal": 90,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 274087,
+          "native_frame_counter": 12588,
+          "distinct_frame_counter": 11767,
+          "sdk_source_frame_counter": 2489,
+          "encoded_frame_counter": 2469,
+          "encode_time_counter_seconds": 51.816,
+          "raw_payload_sha256": "ba83b821e8f114ae26949781370036b6153d51df9d2d55856f097683f9d17b0d"
+        },
+        {
+          "ordinal": 91,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 277095,
+          "native_frame_counter": 12734,
+          "distinct_frame_counter": 11904,
+          "sdk_source_frame_counter": 2579,
+          "encoded_frame_counter": 2559,
+          "encode_time_counter_seconds": 53.713,
+          "raw_payload_sha256": "234122b799b456ea972d6ce127f4121923468d08917dec5dc321cca8eb2fa8cb"
+        },
+        {
+          "ordinal": 92,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 280108.80000000005,
+          "native_frame_counter": 12882,
+          "distinct_frame_counter": 12036,
+          "sdk_source_frame_counter": 2670,
+          "encoded_frame_counter": 2649,
+          "encode_time_counter_seconds": 55.617,
+          "raw_payload_sha256": "9cd5a4b2ffad02b7820ac24d2a735a368fe3a6c1197dec87df7a8df3fc79caca"
+        },
+        {
+          "ordinal": 93,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 283115.9,
+          "native_frame_counter": 13028,
+          "distinct_frame_counter": 12172,
+          "sdk_source_frame_counter": 2760,
+          "encoded_frame_counter": 2739,
+          "encode_time_counter_seconds": 57.533,
+          "raw_payload_sha256": "1ef38fa458127a5da6ae05390ebca19caeb8460f445fcdf688a397f23b9ae8d0"
+        },
+        {
+          "ordinal": 94,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 286123.9,
+          "native_frame_counter": 13169,
+          "distinct_frame_counter": 12305,
+          "sdk_source_frame_counter": 2850,
+          "encoded_frame_counter": 2830,
+          "encode_time_counter_seconds": 59.488,
+          "raw_payload_sha256": "aa3017ca4edbd50dff9cc30959944f24da9b51f285dad8d287ff6c9740ce2883"
+        },
+        {
+          "ordinal": 95,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 289137.19999999995,
+          "native_frame_counter": 13314,
+          "distinct_frame_counter": 12438,
+          "sdk_source_frame_counter": 2941,
+          "encoded_frame_counter": 2920,
+          "encode_time_counter_seconds": 61.394,
+          "raw_payload_sha256": "d895416b1587bfda527b8a9a7e21976b2e4731c500792fa9be3c18320394aad9"
+        },
+        {
+          "ordinal": 96,
+          "phase": "A2_motion",
+          "segment": "measure",
+          "at_ms": 292149.29999999993,
+          "native_frame_counter": 13454,
+          "distinct_frame_counter": 12571,
+          "sdk_source_frame_counter": 3031,
+          "encoded_frame_counter": 3011,
+          "encode_time_counter_seconds": 63.327,
+          "raw_payload_sha256": "94201d1e8f4c56f8ff6b8a7d65394bf52f99acb09df859b064894125407df6a8"
+        }
+      ]
+    }
+  ]
+}

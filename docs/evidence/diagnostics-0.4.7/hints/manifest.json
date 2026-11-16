@@ -1,0 +1,93 @@
+{
+  "kind": "exe_content_hint_projection_manifest",
+  "status": "DIAGNOSTIC",
+  "capacity_approval": false,
+  "publication_status": "PUBLIC_DOCUMENTATION_PROJECTION",
+  "publication_gate": {
+    "full_signed_ci_and_verified_draft_required": true,
+    "signed_ci": {
+      "run_id": "43891249871",
+      "status": "SUCCESS",
+      "source_commit": "976feabc142767f9175cf57ccac8ab49c4d76109"
+    },
+    "verified_public_package_proof": {
+      "file": "../../package-0.4.8-public-proof.json",
+      "sha256": "e85bc75677aa405bf9b83b6090bd912eb726a6ca81de0d75f5c6c0c371e1caf0"
+    },
+    "independent_projection_review": {
+      "status": "PASS",
+      "reviewer": "native_review",
+      "scope": "The original 192 samples, numerical summaries, fingerprints, resets, restoration and redaction were independently reviewed. Public aggregate and original draft are byte-exact; this manifest changes publication and review metadata only.",
+      "reviewed_aggregate_sha256": "90268a707491f3a8e1333918f118d3b59d8bc1a73f050eb1d2932fb5bef9d513",
+      "reviewed_draft_sha256": "43fdd67b0ec3e0e37d78af8ce7715b2480818c5e145f477925e4b3941b559d66",
+      "reviewed_private_manifest_sha256": "4b65e289c1ec4721fc90b427da67ad97ac21150755cfafc3b963ed049f24de23"
+    }
+  },
+  "exe": {
+    "release": "0.4.7",
+    "main_sha256": "71ba4f59373953f35a35cb917c691cb050d23179e847a046d57ecf618b5cd55d",
+    "installer_sha256": "8bb3660b2046d2ec610833d71b61d2397dfe9041daa1f2bb8fe1a1c88f3a5f0a"
+  },
+  "inputs": [
+    {
+      "run_id": "43886682915",
+      "name": "hint-1080-r1-full.json",
+      "bytes": 943834,
+      "sha256": "e72dca1f09763fe08d90abf0a446aed505b82b2a53535c91afb26a0b17e5d444"
+    },
+    {
+      "run_id": "43886682915",
+      "name": "hint-1080-r1-full.log",
+      "bytes": 960682,
+      "sha256": "50fbcee976486767bd45eff90ca0ca12b2c55b3b967be25487f6a34f77521fdc"
+    },
+    {
+      "run_id": "43884983772",
+      "name": "hint-1440-r1-full.json",
+      "bytes": 944818,
+      "sha256": "de8d98b32391b5ccf1e1ca9b3591449c4d4250558477d6956e550e63946ff15d"
+    },
+    {
+      "run_id": "43884983772",
+      "name": "hint-1440-r1-full.log",
+      "bytes": 962532,
+      "sha256": "c891474d103f60e9d58f5a236726be1224cbe3df3c0110ec3f2e4aee73275219"
+    }
+  ],
+  "verification": {
+    "runs": 2,
+    "unique_phase_samples_total": 192,
+    "unique_phase_samples_per_run": 96,
+    "phases_per_run": 3,
+    "settle_samples_per_phase": 11,
+    "measurement_samples_per_phase": 21,
+    "minimum_observed_settle_seconds": 30,
+    "minimum_observed_measurement_seconds": 60,
+    "phase_sample_equality_live_log_vs_json": "VERIFIED",
+    "final_result_equality_log_vs_json": "VERIFIED",
+    "original_numerical_phase_summaries_preserved": "VERIFIED; identity values replaced by ordinal segments; absent receiver metrics omitted",
+    "restore_order": "VERIFIED using result flags, ordered command completions and frozen runner source; expressions are intentionally not logged",
+    "source_sdk_encoder_counters_recomputed": "VERIFIED within each measurement window",
+    "whole_vm_cpu_summary_recomputed": "VERIFIED; not encoder CPU attribution",
+    "between_phase_reset_boundaries_total": 4,
+    "settle_to_measure_duplicate_rtp_timestamp_pairs_total": 6,
+    "interpolation_across_phase_or_segment_boundaries": false,
+    "private_inputs_unchanged": true
+  },
+  "outputs": [
+    {
+      "name": "aggregate.json",
+      "bytes": 135581,
+      "sha256": "90268a707491f3a8e1333918f118d3b59d8bc1a73f050eb1d2932fb5bef9d513"
+    },
+    {
+      "name": "draft.md",
+      "bytes": 3617,
+      "sha256": "43fdd67b0ec3e0e37d78af8ce7715b2480818c5e145f477925e4b3941b559d66"
+    }
+  ],
+  "privacy": {
+    "method": "Positive field selection. No raw source/RTP/user identities, network candidates, URLs, private paths, screenshots, API bodies or credentials are projected."
+  },
+  "original_private_manifest_sha256": "4b65e289c1ec4721fc90b427da67ad97ac21150755cfafc3b963ed049f24de23"
+}

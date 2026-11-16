@@ -1,0 +1,996 @@
+{
+  "schema": 1,
+  "kind": "NATIVE_CAPTURE_PACING_DIAGNOSTIC",
+  "capacity_approval": false,
+  "source_commit": "4adea47373e12f26558468248033db79517a4b25",
+  "scope": "Native core pacing_probe.exe executable on one owned Windows VM/source per profile; not the Harmony desktop EXE, SharedBuffer, JavaScript, encoder, remote renderer or eight-party capacity",
+  "profiles": [
+    {
+      "profile": "1080p60",
+      "run": 43881735754,
+      "job": 133349099472,
+      "run_url": "https://github.com/BersaneV/Harmony/actions/runs/43881735754",
+      "log_sha256": "93a7717096c04a7a8e0170ca8a4b7fcb2471a2fc20a2046a9aaee6baf6205f03",
+      "original_projection_sha256": "603631b333bdfa9726d59a06f734213c59159b4512866074c414fd284fde21d9",
+      "context": {
+        "kind": "DIAGNOSTIC",
+        "capacity_approval": false,
+        "height": 1080,
+        "fps": 60,
+        "backend": "native-wgc",
+        "available_logical_processors": 4,
+        "settle_seconds": 5,
+        "measure_seconds": 10,
+        "order": [
+          "A",
+          "B",
+          "B",
+          "A"
+        ],
+        "quantile": "nearest-rank",
+        "scope": "One real capture/profile/pixel Vec/pacer, preview only; no SharedBuffer/JS/encoder/receiver. Both use a 500us positive-wait floor; B adapts the CLI floor to isolate the anchor. No product capacity claim."
+      },
+      "phases": [
+        {
+          "kind": "DIAGNOSTIC",
+          "capacity_approval": false,
+          "phase": 0,
+          "policy": "start-relative",
+          "quality_status": "PASS",
+          "quality_gate": {
+            "capture_fps": 54,
+            "distinct_marker_fps": 54,
+            "full_geometry": true,
+            "colored_pixels_gt": 13680
+          },
+          "frames": 554,
+          "distinct_marker_frames": 545,
+          "elapsed_seconds": 10.0073342,
+          "capture_fps": 55.35939831009141,
+          "distinct_marker_fps": 54.4600579043318,
+          "sizes": [
+            [
+              1920,
+              1080
+            ]
+          ],
+          "source_sizes": [
+            [
+              1920,
+              1080
+            ]
+          ],
+          "geometry_complete": true,
+          "colored_pixels_of_14400": 14332,
+          "capture_frame_wall_ms": {
+            "count": 554,
+            "min": 2.9548,
+            "p50": 3.0675,
+            "p95": 4.4227,
+            "max": 5.1734
+          },
+          "capture_empty_poll_wall_ms": {
+            "count": 283,
+            "min": 0,
+            "p50": 9.999999999999999e-05,
+            "p95": 0.00039999999999999996,
+            "max": 0.0049
+          },
+          "capture_start_intervals_ms": {
+            "count": 553,
+            "min": 16.6968,
+            "p50": 17.0021,
+            "p95": 26.7215,
+            "max": 33.8058
+          },
+          "intervals_below_period": 0,
+          "empty_polls": 283,
+          "cadence_waits": {
+            "requested_ms": {
+              "count": 554,
+              "min": 11.492166999999998,
+              "p50": 13.598167,
+              "p95": 13.656967000000002,
+              "max": 13.711167
+            },
+            "actual_ms": {
+              "count": 554,
+              "min": 11.9382,
+              "p50": 13.9291,
+              "p95": 14.251399999999999,
+              "max": 14.8109
+            },
+            "overshoot_ms": {
+              "count": 554,
+              "min": 0.024833,
+              "p50": 0.32893300000000003,
+              "p95": 0.8166329999999999,
+              "max": 1.337333
+            },
+            "undershoot_count": 0
+          },
+          "empty_poll_waits": {
+            "requested_ms": {
+              "count": 283,
+              "min": 1,
+              "p50": 1,
+              "p95": 1,
+              "max": 1
+            },
+            "actual_ms": {
+              "count": 283,
+              "min": 1.0151,
+              "p50": 1.9976999999999998,
+              "p95": 2.2479,
+              "max": 2.6981
+            },
+            "overshoot_ms": {
+              "count": 283,
+              "min": 0.015099999999999999,
+              "p50": 0.9977,
+              "p95": 1.2479,
+              "max": 1.6981
+            },
+            "undershoot_count": 0
+          },
+          "minimum_positive_cadence_wait_us": 500
+        },
+        {
+          "kind": "DIAGNOSTIC",
+          "capacity_approval": false,
+          "phase": 1,
+          "policy": "nominal",
+          "quality_status": "PASS",
+          "quality_gate": {
+            "capture_fps": 54,
+            "distinct_marker_fps": 54,
+            "full_geometry": true,
+            "colored_pixels_gt": 13680
+          },
+          "frames": 585,
+          "distinct_marker_frames": 563,
+          "elapsed_seconds": 10.0068395,
+          "capture_fps": 58.460016271870856,
+          "distinct_marker_fps": 56.26151993344153,
+          "sizes": [
+            [
+              1920,
+              1080
+            ]
+          ],
+          "source_sizes": [
+            [
+              1920,
+              1080
+            ]
+          ],
+          "geometry_complete": true,
+          "colored_pixels_of_14400": 14331,
+          "capture_frame_wall_ms": {
+            "count": 585,
+            "min": 2.8581000000000003,
+            "p50": 3.1237,
+            "p95": 4.433999999999999,
+            "max": 7.0539000000000005
+          },
+          "capture_empty_poll_wall_ms": {
+            "count": 1951,
+            "min": 0,
+            "p50": 9.999999999999999e-05,
+            "p95": 0.0003,
+            "max": 0.0076
+          },
+          "capture_start_intervals_ms": {
+            "count": 584,
+            "min": 4.6669,
+            "p50": 16.525499999999997,
+            "p95": 28.7523,
+            "max": 34.010400000000004
+          },
+          "intervals_below_period": 367,
+          "empty_polls": 1951,
+          "cadence_waits": {
+            "requested_ms": {
+              "count": 551,
+              "min": 0.5,
+              "p50": 6.577571,
+              "p95": 13.317601,
+              "max": 13.726605
+            },
+            "actual_ms": {
+              "count": 551,
+              "min": 0.5337000000000001,
+              "p50": 6.8674,
+              "p95": 13.96,
+              "max": 14.7912
+            },
+            "overshoot_ms": {
+              "count": 551,
+              "min": 0.013156000000000001,
+              "p50": 0.473258,
+              "p95": 0.9691609999999999,
+              "max": 1.3996279999999999
+            },
+            "undershoot_count": 0
+          },
+          "empty_poll_waits": {
+            "requested_ms": {
+              "count": 1951,
+              "min": 1,
+              "p50": 1,
+              "p95": 1,
+              "max": 1
+            },
+            "actual_ms": {
+              "count": 1951,
+              "min": 1.0146,
+              "p50": 1.9962,
+              "p95": 2.3968000000000003,
+              "max": 2.7174
+            },
+            "overshoot_ms": {
+              "count": 1951,
+              "min": 0.0146,
+              "p50": 0.9962000000000001,
+              "p95": 1.3967999999999998,
+              "max": 1.7174
+            },
+            "undershoot_count": 0
+          },
+          "minimum_positive_cadence_wait_us": 500
+        },
+        {
+          "kind": "DIAGNOSTIC",
+          "capacity_approval": false,
+          "phase": 2,
+          "policy": "nominal",
+          "quality_status": "PASS",
+          "quality_gate": {
+            "capture_fps": 54,
+            "distinct_marker_fps": 54,
+            "full_geometry": true,
+            "colored_pixels_gt": 13680
+          },
+          "frames": 584,
+          "distinct_marker_frames": 571,
+          "elapsed_seconds": 10.0031381,
+          "capture_fps": 58.38167924523606,
+          "distinct_marker_fps": 57.082087070256485,
+          "sizes": [
+            [
+              1920,
+              1080
+            ]
+          ],
+          "source_sizes": [
+            [
+              1920,
+              1080
+            ]
+          ],
+          "geometry_complete": true,
+          "colored_pixels_of_14400": 14333,
+          "capture_frame_wall_ms": {
+            "count": 584,
+            "min": 2.9065,
+            "p50": 3.1353,
+            "p95": 4.3979,
+            "max": 5.5765
+          },
+          "capture_empty_poll_wall_ms": {
+            "count": 1879,
+            "min": 0,
+            "p50": 9.999999999999999e-05,
+            "p95": 0.0003,
+            "max": 0.0006
+          },
+          "capture_start_intervals_ms": {
+            "count": 583,
+            "min": 3.0711,
+            "p50": 16.5278,
+            "p95": 28.7325,
+            "max": 33.9796
+          },
+          "intervals_below_period": 365,
+          "empty_polls": 1879,
+          "cadence_waits": {
+            "requested_ms": {
+              "count": 553,
+              "min": 0.5,
+              "p50": 6.51227,
+              "p95": 13.304006,
+              "max": 13.757667
+            },
+            "actual_ms": {
+              "count": 553,
+              "min": 0.5326000000000001,
+              "p50": 6.8639,
+              "p95": 13.963700000000001,
+              "max": 14.4827
+            },
+            "overshoot_ms": {
+              "count": 553,
+              "min": 0.01366,
+              "p50": 0.515193,
+              "p95": 0.9884229999999999,
+              "max": 1.374027
+            },
+            "undershoot_count": 0
+          },
+          "empty_poll_waits": {
+            "requested_ms": {
+              "count": 1879,
+              "min": 1,
+              "p50": 1,
+              "p95": 1,
+              "max": 1
+            },
+            "actual_ms": {
+              "count": 1879,
+              "min": 1.0073,
+              "p50": 1.9969,
+              "p95": 2.387,
+              "max": 2.6059
+            },
+            "overshoot_ms": {
+              "count": 1879,
+              "min": 0.0073,
+              "p50": 0.9969,
+              "p95": 1.387,
+              "max": 1.6058999999999999
+            },
+            "undershoot_count": 0
+          },
+          "minimum_positive_cadence_wait_us": 500
+        },
+        {
+          "kind": "DIAGNOSTIC",
+          "capacity_approval": false,
+          "phase": 3,
+          "policy": "start-relative",
+          "quality_status": "PASS",
+          "quality_gate": {
+            "capture_fps": 54,
+            "distinct_marker_fps": 54,
+            "full_geometry": true,
+            "colored_pixels_gt": 13680
+          },
+          "frames": 552,
+          "distinct_marker_frames": 544,
+          "elapsed_seconds": 10.0160437,
+          "capture_fps": 55.11158063337922,
+          "distinct_marker_fps": 54.31286207347517,
+          "sizes": [
+            [
+              1920,
+              1080
+            ]
+          ],
+          "source_sizes": [
+            [
+              1920,
+              1080
+            ]
+          ],
+          "geometry_complete": true,
+          "colored_pixels_of_14400": 14331,
+          "capture_frame_wall_ms": {
+            "count": 552,
+            "min": 2.9322,
+            "p50": 3.0646,
+            "p95": 4.3277,
+            "max": 4.9249
+          },
+          "capture_empty_poll_wall_ms": {
+            "count": 311,
+            "min": 0,
+            "p50": 9.999999999999999e-05,
+            "p95": 0.0005,
+            "max": 0.0007999999999999999
+          },
+          "capture_start_intervals_ms": {
+            "count": 551,
+            "min": 16.6901,
+            "p50": 17.0019,
+            "p95": 27.1021,
+            "max": 34.111000000000004
+          },
+          "intervals_below_period": 0,
+          "empty_polls": 311,
+          "cadence_waits": {
+            "requested_ms": {
+              "count": 552,
+              "min": 11.740567,
+              "p50": 13.601167,
+              "p95": 13.657466999999999,
+              "max": 13.733967
+            },
+            "actual_ms": {
+              "count": 552,
+              "min": 12.08,
+              "p50": 13.9322,
+              "p95": 14.429499999999999,
+              "max": 14.6295
+            },
+            "overshoot_ms": {
+              "count": 552,
+              "min": 0.018233,
+              "p50": 0.328733,
+              "p95": 0.8961330000000001,
+              "max": 1.228033
+            },
+            "undershoot_count": 0
+          },
+          "empty_poll_waits": {
+            "requested_ms": {
+              "count": 311,
+              "min": 1,
+              "p50": 1,
+              "p95": 1,
+              "max": 1
+            },
+            "actual_ms": {
+              "count": 311,
+              "min": 1.004,
+              "p50": 1.9964000000000002,
+              "p95": 2.2906,
+              "max": 2.6721000000000004
+            },
+            "overshoot_ms": {
+              "count": 311,
+              "min": 0.004,
+              "p50": 0.9964,
+              "p95": 1.2906,
+              "max": 1.6721
+            },
+            "undershoot_count": 0
+          },
+          "minimum_positive_cadence_wait_us": 500
+        }
+      ],
+      "completion": {
+        "kind": "DIAGNOSTIC",
+        "capacity_approval": false,
+        "completion": "COMPLETE",
+        "phases": 4,
+        "quality_status": "PASS",
+        "relative_capture_fps": [
+          55.35939831009141,
+          55.11158063337922
+        ],
+        "nominal_capture_fps": [
+          58.460016271870856,
+          58.38167924523606
+        ],
+        "relative_distinct_fps": [
+          54.4600579043318,
+          54.31286207347517
+        ],
+        "nominal_distinct_fps": [
+          56.26151993344153,
+          57.082087070256485
+        ]
+      },
+      "policy_summary": {
+        "start-relative": {
+          "capture_fps_mean": 55.23548947173531,
+          "distinct_marker_fps_mean": 54.38645998890348,
+          "intervals_below_period": 0,
+          "minimum_interval_ms": 16.6901,
+          "empty_polls": 594,
+          "quality_statuses": [
+            "PASS",
+            "PASS"
+          ]
+        },
+        "nominal": {
+          "capture_fps_mean": 58.42084775855346,
+          "distinct_marker_fps_mean": 56.671803501849006,
+          "intervals_below_period": 732,
+          "minimum_interval_ms": 3.0711,
+          "empty_polls": 3830,
+          "quality_statuses": [
+            "PASS",
+            "PASS"
+          ]
+        }
+      }
+    },
+    {
+      "profile": "1440p60",
+      "run": 43881746754,
+      "job": 133349135027,
+      "run_url": "https://github.com/BersaneV/Harmony/actions/runs/43881746754",
+      "log_sha256": "f9476c5798f8cdbe88f2a2b43c73236225fd8dffcae1e2205d7e747b6909879a",
+      "original_projection_sha256": "fa9737ad9d074329169c46ad5de2c9abc10fa64d5e1196f2cc7e97f1907aa5e4",
+      "context": {
+        "kind": "DIAGNOSTIC",
+        "capacity_approval": false,
+        "height": 1440,
+        "fps": 60,
+        "backend": "native-wgc",
+        "available_logical_processors": 4,
+        "settle_seconds": 5,
+        "measure_seconds": 10,
+        "order": [
+          "A",
+          "B",
+          "B",
+          "A"
+        ],
+        "quantile": "nearest-rank",
+        "scope": "One real capture/profile/pixel Vec/pacer, preview only; no SharedBuffer/JS/encoder/receiver. Both use a 500us positive-wait floor; B adapts the CLI floor to isolate the anchor. No product capacity claim."
+      },
+      "phases": [
+        {
+          "kind": "DIAGNOSTIC",
+          "capacity_approval": false,
+          "phase": 0,
+          "policy": "start-relative",
+          "quality_status": "FAIL",
+          "quality_gate": {
+            "capture_fps": 54,
+            "distinct_marker_fps": 54,
+            "full_geometry": true,
+            "colored_pixels_gt": 13680
+          },
+          "frames": 528,
+          "distinct_marker_frames": 496,
+          "elapsed_seconds": 10.0001297,
+          "capture_fps": 52.79931519288195,
+          "distinct_marker_fps": 49.59935669634365,
+          "sizes": [
+            [
+              2560,
+              1440
+            ]
+          ],
+          "source_sizes": [
+            [
+              2560,
+              1440
+            ]
+          ],
+          "geometry_complete": true,
+          "colored_pixels_of_14400": 14337,
+          "capture_frame_wall_ms": {
+            "count": 528,
+            "min": 6.3298,
+            "p50": 6.9599,
+            "p95": 9.8527,
+            "max": 11.457
+          },
+          "capture_empty_poll_wall_ms": {
+            "count": 436,
+            "min": 0,
+            "p50": 0.00019999999999999998,
+            "p95": 0.0006,
+            "max": 0.0109
+          },
+          "capture_start_intervals_ms": {
+            "count": 527,
+            "min": 16.753400000000003,
+            "p50": 17.029200000000003,
+            "p95": 30.2421,
+            "max": 39.1742
+          },
+          "intervals_below_period": 0,
+          "empty_polls": 436,
+          "cadence_waits": {
+            "requested_ms": {
+              "count": 528,
+              "min": 5.208767000000001,
+              "p50": 9.701566999999999,
+              "p95": 10.190866999999999,
+              "max": 10.336167
+            },
+            "actual_ms": {
+              "count": 528,
+              "min": 5.9382,
+              "p50": 10.0838,
+              "p95": 11.5753,
+              "max": 12.34
+            },
+            "overshoot_ms": {
+              "count": 528,
+              "min": 0.059133,
+              "p50": 0.334033,
+              "p95": 1.933133,
+              "max": 2.602233
+            },
+            "undershoot_count": 0
+          },
+          "empty_poll_waits": {
+            "requested_ms": {
+              "count": 436,
+              "min": 1,
+              "p50": 1,
+              "p95": 1,
+              "max": 1
+            },
+            "actual_ms": {
+              "count": 436,
+              "min": 1.0211000000000001,
+              "p50": 1.9900999999999998,
+              "p95": 2.0633,
+              "max": 3.5172
+            },
+            "overshoot_ms": {
+              "count": 436,
+              "min": 0.0211,
+              "p50": 0.9901000000000001,
+              "p95": 1.0633000000000001,
+              "max": 2.5172
+            },
+            "undershoot_count": 0
+          },
+          "minimum_positive_cadence_wait_us": 500
+        },
+        {
+          "kind": "DIAGNOSTIC",
+          "capacity_approval": false,
+          "phase": 1,
+          "policy": "nominal",
+          "quality_status": "FAIL",
+          "quality_gate": {
+            "capture_fps": 54,
+            "distinct_marker_fps": 54,
+            "full_geometry": true,
+            "colored_pixels_gt": 13680
+          },
+          "frames": 553,
+          "distinct_marker_frames": 513,
+          "elapsed_seconds": 10.0061327,
+          "capture_fps": 55.26610695458796,
+          "distinct_marker_fps": 51.268558531109626,
+          "sizes": [
+            [
+              2560,
+              1440
+            ]
+          ],
+          "source_sizes": [
+            [
+              2560,
+              1440
+            ]
+          ],
+          "geometry_complete": true,
+          "colored_pixels_of_14400": 14335,
+          "capture_frame_wall_ms": {
+            "count": 553,
+            "min": 6.285299999999999,
+            "p50": 9.4327,
+            "p95": 13.0268,
+            "max": 19.4804
+          },
+          "capture_empty_poll_wall_ms": {
+            "count": 1221,
+            "min": 0,
+            "p50": 0.00019999999999999998,
+            "p95": 0.0006,
+            "max": 0.0112
+          },
+          "capture_start_intervals_ms": {
+            "count": 552,
+            "min": 6.5959,
+            "p50": 16.5591,
+            "p95": 32.0371,
+            "max": 35.0421
+          },
+          "intervals_below_period": 332,
+          "empty_polls": 1221,
+          "cadence_waits": {
+            "requested_ms": {
+              "count": 439,
+              "min": 0.5,
+              "p50": 4.341169,
+              "p95": 9.599372,
+              "max": 10.329067
+            },
+            "actual_ms": {
+              "count": 439,
+              "min": 0.5538000000000001,
+              "p50": 4.8639,
+              "p95": 10.2632,
+              "max": 11.3092
+            },
+            "overshoot_ms": {
+              "count": 439,
+              "min": 0.021865000000000002,
+              "p50": 0.556493,
+              "p95": 1.850997,
+              "max": 2.676361
+            },
+            "undershoot_count": 0
+          },
+          "empty_poll_waits": {
+            "requested_ms": {
+              "count": 1221,
+              "min": 1,
+              "p50": 1,
+              "p95": 1,
+              "max": 1
+            },
+            "actual_ms": {
+              "count": 1221,
+              "min": 1.0095,
+              "p50": 1.7975999999999999,
+              "p95": 2.6075999999999997,
+              "max": 7.3126
+            },
+            "overshoot_ms": {
+              "count": 1221,
+              "min": 0.0095,
+              "p50": 0.7976,
+              "p95": 1.6076000000000001,
+              "max": 6.3126
+            },
+            "undershoot_count": 0
+          },
+          "minimum_positive_cadence_wait_us": 500
+        },
+        {
+          "kind": "DIAGNOSTIC",
+          "capacity_approval": false,
+          "phase": 2,
+          "policy": "nominal",
+          "quality_status": "FAIL",
+          "quality_gate": {
+            "capture_fps": 54,
+            "distinct_marker_fps": 54,
+            "full_geometry": true,
+            "colored_pixels_gt": 13680
+          },
+          "frames": 561,
+          "distinct_marker_frames": 519,
+          "elapsed_seconds": 10.0007546,
+          "capture_fps": 56.09576701342117,
+          "distinct_marker_fps": 51.896083921507284,
+          "sizes": [
+            [
+              2560,
+              1440
+            ]
+          ],
+          "source_sizes": [
+            [
+              2560,
+              1440
+            ]
+          ],
+          "geometry_complete": true,
+          "colored_pixels_of_14400": 14336,
+          "capture_frame_wall_ms": {
+            "count": 561,
+            "min": 6.3607000000000005,
+            "p50": 9.0358,
+            "p95": 12.4778,
+            "max": 28.8707
+          },
+          "capture_empty_poll_wall_ms": {
+            "count": 1194,
+            "min": 0,
+            "p50": 0.00019999999999999998,
+            "p95": 0.0006,
+            "max": 0.0332
+          },
+          "capture_start_intervals_ms": {
+            "count": 560,
+            "min": 6.7007,
+            "p50": 16.5609,
+            "p95": 31.573700000000002,
+            "max": 40.508
+          },
+          "intervals_below_period": 322,
+          "empty_polls": 1194,
+          "cadence_waits": {
+            "requested_ms": {
+              "count": 473,
+              "min": 0.5,
+              "p50": 5.028035,
+              "p95": 9.548308,
+              "max": 10.301967000000001
+            },
+            "actual_ms": {
+              "count": 473,
+              "min": 0.5589,
+              "p50": 5.513599999999999,
+              "p95": 10.2297,
+              "max": 11.949
+            },
+            "overshoot_ms": {
+              "count": 473,
+              "min": 0.014596000000000001,
+              "p50": 0.490331,
+              "p95": 1.2770329999999999,
+              "max": 2.654829
+            },
+            "undershoot_count": 0
+          },
+          "empty_poll_waits": {
+            "requested_ms": {
+              "count": 1194,
+              "min": 1,
+              "p50": 1,
+              "p95": 1,
+              "max": 1
+            },
+            "actual_ms": {
+              "count": 1194,
+              "min": 1.0196999999999998,
+              "p50": 1.8351000000000002,
+              "p95": 2.2241,
+              "max": 6.0507
+            },
+            "overshoot_ms": {
+              "count": 1194,
+              "min": 0.019700000000000002,
+              "p50": 0.8351,
+              "p95": 1.2241000000000002,
+              "max": 5.0507
+            },
+            "undershoot_count": 0
+          },
+          "minimum_positive_cadence_wait_us": 500
+        },
+        {
+          "kind": "DIAGNOSTIC",
+          "capacity_approval": false,
+          "phase": 3,
+          "policy": "start-relative",
+          "quality_status": "FAIL",
+          "quality_gate": {
+            "capture_fps": 54,
+            "distinct_marker_fps": 54,
+            "full_geometry": true,
+            "colored_pixels_gt": 13680
+          },
+          "frames": 525,
+          "distinct_marker_frames": 488,
+          "elapsed_seconds": 10.000895,
+          "capture_fps": 52.49530167050049,
+          "distinct_marker_fps": 48.79563279086522,
+          "sizes": [
+            [
+              2560,
+              1440
+            ]
+          ],
+          "source_sizes": [
+            [
+              2560,
+              1440
+            ]
+          ],
+          "geometry_complete": true,
+          "colored_pixels_of_14400": 14335,
+          "capture_frame_wall_ms": {
+            "count": 525,
+            "min": 6.2869,
+            "p50": 7.0915,
+            "p95": 10.328800000000001,
+            "max": 12.520999999999999
+          },
+          "capture_empty_poll_wall_ms": {
+            "count": 478,
+            "min": 0,
+            "p50": 0.00019999999999999998,
+            "p95": 0.0006,
+            "max": 0.0013
+          },
+          "capture_start_intervals_ms": {
+            "count": 524,
+            "min": 16.703599999999998,
+            "p50": 17.110500000000002,
+            "p95": 29.7586,
+            "max": 34.548
+          },
+          "intervals_below_period": 0,
+          "empty_polls": 478,
+          "cadence_waits": {
+            "requested_ms": {
+              "count": 525,
+              "min": 4.144067000000001,
+              "p50": 9.573666999999999,
+              "p95": 10.141667,
+              "max": 10.378667
+            },
+            "actual_ms": {
+              "count": 525,
+              "min": 4.4685999999999995,
+              "p50": 10.0402,
+              "p95": 11.3315,
+              "max": 12.2896
+            },
+            "overshoot_ms": {
+              "count": 525,
+              "min": 0.029733000000000002,
+              "p50": 0.332933,
+              "p95": 2.045333,
+              "max": 2.660033
+            },
+            "undershoot_count": 0
+          },
+          "empty_poll_waits": {
+            "requested_ms": {
+              "count": 478,
+              "min": 1,
+              "p50": 1,
+              "p95": 1,
+              "max": 1
+            },
+            "actual_ms": {
+              "count": 478,
+              "min": 1.0103,
+              "p50": 1.6179000000000001,
+              "p95": 2.6409,
+              "max": 3.6327
+            },
+            "overshoot_ms": {
+              "count": 478,
+              "min": 0.0103,
+              "p50": 0.6179,
+              "p95": 1.6409,
+              "max": 2.6327
+            },
+            "undershoot_count": 0
+          },
+          "minimum_positive_cadence_wait_us": 500
+        }
+      ],
+      "completion": {
+        "kind": "DIAGNOSTIC",
+        "capacity_approval": false,
+        "completion": "COMPLETE",
+        "phases": 4,
+        "quality_status": "FAIL",
+        "relative_capture_fps": [
+          52.79931519288195,
+          52.49530167050049
+        ],
+        "nominal_capture_fps": [
+          55.26610695458796,
+          56.09576701342117
+        ],
+        "relative_distinct_fps": [
+          49.59935669634365,
+          48.79563279086522
+        ],
+        "nominal_distinct_fps": [
+          51.268558531109626,
+          51.896083921507284
+        ]
+      },
+      "policy_summary": {
+        "start-relative": {
+          "capture_fps_mean": 52.647308431691215,
+          "distinct_marker_fps_mean": 49.19749474360444,
+          "intervals_below_period": 0,
+          "minimum_interval_ms": 16.703599999999998,
+          "empty_polls": 914,
+          "quality_statuses": [
+            "FAIL",
+            "FAIL"
+          ]
+        },
+        "nominal": {
+          "capture_fps_mean": 55.68093698400456,
+          "distinct_marker_fps_mean": 51.58232122630845,
+          "intervals_below_period": 654,
+          "minimum_interval_ms": 6.5959,
+          "empty_polls": 2415,
+          "quality_statuses": [
+            "FAIL",
+            "FAIL"
+          ]
+        }
+      }
+    }
+  ],
+  "interpretation": {
+    "fps_summary": "Arithmetic mean of the two measured phases per policy, descriptive only",
+    "instantaneous_intervals": "Nominal scheduling permits real intervals shorter than the target period; the full per-phase counts/minima remain visible",
+    "limitations": "No universal gain, GPU-speed attribution,180-second call approval or codec/adaptation proof"
+  }
+}
