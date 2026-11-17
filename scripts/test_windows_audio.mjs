@@ -67,7 +67,6 @@ try {
   await cdp.evaluate('mountHarmonyAudioHelp()');
   await until(()=>cdp.evaluate("document.body.innerText.includes('já está desativada')"),'Reopened settings reflect saved state');
   check(!await cdp.evaluate("Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Manter os outros sons no Windows')"),'Already applied preference does not offer a redundant change');
-  await cdp.evaluate("(()=>{const core=window.__TAURI_INTERNALS__,original=core.invoke;window.nativeKeyCommands=[];core.invoke=async function(cmd,args,options){try{const result=await original.call(this,cmd,args,options);if(cmd==='set_call_shortcuts')nativeKeyCommands.push({keys:args.keys,ok:true});return result;}catch(e){if(cmd==='set_call_shortcuts')nativeKeyCommands.push({keys:args.keys,ok:false,error:String(e).slice(0,200)});throw e;}};return true;})()");
   await cdp.evaluate('listenAllKeys()');
   await cdp.evaluate('mountHarmonyAudioControls()');
   await until(()=>cdp.evaluate("Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Testar microfone')"),'Production audio test and keybind controls');
@@ -108,7 +107,8 @@ try {
   check(free==='True','Leaving the controls releases the global PTT key for another process');
   passed=true;
 } finally {
-  if(!passed&&cdp)try{fixtureState=await cdp.evaluate("({keys:JSON.parse(localStorage.getItem('harmony.call-keys.v1')||'null'),actions:window.audioKeyEvents,commands:window.nativeKeyCommands,nativeEvents:window.allNativeKeyEvents,focused:document.hasFocus(),active:document.activeElement?.tagName,activeText:document.activeElement?.getAttribute('value'),body:document.body.innerText.slice(-1800)})");}catch{}
+  if(!passed&&cdp)try{fixtureState=await cdp.evaluate("({keys:JSON.parse(localStorage.getItem('harmony.call-keys.v1')||'null'),actions:window.audioKeyEvents,isTauri:!!globalThis.isTauri,invokeWritable:Object.getOwnPropertyDescriptor(window.__TAURI_INTERNALS__,'invoke')?.writable,nativeEvents:window.allNativeKeyEvents,focused:document.hasFocus(),active:document.activeElement?.tagName,activeText:document.activeElement?.getAttribute('value'),body:document.body.innerText.slice(-1800)})");}catch{}
+  if(!passed&&cdp&&fixtureState)try{fixtureState.directProbe=await cdp.evaluate("Promise.race([window.__TAURI_INTERNALS__.invoke('set_call_shortcuts',{keys:{ptt:'',microphone:'ScrollLock',deafen:'F7'}}).then(()=>({status:'returned'}),e=>({status:'rejected',error:String(e).slice(0,200)})),new Promise(r=>setTimeout(()=>r({status:'timeout'}),3000))])");}catch{}
   cdp?.close();
   if(app?.exitCode===null && app.signalCode===null){app.kill();await new Promise(r=>app.once('exit',r));}
   seed(before.exists ? before.value : null);

@@ -107,7 +107,9 @@ fn parse(keys: CallKeys) -> Result<Vec<(Shortcut, &'static str)>, String> {
     }
     Ok(result)
 }
-#[tauri::command]
+// Global-shortcut APIs marshal back to the UI thread and wait. Run the IPC
+// command away from the synchronous WebView2 callback to avoid re-entry stalls.
+#[tauri::command(async)]
 pub fn set_call_shortcuts(
     app: tauri::AppHandle,
     keys: CallKeys,

@@ -1,4 +1,4 @@
-name: Verify Windows with an identical server-verified product
+name: Verify Windows after unchanged server sources
 on:
   workflow_dispatch:
     inputs:
@@ -90,3 +90,13 @@ jobs:
         if: always()
         shell: pwsh
         run: Get-Content .local/qa-updater/windows-audio.json -ErrorAction SilentlyContinue
+      - name: Preserve the candidate and fixture evidence for one day
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: audio-controls-qa-candidate-${{ github.run_id }}
+          retention-days: 1
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.sig
+            .local/qa-updater/windows-audio.json
