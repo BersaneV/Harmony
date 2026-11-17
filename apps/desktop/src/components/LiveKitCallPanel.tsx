@@ -1,3 +1,5 @@
+import { AudioHelp } from "./AudioHelp";
+import { readAudioDevices, saveAudioDevice } from "../lib/audio-devices";
 import { isTauri } from "@tauri-apps/api/core";
 import P2PDiagnostics from "./P2PDiagnostics";
 import { useP2PDiscovery } from "../lib/useP2PDiscovery";
@@ -346,10 +348,15 @@ export default function CallPanel({
       setConnecting(false);
       return;
     }
+    const savedAudio = readAudioDevices();
     const next = new Room({
+      audioOutput: { deviceId: savedAudio.audiooutput || "default" },
       adaptiveStream: true,
       dynacast: true,
       audioCaptureDefaults: {
+        ...(savedAudio.audioinput
+          ? { deviceId: { exact: savedAudio.audioinput } }
+          : {}),
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
@@ -1185,6 +1192,7 @@ export default function CallPanel({
       )}
       {settings && (
         <Modal title="Dispositivos e voz" onClose={() => setSettings(false)}>
+          <AudioHelp />
           <label className="check-field">
             <input
               type="checkbox"
@@ -1213,16 +1221,23 @@ export default function CallPanel({
                 }
               >
                 <select
-                  defaultValue=""
-                  onChange={(e) =>
-                    void action(() =>
-                      room!.switchActiveDevice(kind, e.target.value),
-                    )
-                  }
+                  defaultValue={room?.getActiveDevice(kind) || "default"}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    void action(async () => {
+                      const applied = await room!.switchActiveDevice(
+                        kind,
+                        value || "default",
+                      );
+                      if (!applied)
+                        throw new Error(
+                          "Não foi possível selecionar este dispositivo.",
+                        );
+                      if (kind !== "videoinput") saveAudioDevice(kind, value);
+                    });
+                  }}
                 >
-                  <option value="" disabled>
-                    Escolha um dispositivo
-                  </option>
+                  <option value="default">Padrão do sistema</option>
                   {devices
                     .filter((d) => d.kind === kind)
                     .map((d, index) => (

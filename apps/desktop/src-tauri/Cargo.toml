@@ -1,6 +1,6 @@
 [package]
 name = "harmony-desktop"
-version = "0.4.12"
+version = "0.4.13"
 description = "Comunicação self-hosted para sua comunidade"
 authors = ["Harmony contributors"]
 license = "Apache-2.0"
@@ -32,7 +32,7 @@ harmony-native-capture = { path = "native-capture" }
 [target.'cfg(target_os = "windows")'.dependencies]
 keyring = { version = "3.6.3", features = ["windows-native"] }
 webview2-com = "=0.39.1"
-windows = "=0.62.2"
+windows = { version = "=0.62.2", features = ["Win32_System_Registry"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring = { version = "3.6.3", features = ["apple-native"] }

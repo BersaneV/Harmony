@@ -32,9 +32,9 @@ def select_release():
     """Operator pins both archive digest and verified commit; rollback keeps 0.4.1."""
     global VERSION, VERIFIED_PRODUCT, ASSET_URL
     selected = os.environ.get('HARMONY_DEPLOYMENT_VERSION', '0.4.1')
-    if selected not in ('0.4.1', '0.4.3', '0.4.12'):
+    if selected not in ('0.4.1', '0.4.3', '0.4.12', '0.4.13'):
         raise RuntimeError('Unsupported deployment release')
-    if selected in ('0.4.3', '0.4.12'):
+    if selected in ('0.4.3', '0.4.12', '0.4.13'):
         commit = os.environ.get('HARMONY_BUNDLE_SOURCE_COMMIT', '')
         if not re.fullmatch(r'[0-9a-f]{40}', commit):
             raise RuntimeError('An operator-verified source commit is required')
@@ -85,7 +85,7 @@ def verify(root, archive_digest=None):
     if (manifest.get('version') != VERSION or manifest.get('platform') != 'linux-x86_64'
             or manifest.get('verified_product_commit') != VERIFIED_PRODUCT):
         raise RuntimeError('Bundle source or version mismatch')
-    if VERSION in ('0.4.3', '0.4.12') and (manifest.get('source_commit') != VERIFIED_PRODUCT
+    if VERSION in ('0.4.3', '0.4.12', '0.4.13') and (manifest.get('source_commit') != VERIFIED_PRODUCT
                              or not re.fullmatch(r'[0-9]+', str(manifest.get('verify_run', '')))):
         raise RuntimeError('Candidate verification provenance missing')
     files = manifest['files']
@@ -392,7 +392,7 @@ def configure_screen_sfu(runtime, state, port):
     """
     binary = runtime / 'bin/livekit-server'
     key, secret = os.environ.get('LIVEKIT_API_KEY', ''), os.environ.get('LIVEKIT_API_SECRET', '')
-    if (VERSION not in ('0.4.3', '0.4.12') or not 1024 <= port <= 65535 or port == 7880
+    if (VERSION not in ('0.4.3', '0.4.12', '0.4.13') or not 1024 <= port <= 65535 or port == 7880
             or not binary.is_file() or binary.is_symlink()
             or not re.fullmatch(r'[A-Za-z0-9_-]{8,64}', key) or len(secret.encode()) < 32
             or os.environ.get('HARMONY_MEDIA_TRANSPORT') != 'p2p'

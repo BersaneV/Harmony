@@ -163,6 +163,19 @@ class Boundaries(unittest.TestCase):
 
 
 class OptionalScreenSfu(unittest.TestCase):
+    def test_audio_release_requires_source_pin(self):
+        original = (launch.VERSION, launch.VERIFIED_PRODUCT, launch.ASSET_URL)
+        try:
+            with patch.dict(os.environ, {'HARMONY_DEPLOYMENT_VERSION':'0.4.13'}, clear=True), self.assertRaises(RuntimeError):
+                launch.select_release()
+            with patch.dict(os.environ, {'HARMONY_DEPLOYMENT_VERSION':'0.4.13','HARMONY_BUNDLE_SOURCE_COMMIT':'b'*40}, clear=True):
+                launch.select_release()
+                self.assertEqual(launch.VERSION, '0.4.13')
+                self.assertEqual(launch.VERIFIED_PRODUCT, 'b'*40)
+                self.assertTrue(launch.ASSET_URL.endswith('/v0.4.13/harmony-server-0.4.13-linux-x86_64.tar.gz'))
+        finally:
+            launch.VERSION, launch.VERIFIED_PRODUCT, launch.ASSET_URL = original
+
     def test_invite_release_requires_source_pin_and_preserves_rollback(self):
         original = (launch.VERSION, launch.VERIFIED_PRODUCT, launch.ASSET_URL)
         try:

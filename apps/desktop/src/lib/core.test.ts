@@ -8,11 +8,36 @@ import {
 import { compareSequences, mergeMessages } from "./messages";
 import { normalizeTheme } from "./theme";
 import type { Message } from "./types";
+it("keeps captured audio audible locally without voice processing on screen audio", () => {
+  const options = captureOptions({ ...defaultProfile, audio: true });
+  expect(options.audio).toMatchObject({
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+  });
+  expect(options.suppressLocalAudioPlayback).toBe(false);
+  expect(captureOptions({ ...defaultProfile, audio: false }).audio).toBe(false);
+});
 describe("orçamento de transmissão", () => {
   it("prioriza a resolução explícita também no transporte LiveKit, mantendo movimento automático adaptativo", () => {
-    expect(publishOptions({ ...defaultProfile, height: 720, content: "motion" }, 32_000_000).degradationPreference).toBe("maintain-resolution");
-    expect(publishOptions({ ...defaultProfile, height: 0, content: "motion" }, 32_000_000).degradationPreference).toBe("maintain-framerate");
-    expect(publishOptions({ ...defaultProfile, height: 0, content: "text" }, 32_000_000).degradationPreference).toBe("maintain-resolution");
+    expect(
+      publishOptions(
+        { ...defaultProfile, height: 720, content: "motion" },
+        32_000_000,
+      ).degradationPreference,
+    ).toBe("maintain-resolution");
+    expect(
+      publishOptions(
+        { ...defaultProfile, height: 0, content: "motion" },
+        32_000_000,
+      ).degradationPreference,
+    ).toBe("maintain-framerate");
+    expect(
+      publishOptions(
+        { ...defaultProfile, height: 0, content: "text" },
+        32_000_000,
+      ).degradationPreference,
+    ).toBe("maintain-resolution");
   });
 
   it("converte Mb/s para bits/s e impede codecs/camadas ocultos", () => {

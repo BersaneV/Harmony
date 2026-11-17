@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod audio;
 mod capture;
 mod updates;
 
@@ -118,6 +119,8 @@ fn main() {
             load_refresh_token,
             open_external_url,
             set_push_to_talk,
+            audio::windows_audio_status,
+            audio::disable_windows_audio_ducking,
             capture::native_capture_available,
             capture::native_capture_sources,
             capture::native_capture_start,

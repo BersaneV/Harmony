@@ -22,3 +22,8 @@ commands.allow = ["check_update", "download_update", "cancel_update", "install_u
 identifier = "allow-native-capture"
 description = "Enumera janelas e controla a captura local do Windows somente na janela Harmony, com confirmação nativa e buffers de leitura."
 commands.allow = ["native_capture_available", "native_capture_sources", "native_capture_start", "native_capture_ack", "native_capture_profile", "native_capture_stop"]
+
+[[permission]]
+identifier = "allow-windows-audio"
+description = "Consulta a preferência de comunicações do usuário Windows e permite desativar a atenuação somente após ação explícita na interface. Não aceita caminhos, volumes ou valores arbitrários."
+commands.allow = ["windows_audio_status", "disable_windows_audio_ducking"]

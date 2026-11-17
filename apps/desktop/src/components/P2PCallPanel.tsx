@@ -15,6 +15,8 @@ import {
   Volume2,
   Maximize2,
 } from "lucide-react";
+import { AudioHelp } from "./AudioHelp";
+import { readAudioDevices, saveAudioDevice } from "../lib/audio-devices";
 import { P2PCall } from "../lib/call";
 import type { CallSource, CallPeerSnapshot } from "../lib/call";
 import { api, errorMessage } from "../lib/api";
@@ -275,11 +277,10 @@ export default function P2PCallPanel({
   const [settings, setSettings] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedDevices, setSelectedDevices] = useState({
-    audioinput: "",
-    audiooutput: "",
+  const [selectedDevices, setSelectedDevices] = useState(() => ({
+    ...readAudioDevices(),
     videoinput: "",
-  });
+  }));
   const [profile, setProfile] = useState<StreamProfile>({ ...defaultProfile });
   const [preview, setPreview] = useState<MediaStream | null>(null);
   const previewRef = useRef<MediaStream | null>(null);
@@ -584,6 +585,14 @@ export default function P2PCallPanel({
           throw new Error(
             "Este navegador não permite compartilhar a tela. Use o aplicativo Windows ou um navegador desktop compatível.",
           );
+        const audio = profile.audio
+          ? {
+              suppressLocalAudioPlayback: false,
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+            }
+          : false;
         const options: DisplayMediaStreamOptions & {
           selfBrowserSurface: string;
           systemAudio: string;
@@ -595,7 +604,7 @@ export default function P2PCallPanel({
               : {}),
             frameRate: { ideal: profile.fps || 30, max: profile.fps || 30 },
           },
-          audio: profile.audio,
+          audio,
           selfBrowserSurface: "exclude",
           systemAudio: "include",
           surfaceSwitching: "include",
@@ -715,10 +724,11 @@ export default function P2PCallPanel({
     kind: "audioinput" | "audiooutput" | "videoinput",
     value: string,
   ) {
-    setSelectedDevices((previous) => ({ ...previous, [kind]: value }));
     if (kind === "audioinput" && microphone)
       await captureDevice("microphone", value, microphone.enabled);
     if (kind === "videoinput" && camera) await captureDevice("camera", value);
+    setSelectedDevices((previous) => ({ ...previous, [kind]: value }));
+    if (kind !== "videoinput") saveAudioDevice(kind, value);
   }
   async function unlockAudio() {
     setAudioBlocked(false);
@@ -1267,6 +1277,7 @@ export default function P2PCallPanel({
       )}
       {settings && (
         <Modal title="Dispositivos e voz" onClose={() => setSettings(false)}>
+          <AudioHelp />
           <label className="check-field">
             <input
               type="checkbox"

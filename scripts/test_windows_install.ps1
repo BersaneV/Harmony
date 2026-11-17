@@ -97,6 +97,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Installed app invitation delivery failed.' }
     # _?= prevents the uninstaller from spawning a temporary copy, so waiting on
     # this process observes actual removal. It cannot delete its own running exe.
+    node scripts/test_windows_audio.mjs $mainExecutable
+    if ($LASTEXITCODE -ne 0) { throw 'Windows audio settings check failed.' }
     $exitCode = Run-Installer $uninstaller "/S _?=$installDirectory"
     Record-Check 'silent uninstallation exits successfully' ($exitCode -eq 0)
     Record-Check 'main executable was removed by uninstaller' (-not (Test-Path -LiteralPath $mainExecutable))

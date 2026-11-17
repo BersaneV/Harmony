@@ -47,8 +47,17 @@ export function validateProfile(
 export function captureOptions(
   profile: StreamProfile,
 ): ScreenShareCaptureOptions {
+  const audio = profile.audio
+    ? {
+        suppressLocalAudioPlayback: false,
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      }
+    : false;
   return {
-    audio: profile.audio,
+    audio,
+    suppressLocalAudioPlayback: false,
     ...(profile.height
       ? {
           resolution: {

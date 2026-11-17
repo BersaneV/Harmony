@@ -76,7 +76,7 @@ try {
   }
   await mkdir(dirname(output), {recursive:true});
   await writeFile(output, JSON.stringify({passed,commit:process.env.GITHUB_SHA,
-    version:'0.4.12',checks,diagnostics,runtimeErrors:runtimeErrors.slice(-8),scope:'Windows EXE, native cold/warm URL delivery and single-instance; no login, API acceptance, media or physical-device test'},null,2)+'\n');
+    version:JSON.parse(await (await import('node:fs/promises')).readFile('apps/desktop/src-tauri/tauri.conf.json','utf8')).version,checks,diagnostics,runtimeErrors:runtimeErrors.slice(-8),scope:'Windows EXE, native cold/warm URL delivery and single-instance; no login, API acceptance, media or physical-device test'},null,2)+'\n');
 }
 assert.ok(passed);
 console.log(JSON.stringify({status:'PASS',checks:checks.length,scope:'Windows installed EXE cold/warm invitation'}));

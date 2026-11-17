@@ -274,7 +274,12 @@ describe("automatic Windows capture path without screen audio", () => {
       await f.run();
       expect(f.getDisplayMedia).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
-          audio: true,
+          audio: {
+            suppressLocalAudioPlayback: false,
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+          },
           systemAudio: "include",
           video: {
             height: { ideal: 720, max: 720 },

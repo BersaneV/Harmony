@@ -96,7 +96,7 @@ export default function Invite({
             </button>
             <a
               className="button full"
-              href="https://github.com/BersaneV/Harmony/releases/download/v0.4.12/Harmony_0.4.12_x64-setup.exe"
+              href="https://github.com/BersaneV/Harmony/releases/download/v0.4.13/Harmony_0.4.13_x64-setup.exe"
               rel="noreferrer"
             >
               Baixar para Windows
