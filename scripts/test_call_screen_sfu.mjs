@@ -3,10 +3,11 @@
 // This does not measure requested FPS/resolution, physical capture, or WAN.
 // Optional paths: HARMONY_CHROME, HARMONY_SERVER_BIN, HARMONY_LIVEKIT_BIN.
 import assert from "node:assert/strict";
+import { ownedChromiumGroup } from "./owned-chromium.mjs";
 import { createHash, randomBytes } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdir, mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createReadStream } from "node:fs";
 
@@ -94,11 +95,14 @@ class CDP {
   constructor(url) {
     this.socket = new WebSocket(url);
     this.sequence = 0;
+    this.closed = false;
     this.pending = new Map();
     this.ready = new Promise((resolve, reject) => {
+      this.rejectReady = reject;
       this.socket.onopen = resolve;
-      this.socket.onerror = () => reject(new Error("CDP connection failed"));
+      this.socket.onerror = () => this.fail();
     });
+    this.socket.onclose = () => this.fail();
     this.socket.onmessage = (event) => {
       const value = JSON.parse(event.data),
         pending = this.pending.get(value.id);
@@ -111,6 +115,7 @@ class CDP {
   }
   async send(method, params = {}) {
     await this.ready;
+    if (this.closed) throw new Error("CDP closed");
     const id = ++this.sequence;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -148,60 +153,44 @@ class CDP {
   run(body, userGesture = false) {
     return this.evaluate(`(async () => { ${body} })()`, userGesture);
   }
+  fail() {
+    this.closed = true;
+    const error = new Error("CDP closed");
+    this.rejectReady?.(error);
+    for (const pending of this.pending.values()) pending.reject(error);
+    this.pending.clear();
+  }
   close() {
+    this.fail();
     this.socket.close();
   }
 }
 
 const webPort = await port(),
   web = `http://127.0.0.1:${webPort}`,
-  browsers = [];
+  browsers = Array.from({ length: 8 }, (_, index) => ({ index, client: null, ready: false }));
+const chrome = ownedChromiumGroup({ directory, cwd: root, env: { ...process.env },
+  binary: process.env.HARMONY_CHROME || (process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "google-chrome"),
+});
+let startupJobs = [];
 async function browser(index) {
-  const profile = await mkdtemp(`${directory}/browser-${index}-`);
-  const browserProcess = launch(
-    process.env.HARMONY_CHROME ||
-      (process.platform === "darwin"
-        ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        : "google-chrome"),
-    [
-      "--headless=new",
-      "--no-first-run",
-      "--no-default-browser-check",
-      "--autoplay-policy=no-user-gesture-required",
-      "--disable-audio-output",
-      "--disable-audio-input",
-      "--disable-background-timer-throttling",
-      "--disable-renderer-backgrounding",
-      "--remote-debugging-port=0",
-      "--user-data-dir=" + profile,
-      "about:blank",
-    ],
-    { ...globalThis.process.env },
-    `browser-${index}`,
-  );
-  let debug;
-  await until(async () => {
-    try {
-      debug = Number(
-        (await readFile(`${profile}/DevToolsActivePort`, "utf8")).split(
-          "\n",
-        )[0],
-      );
-      return !!debug;
-    } catch {
-      return false;
-    }
-  }, "Owned Chromium startup");
+  const result = browsers[index], launched = chrome.entries[index];
+  await launched.ready;
+  chrome.guard();
+  const debug = launched.port;
   const target = await (
     await fetch(
       `http://127.0.0.1:${debug}/json/new?${encodeURIComponent(web)}`,
-      { method: "PUT" },
+      { method: "PUT", signal: chrome.signal },
     )
   ).json();
+  chrome.guard();
   const client = new CDP(target.webSocketDebuggerUrl);
+  result.client = client;
   await client.send("Runtime.enable");
   await client.send("Page.enable");
   await until(async () => {
+    chrome.guard();
     try {
       return await client.evaluate(
         `location.origin===${JSON.stringify(web)} && document.readyState==='complete'`,
@@ -223,8 +212,8 @@ async function browser(index) {
  true;`,
     true,
   );
-  const result = { index, process: browserProcess, profile, client };
-  browsers.push(result);
+  chrome.guard();
+  result.ready = true;
   return result;
 }
 async function digest(path) {
@@ -250,6 +239,7 @@ for (const name of [
   "apps/desktop/src/lib/capture-track.ts",
   "apps/desktop/src/components/P2PCallPanel.tsx",
   "scripts/test_call_screen_sfu.mjs",
+  "scripts/owned-chromium.mjs",
 ])
   evidence.source_hashes[name] = await digest(resolve(root, name));
 let report, screenHandoffDiagnostic;
@@ -367,7 +357,9 @@ try {
   });
   for (const account of accounts.slice(1))
     await api("POST", "/invites/accept", account, { token: invite.token });
-  await Promise.all(Array.from({ length: 8 }, (_, i) => browser(i)));
+  await chrome.launchAll();
+  startupJobs = browsers.map((b) => browser(b.index));
+  await Promise.all(startupJobs);
   await Promise.all(
     browsers.map((b, i) =>
       b.client.run(
@@ -648,6 +640,9 @@ try {
     ],
   };
 } catch (error) {
+  chrome.cancel();
+  for (const b of browsers) if (!b.ready) b.client?.close();
+  await Promise.allSettled(startupJobs);
   report = {
     status: "FAIL",
     checks,
@@ -668,20 +663,27 @@ try {
   };
   process.exitCode = 1;
 } finally {
+  chrome.cancel();
+  for (const b of browsers) if (!b.ready) b.client?.close();
+  await Promise.allSettled(startupJobs);
   for (const b of browsers) {
     try {
       await b.client.run("rtcCall?.close();true;");
     } catch {}
-    b.client.close();
+    b.client?.close();
   }
   for (const peer of sockets) {
     clearInterval(peer.timer);
     if (!peer.closed) peer.socket.close();
   }
+  const chromiumCleaned = await chrome.close();
+  if (!chromiumCleaned) {
+    report.status = "FAIL";
+    report.cleanup_error_code = "OWNED_CHROMIUM_CLOSE_UNVERIFIED";
+    process.exitCode = 1;
+  }
+  report.chromium_startup = chrome.snapshot();
   await Promise.all([...processes].map(stop));
-  await Promise.all(
-    browsers.map((b) => rm(b.profile, { recursive: true, force: true })),
-  );
   await writeFile(
     `${directory}/result.json`,
     JSON.stringify({ ...report, ...evidence }, null, 2) + "\n",
@@ -704,7 +706,8 @@ try {
       ...(report.screen_handoff
         ? { screen_handoff: report.screen_handoff }
         : {}),
-      evidence_directory: directory,
+      chromium_startup: report.chromium_startup,
+      ...(report.cleanup_error_code ? { cleanup_error_code: report.cleanup_error_code } : {}),
     }),
   );
 }

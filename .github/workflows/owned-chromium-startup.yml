@@ -1,0 +1,20 @@
+name: Owned Chromium startup diagnostic
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  startup:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: "26.13.0"}
+      - run: node --test scripts/owned-chromium.test.mjs
+      - name: Observe eight real original-flag startups
+        env:
+          HARMONY_CHROMIUM_STARTUP_PUBLIC_REPOSITORY: "true"
+          HARMONY_CHROME: "/usr/bin/google-chrome"
+        run: node scripts/test_owned_chromium_startup.mjs
