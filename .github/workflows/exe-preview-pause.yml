@@ -1,0 +1,69 @@
+name: Compare owned preview play pause play in public EXE0410
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: exe-preview-pause-diagnostic
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      cohort: ${{ steps.fixture.outputs.cohort }}
+      guild: ${{ steps.fixture.outputs.guild }}
+      guild_name: ${{ steps.fixture.outputs.guild_name }}
+      voice: ${{ steps.fixture.outputs.voice }}
+      control: ${{ steps.fixture.outputs.control }}
+      users: ${{ steps.fixture.outputs.users }}
+      screen_sfu_enabled: ${{ steps.fixture.outputs.screen_sfu_enabled }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: "26.13.0" }
+      - name: Require the immutable published 0.4.10 manifest before creating accounts
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFile} from 'node:fs/promises';
+          const release=JSON.parse(await readFile('scripts/exe-wan/releases/0.4.10.json','utf8'));
+          assert.equal(release.version,'0.4.10');
+          assert.equal(release.installer_url,'https://github.com/BersaneV/Harmony/releases/download/v0.4.10/Harmony_0.4.10_x64-setup.exe');
+          assert.equal(release.installer_sha256,'cedea228dd87d72d3d7c1cec07b093e87372078151c3dd012649d8ff77906f58');
+          assert.equal(release.main_sha256,'378332754b2d89775a4b9d55c70ef1bfc58da63403b0d8904a2457aaabf16021');
+          JS
+      - name: Validate owned pause fencing and unchanged capture gates
+        run: node --test scripts/exe-wan/preview-pause-diagnostic.test.mjs scripts/exe-wan/capture-ui.test.mjs scripts/exe-wan/fixture-contract.test.mjs scripts/exe-wan/profiles.test.mjs
+      - name: Create eight ordinary private fixture accounts; only the owner will run
+        id: fixture
+        env:
+          HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+        run: node scripts/exe-wan/prepare.mjs
+  diagnostic:
+    needs: prepare
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: windows-2022
+    timeout-minutes: 12
+    env:
+      HARMONY_EXE_RELEASE: "0.4.10"
+      HARMONY_EXE_PROFILE: "1080p60"
+      HARMONY_PREVIEW_PAUSE_PUBLIC_REPOSITORY: ${{ github.event.repository.private == false }}
+      HARMONY_EXE_WAN_SEED: ${{ secrets.HARMONY_EXE_WAN_SEED }}
+      HARMONY_COHORT: ${{ needs.prepare.outputs.cohort }}
+      HARMONY_GUILD_ID: ${{ needs.prepare.outputs.guild }}
+      HARMONY_GUILD_NAME: ${{ needs.prepare.outputs.guild_name }}
+      HARMONY_VOICE_ID: ${{ needs.prepare.outputs.voice }}
+      HARMONY_CONTROL_ID: ${{ needs.prepare.outputs.control }}
+      HARMONY_COHORT_USERS: ${{ needs.prepare.outputs.users }}
+      HARMONY_SCREEN_SFU_ENABLED: ${{ needs.prepare.outputs.screen_sfu_enabled }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: "26.13.0" }
+      - name: Verify and install the immutable published 0.4.10 package
+        shell: pwsh
+        run: ./scripts/exe-wan/install.ps1
+      - name: Measure10s play,10s owned preview pause,10s restored play; DIAGNOSTIC only
+        run: node scripts/exe-wan/preview-pause-diagnostic.mjs
