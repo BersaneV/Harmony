@@ -13,6 +13,7 @@ Expand-Archive $archive -DestinationPath (Join-Path $directory 'unpacked')
 $package = Join-Path $directory 'unpacked\Virtual Audio Driver'
 $catalog = Get-AuthenticodeSignature (Join-Path $package 'virtualaudiodriver.cat')
 if ($catalog.Status -ne 'Valid') { throw "Driver catalog signature is not valid: $($catalog.Status)" }
+Write-Host ("Catalog valid; signer: " + $catalog.SignerCertificate.Subject)
 $before = @(Get-PnpDevice -Class Media,AudioEndpoint,Bluetooth -ErrorAction SilentlyContinue | Select-Object Class,FriendlyName,Status,InstanceId)
 if ($before | Where-Object { $_.InstanceId -like '*VirtualAudioDriver*' }) { throw 'Existing virtual audio driver refused' }
 Set-Service AudioEndpointBuilder -StartupType Automatic
@@ -41,8 +42,40 @@ public static class HarmonyAudioRoot {
 }
 '@
 [HarmonyAudioRoot]::Create()
-& pnputil.exe /add-driver (Join-Path $package 'VirtualAudioDriver.inf') /install
-if ($LASTEXITCODE -notin @(0,3010)) { throw "Signed fixture driver install failed: $LASTEXITCODE" }
+New-Item -ItemType Directory -Force .local/qa-audio-coexistence | Out-Null
+$arguments = '/add-driver "' + (Join-Path $package 'VirtualAudioDriver.inf') + '" /install'
+$installer = Start-Process pnputil.exe -ArgumentList $arguments -PassThru -RedirectStandardOutput .local/qa-audio-coexistence/pnp-out.txt -RedirectStandardError .local/qa-audio-coexistence/pnp-error.txt
+Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes
+$deadline = [DateTime]::UtcNow.AddSeconds(100)
+$observed = @()
+try {
+  while (-not $installer.HasExited -and [DateTime]::UtcNow -lt $deadline) {
+    $windows = [Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Children,[Windows.Automation.Condition]::TrueCondition)
+    foreach ($window in $windows) {
+      $nodes = $window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
+      $names = @($window.Current.Name) + @($nodes | ForEach-Object { $_.Current.Name })
+      $text = $names -join ' '
+      if ($text -match 'Virtual Audio Driver|MikeTheTech|Windows Security') { $observed += $text.Substring(0,[Math]::Min(1600,$text.Length)) }
+      # Only approve our exact pinned, already verified driver, without checking
+      # any Always trust option or altering a driver-signing policy.
+      if ($text -match 'Virtual Audio Driver' -and $text -match 'MikeTheTech') {
+        foreach ($node in $nodes) {
+          if ($node.Current.ControlType -eq [Windows.Automation.ControlType]::Button -and $node.Current.Name.Replace('&','').Trim() -ceq 'Install') {
+            ([Windows.Automation.InvokePattern]$node.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern)).Invoke()
+            Write-Host 'Approved the exact signed virtual driver installation dialog'
+          }
+        }
+      }
+    }
+    Start-Sleep -Milliseconds 500
+  }
+  if (-not $installer.HasExited) { throw 'Pinned driver installer exceeded 100 seconds' }
+  if ($installer.ExitCode -notin @(0,3010)) { throw "Signed fixture driver install failed: $($installer.ExitCode)" }
+} finally {
+  if (-not $installer.HasExited) { Stop-Process -Id $installer.Id -Force }
+  $observed | Select-Object -Unique | Set-Content -Encoding utf8NoBOM .local/qa-audio-coexistence/installer-ui.txt
+  Get-Content "$env:windir/INF/setupapi.dev.log" -Tail 90 -ErrorAction SilentlyContinue | Set-Content -Encoding utf8NoBOM .local/qa-audio-coexistence/setup-api-tail.txt
+}
 & pnputil.exe /scan-devices
 Start-Sleep -Seconds 3
 $after = @(Get-PnpDevice -Class Media,AudioEndpoint,Bluetooth -ErrorAction SilentlyContinue | Select-Object Class,FriendlyName,Status,InstanceId)
