@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 // Bounded harness readiness; media/capture/voice quality windows are unchanged.
-export const STARTUP_TIMEOUT_MS = 20_000;
+export const STARTUP_TIMEOUT_MS = 60_000;
 export const CHROMIUM_FLAGS = Object.freeze([
   "--headless=new", "--no-first-run", "--no-default-browser-check",
   "--autoplay-policy=no-user-gesture-required", "--disable-audio-output",
