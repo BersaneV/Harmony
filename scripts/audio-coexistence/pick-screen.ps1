@@ -20,7 +20,7 @@ function Activate($element,$window) {
   if ($r.IsEmpty -or $r.Width -lt 4 -or $r.Height -lt 4) { throw 'Invalid observed picker control rectangle' }
   [HarmonyPickerClick]::Click($window.Current.NativeWindowHandle,[int]($r.X+$r.Width/2),[int]($r.Y+$r.Height/2))
 }
-$end=[DateTime]::UtcNow.AddSeconds(30);$observed=@()
+$end=[DateTime]::UtcNow.AddSeconds(30);$observed=@();$audioSelected=$false
 while ([DateTime]::UtcNow -lt $end) {
   $processes=@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId)
   $family=[Collections.Generic.HashSet[int]]::new();$null=$family.Add($OwnerPid)
@@ -30,8 +30,8 @@ while ([DateTime]::UtcNow -lt $end) {
     if (-not $family.Contains($window.Current.ProcessId)) { continue }
     $nodes=@($window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition))
     $text=(@($window.Current.Name)+@($nodes | ForEach-Object{$_.Current.Name})) -join ' '
-    $observed+=@{window=$window.Current.Name;text=$text.Substring(0,[Math]::Min(3500,$text.Length))}
-    $share=@($nodes | Where-Object { $_.Current.Name -in @('Share','Compartilhar') -and $_.Current.IsEnabled })
+    $observed+=@{window=$window.Current.Name;text=$text.Substring(0,[Math]::Min(3500,$text.Length));controls=@($nodes | Where-Object {$_.Current.Name} | ForEach-Object {@{name=$_.Current.Name;type=$_.Current.ControlType.ProgrammaticName;enabled=$_.Current.IsEnabled}})}
+    $share=@($nodes | Where-Object { $_.Current.Name -in @('Share','Compartilhar') })
     if (-not $share.Count) { continue }
     $tabs=@($nodes | Where-Object { $_.Current.Name -match '^(Entire screen|Entire Screen|Your Entire Screen|Tela inteira)$' -and $_.Current.ControlType -eq [Windows.Automation.ControlType]::TabItem })
     if ($tabs.Count) { Activate $tabs[0] $window;Start-Sleep -Milliseconds 150 }
@@ -39,19 +39,24 @@ while ([DateTime]::UtcNow -lt $end) {
     $screens=@($nodes | Where-Object { $_.Current.Name -match '^(Screen ?1|Entire screen|Your Entire Screen|Tela ?1)$' -and $_.Current.ControlType -in @([Windows.Automation.ControlType]::ListItem,[Windows.Automation.ControlType]::RadioButton,[Windows.Automation.ControlType]::Button) })
     if ($screens.Count) { Activate $screens[0] $window;Start-Sleep -Milliseconds 150 }
     $nodes=@($window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition))
-    $audio=@($nodes | Where-Object { $_.Current.Name -match '(?i)(share.*audio|compartilhar.*[áa]udio)' -and $_.Current.ControlType -eq [Windows.Automation.ControlType]::CheckBox })
+    $audio=@($nodes | Where-Object { $_.Current.Name -match '(?i)(share.*audio|compartilhar.*[áa]udio)' -and $_.Current.ControlType -in @([Windows.Automation.ControlType]::CheckBox,[Windows.Automation.ControlType]::Button) })
     if (-not $audio.Count) { continue }
-    $toggle=[Windows.Automation.TogglePattern]$audio[0].GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern)
-    if ($toggle.Current.ToggleState -ne [Windows.Automation.ToggleState]::On) { $toggle.Toggle() }
-    if ($toggle.Current.ToggleState -ne [Windows.Automation.ToggleState]::On) { throw 'System audio checkbox not enabled' }
+    if (-not $audioSelected) {
+      $toggle=$null
+      if ($audio[0].TryGetCurrentPattern([Windows.Automation.TogglePattern]::Pattern,[ref]$toggle)) {
+        if ($toggle.Current.ToggleState -ne [Windows.Automation.ToggleState]::On) { $toggle.Toggle() }
+        if ($toggle.Current.ToggleState -ne [Windows.Automation.ToggleState]::On) { throw 'System audio toggle not enabled' }
+      } else { Activate $audio[0] $window }
+      $audioSelected=$true
+    }
     $share=@($nodes | Where-Object { $_.Current.Name -in @('Share','Compartilhar') -and $_.Current.IsEnabled })
     if (-not $share.Count) { continue }
-    $result=@{status='SELECTED';window=$window.Current.Name;system_audio=$audio[0].Current.Name;system_audio_checked=$true;scope='Only the disposable VM desktop'}
+    $result=@{status='SELECTED';window=$window.Current.Name;system_audio=$audio[0].Current.Name;system_audio_control_activated=$true;proof='Captured audio track and remote PCM must also pass';scope='Only the disposable VM desktop'}
     Activate $share[0] $window
     $result | ConvertTo-Json -Compress
     exit 0
   }
   Start-Sleep -Milliseconds 250
 }
-$observed | Select-Object -Last 5 | ConvertTo-Json -Depth 4 -Compress
+$observed | Select-Object -Last 5 | ConvertTo-Json -Depth 6 -Compress
 throw 'Owned system-audio screen picker could not be completed'
