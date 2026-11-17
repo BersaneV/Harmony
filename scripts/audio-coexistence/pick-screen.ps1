@@ -31,7 +31,7 @@ while ([DateTime]::UtcNow -lt $end) {
     $nodes=@($window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition))
     $text=(@($window.Current.Name)+@($nodes | ForEach-Object{$_.Current.Name})) -join ' '
     $observed+=@{window=$window.Current.Name;text=$text.Substring(0,[Math]::Min(3500,$text.Length));controls=@($nodes | Where-Object {$_.Current.Name} | ForEach-Object {@{name=$_.Current.Name;type=$_.Current.ControlType.ProgrammaticName;enabled=$_.Current.IsEnabled}})}
-    $share=@($nodes | Where-Object { $_.Current.Name -in @('Share','Compartilhar') })
+    $share=@($nodes | Where-Object { $_.Current.Name -in @('Share','Share with Audio','Compartilhar','Compartilhar com áudio') })
     if (-not $share.Count) { continue }
     $tabs=@($nodes | Where-Object { $_.Current.Name -match '^(Entire screen|Entire Screen|Your Entire Screen|Tela inteira)$' -and $_.Current.ControlType -eq [Windows.Automation.ControlType]::TabItem })
     if ($tabs.Count) { Activate $tabs[0] $window;Start-Sleep -Milliseconds 150 }
@@ -49,7 +49,7 @@ while ([DateTime]::UtcNow -lt $end) {
       } else { Activate $audio[0] $window }
       $audioSelected=$true
     }
-    $share=@($nodes | Where-Object { $_.Current.Name -in @('Share','Compartilhar') -and $_.Current.IsEnabled })
+    $share=@($nodes | Where-Object { $_.Current.Name -in @('Share','Share with Audio','Compartilhar','Compartilhar com áudio') -and $_.Current.IsEnabled })
     if (-not $share.Count) { continue }
     $result=@{status='SELECTED';window=$window.Current.Name;system_audio=$audio[0].Current.Name;system_audio_control_activated=$true;proof='Captured audio track and remote PCM must also pass';scope='Only the disposable VM desktop'}
     Activate $share[0] $window
