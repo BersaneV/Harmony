@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
 import {mkdtemp, mkdir, writeFile} from 'node:fs/promises';
-import {resolve, join, dirname} from 'node:path';
+import {resolve, join, dirname, sep} from 'node:path';
 import {createServer} from 'node:net';
 import {CDP, until} from './exe-wan/cdp.mjs';
 
@@ -11,7 +11,7 @@ assert.equal(process.platform, 'win32');
 assert.equal(process.env.GITHUB_ACTIONS, 'true');
 assert.equal(process.env.GITHUB_REPOSITORY, 'BersaneV/Harmony');
 const exe = resolve(process.argv[2]);
-assert.ok(exe.startsWith(resolve(process.env.RUNNER_TEMP) + '\\'));
+assert.ok(exe.startsWith(resolve(process.env.RUNNER_TEMP) + sep));
 const output = resolve('.local/qa-updater/windows-invite.json');
 const profile = await mkdtemp(join(process.env.RUNNER_TEMP, 'harmony-invite-webview-'));
 const listener = createServer();
@@ -48,7 +48,7 @@ try {
   passed = true;
 } finally {
   client?.close();
-  for (const child of children) if (child.exitCode===null) {
+  for (const child of children) if (child.exitCode===null && child.signalCode===null) {
     child.kill();
     await new Promise(r => child.once('exit', r));
   }
