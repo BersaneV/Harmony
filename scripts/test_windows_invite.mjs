@@ -25,6 +25,8 @@ const url = token => 'harmony://invite?' + new URLSearchParams({server:'https://
 const checks = [], children = [];
 const check = (value, name) => { assert.ok(value, name); checks.push({name,passed:true}); };
 let client, passed = false;
+const runtimeErrors = [];
+let diagnostics = null;
 try {
   const first = spawn(exe, [url(token1)], {env,stdio:'ignore'}); children.push(first);
   let target;
@@ -34,6 +36,12 @@ try {
     catch { return false; }
   }, 'Owned installed WebView starts', 60000);
   client = new CDP(target.webSocketDebuggerUrl);
+  client.onEvent = event => {
+    if (event.method === 'Runtime.exceptionThrown' || event.method === 'Log.entryAdded')
+      runtimeErrors.push(JSON.stringify(event.params).slice(0,2000).replace(/[a-f0-9]{64}/g,'<fixture>'));
+  };
+  await client.send('Runtime.enable');
+  await client.send('Log.enable');
   await until(async () => await client.evaluate("!!window.__TAURI_INTERNALS__ && !!document.querySelector('.invite-banner')").catch(() => false), 'Cold-start invite banner', 30000);
   check((await client.evaluate("window.__TAURI_INTERNALS__.invoke('plugin:deep-link|get_current')")).includes(url(token1)), 'installed app receives the cold-start URL');
   check(await client.evaluate(`JSON.parse(sessionStorage.getItem('harmony.pending-invite')).token===${JSON.stringify(token1)}`), 'cold-start invite reaches the application pending state');
@@ -46,6 +54,20 @@ try {
   check(second.exitCode===0 && first.exitCode===null, 'single-instance keeps the original process and closes the second');
   check(await client.evaluate("!!document.querySelector('[autocomplete=username]') && !document.querySelector('dialog[open]')"), 'login remains available with the pending invitation');
   passed = true;
+} catch (error) {
+  if (client) {
+    diagnostics = await client.run(`
+      let current, pluginError;
+      try { current = await window.__TAURI_INTERNALS__?.invoke('plugin:deep-link|get_current'); }
+      catch(e) { pluginError = String(e); }
+      return {origin:location.origin,href:location.href,tauri:!!window.__TAURI_INTERNALS__,tauriFlag:!!globalThis.isTauri,current,pluginError,
+        readyState:document.readyState,root:document.getElementById('root')?.innerHTML?.slice(0,3000),
+        body:document.body.innerText.slice(0,3000),pending:(()=>{try{return sessionStorage.getItem('harmony.pending-invite')}catch{return 'BLOCKED'}})()};
+    `).catch(() => ({inspection:'unavailable'}));
+    diagnostics = JSON.parse(JSON.stringify(diagnostics).replace(/[a-f0-9]{64}/g,'<fixture>'));
+    console.log(JSON.stringify({kind:'invite_failure',diagnostics,runtimeErrors:runtimeErrors.slice(-8)}));
+  }
+  throw error;
 } finally {
   client?.close();
   for (const child of children) if (child.exitCode===null && child.signalCode===null) {
@@ -54,7 +76,7 @@ try {
   }
   await mkdir(dirname(output), {recursive:true});
   await writeFile(output, JSON.stringify({passed,commit:process.env.GITHUB_SHA,
-    version:'0.4.12',checks,scope:'Installed Windows EXE, native cold/warm URL delivery and single-instance; no login, API acceptance, media or physical-device test'},null,2)+'\n');
+    version:'0.4.12',checks,diagnostics,runtimeErrors:runtimeErrors.slice(-8),scope:'Windows EXE, native cold/warm URL delivery and single-instance; no login, API acceptance, media or physical-device test'},null,2)+'\n');
 }
 assert.ok(passed);
 console.log(JSON.stringify({status:'PASS',checks:checks.length,scope:'Windows installed EXE cold/warm invitation'}));

@@ -1,0 +1,32 @@
+name: Diagnose Windows invitation delivery
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  invite:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: "26.13.0"}
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with: {toolchain: "1.99.1"}
+      - run: npm ci
+      - name: Build unsigned diagnostic executable without release publication
+        shell: pwsh
+        run: |
+          '{"bundle":{"createUpdaterArtifacts":false}}' | Set-Content -Encoding utf8NoBOM apps/desktop/src-tauri/ci-unsigned.json
+          npm run desktop:build -- --no-bundle --config src-tauri/ci-unsigned.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Diagnose cold and warm links in an isolated local profile
+        shell: pwsh
+        run: |
+          $folder = Join-Path $env:RUNNER_TEMP 'harmony-invite-diagnostic'
+          New-Item -ItemType Directory -Path $folder | Out-Null
+          $exe = Join-Path $folder 'harmony-desktop.exe'
+          Copy-Item apps/desktop/src-tauri/target/release/harmony-desktop.exe $exe
+          node scripts/test_windows_invite.mjs $exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
