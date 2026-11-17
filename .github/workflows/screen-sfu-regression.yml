@@ -1,0 +1,31 @@
+name: Real eight-browser screen relay regression
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: screen-sfu-regression
+  cancel-in-progress: false
+jobs:
+  screen:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: '26.13.0'}
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with: {toolchain: '1.99.1'}
+      - run: npm ci
+      - run: cargo build -p harmony-server --locked
+      - name: Install the same pinned screen SFU
+        run: |
+          mkdir -p .local/vendor/bin
+          curl --fail --location --proto '=https' --tlsv1.2 https://github.com/livekit/livekit/releases/download/v1.13.11/livekit_1.13.11_linux_amd64.tar.gz -o .local/livekit-ci.tar.gz
+          echo '1e9ee90ca301e1842b2887fc77cb122759756a9c8aeb4334ee91de3325ec43fb  .local/livekit-ci.tar.gz' | sha256sum -c -
+          tar -xzf .local/livekit-ci.tar.gz -C .local/vendor/bin livekit-server
+      - name: Run the unchanged hybrid routing and voice gates
+        env:
+          HARMONY_CHROME: /usr/bin/google-chrome
+        run: node scripts/test_call_screen_sfu.mjs

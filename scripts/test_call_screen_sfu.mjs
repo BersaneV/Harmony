@@ -208,13 +208,46 @@ async function browser(index) {
  qa.tone=f=>{const o=qa.audio.createOscillator(),g=qa.audio.createGain(),d=qa.audio.createMediaStreamDestination();o.frequency.value=f;g.gain.value=.1;o.connect(g).connect(d);o.start();qa.resources.push(o);return d.stream.getAudioTracks()[0];};
  qa.render=s=>{qa.latest=s;const active=new Set();for(const peer of s.participants)for(const[source,track]of Object.entries(peer.tracks)){if(!track)continue;const key=peer.peer_id+':'+source;active.add(key);let old=qa.elements.get(key);if(old?.track===track)continue;if(old)old.element.remove();const element=document.createElement(track.kind==='video'?'video':'audio');element.autoplay=true;element.muted=track.kind==='video';element.srcObject=new MediaStream([track]);document.body.append(element);element.play().catch(()=>{});qa.elements.set(key,{track,element});}for(const[key,old]of qa.elements)if(!active.has(key)){old.element.remove();qa.elements.delete(key);}};
  qa.decodedMics=async()=>Promise.all([...rtcCall.peers.values()].map(async p=>{const stats=await p.pc.getStats();return [...stats.values()].some(r=>r.type==='inbound-rtp'&&r.kind==='audio'&&r.mid==='0'&&r.bytesReceived>0&&r.totalAudioEnergy>0);}));
- qa.serial=()=>({state:rtcCall.snapshot.state,participants:rtcCall.snapshot.participants.map(p=>({id:p.peer_id,user:p.user_id,connection:p.connection,screenTransport:p.screenTransport,screenIceRttMs:p.screenIceRttMs,stats:p.stats,sources:Object.keys(p.tracks)})),screenUpload:rtcCall.snapshot.screenUpload,relayPublisherStats:rtcCall.relaySentStats,local:Object.keys(rtcCall.snapshot.localTracks),relay:!!rtcCall.relay,relayRef:rtcCall.relayLocalRef??null,p2p:[...rtcCall.peers.values()].map(p=>({id:p.member.peer_id,mic:p.pc.getTransceivers()[0]?.sender.track?.id??null,screen:p.pc.getTransceivers()[2]?.sender.track?.id??null,audio:p.pc.getTransceivers()[3]?.sender.track?.id??null,screenEncodings:p.pc.getTransceivers()[2]?.sender.getParameters().encodings??[]})),mic:qa.mic?.id,errors:qa.errors});
+ qa.serial=()=>({state:rtcCall.snapshot.state,participants:rtcCall.snapshot.participants.map(p=>({id:p.peer_id,user:p.user_id,connection:p.connection,screenTransport:p.screenTransport,screenIceRttMs:p.screenIceRttMs,stats:p.stats,sources:Object.keys(p.tracks)})),screenUpload:rtcCall.snapshot.screenUpload,relayPublisherStats:rtcCall.relaySentStats,local:Object.keys(rtcCall.snapshot.localTracks),relay:!!rtcCall.relay,relayReady:rtcCall.relayReady===true,relayRef:rtcCall.relayLocalRef??null,p2p:[...rtcCall.peers.values()].map(p=>({id:p.member.peer_id,mic:p.pc.getTransceivers()[0]?.sender.track?.id??null,screen:p.pc.getTransceivers()[2]?.sender.track?.id??null,audio:p.pc.getTransceivers()[3]?.sender.track?.id??null,screenEncodings:p.pc.getTransceivers()[2]?.sender.getParameters().encodings??[]})),mic:qa.mic?.id,errors:qa.errors});
  true;`,
     true,
   );
   chrome.guard();
   result.ready = true;
   return result;
+}
+async function relayDiagnostic(browser) {
+  if (!browser.ready) return null;
+  try {
+    return await Promise.race([
+      browser.client.run(`
+        const relay=rtcCall.relay, room=relay?.room;
+        const finite=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0?v:null;
+        const candidates=[...(relay?.candidates?.values()??[])].slice(0,7);
+        const rows=await Promise.all(candidates.map(async c=>{
+          const video=await c.video.track?.sample().catch(()=>null);
+          const audio=await c.audio?.track?.sample().catch(()=>null);
+          return {ready:c.ready===true,blocked:c.blocked===true,audio_required:c.audioRequired===true,
+            video_track:!!c.video.track,audio_track:!!c.audio?.track,
+            video_enabled:c.video.track?.media.enabled===true,audio_enabled:c.audio?.track?.media.enabled===true,
+            video_live:c.video.track?.media.readyState==='live',audio_live:c.audio?.track?.media.readyState==='live',
+            video_frames:finite(video?.framesDecoded),video_bytes:finite(video?.bytesReceived),
+            video_width:finite(video?.width),video_height:finite(video?.height),
+            audio_bytes:finite(audio?.bytesReceived),audio_samples:finite(audio?.totalSamplesReceived),
+            audio_duration:finite(audio?.totalSamplesDuration),audio_concealed:finite(audio?.concealedSamples)};
+        }));
+        const publications=(room?.participants()??[]).flatMap(p=>p.publications);
+        const sent=await relay?.screen?.publication.sampleStats?.().catch(()=>null);
+        return {relay_present:!!relay,relay_ready:rtcCall.relayReady===true,room_connected:room?.connected()===true,
+          local_video:!!relay?.screen,local_audio:!!relay?.audio,local_ref:!!rtcCall.relayLocalRef,
+          sent_frames:finite(sent?.frames),sent_bytes:finite(sent?.bytes),
+          video_publications:publications.filter(p=>p.source==='screen').length,
+          audio_publications:publications.filter(p=>p.source==='screen_audio').length,
+          candidates:rows};
+      `),
+      delay(3000).then(() => null),
+    ]);
+  } catch { return null; }
 }
 async function digest(path) {
   const hash = createHash("sha256");
@@ -411,7 +444,7 @@ try {
     "All fifty-six incoming P2P microphone paths receive and decode generated audio",
   );
   await until(
-    async () => (await snapshots()).every((s) => s.relay),
+    async () => (await snapshots()).every((s) => s.relay && s.relayReady),
     "All eight real SDK rooms connect",
     15000,
   );
@@ -650,6 +683,7 @@ try {
     ...(screenHandoffDiagnostic
       ? { screen_handoff: screenHandoffDiagnostic }
       : {}),
+    relay_diagnostics: await Promise.all(browsers.map(relayDiagnostic)),
     snapshots: await Promise.all(
       browsers.map(async (b) => {
         try {
@@ -706,6 +740,7 @@ try {
       ...(report.screen_handoff
         ? { screen_handoff: report.screen_handoff }
         : {}),
+      ...(report.relay_diagnostics ? {relay_diagnostics:report.relay_diagnostics}:{}),
       chromium_startup: report.chromium_startup,
       ...(report.cleanup_error_code ? { cleanup_error_code: report.cleanup_error_code } : {}),
     }),
