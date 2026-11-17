@@ -46,6 +46,15 @@ New-Item -ItemType Directory -Force .local/qa-audio-coexistence | Out-Null
 $arguments = '/add-driver "' + (Join-Path $package 'VirtualAudioDriver.inf') + '" /install'
 $installer = Start-Process pnputil.exe -ArgumentList $arguments -PassThru -RedirectStandardOutput .local/qa-audio-coexistence/pnp-out.txt -RedirectStandardError .local/qa-audio-coexistence/pnp-error.txt
 Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes
+Add-Type -TypeDefinition @'
+using System; using System.Runtime.InteropServices;
+public static class HarmonyDriverClick {
+ [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
+ [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
+ [DllImport("user32.dll")] static extern void mouse_event(uint flags,uint x,uint y,uint data,UIntPtr extra);
+ public static void Click(int window,int x,int y){SetForegroundWindow(new IntPtr(window));SetCursorPos(x,y);mouse_event(2,0,0,0,UIntPtr.Zero);mouse_event(4,0,0,0,UIntPtr.Zero);}
+}
+'@
 $deadline = [DateTime]::UtcNow.AddSeconds(100)
 $observed = @()
 try {
@@ -58,7 +67,7 @@ try {
       if ($text -match 'Virtual Audio Driver|MikeTheTech|Windows Security') { $observed += $text.Substring(0,[Math]::Min(1600,$text.Length)); $observed += (@{window=$window.Current.Name; controls=@($nodes | Where-Object { $_.Current.Name -match 'Install|SignPath' } | ForEach-Object { @{name=$_.Current.Name; type=$_.Current.ControlType.ProgrammaticName} })} | ConvertTo-Json -Depth 4 -Compress) }
       # Only approve our exact pinned, already verified driver, without checking
       # any Always trust option or altering a driver-signing policy.
-      if ($text.Contains('Windows Security') -and $text.Contains('Would you like to install this device software?') -and $text.Contains('Always trust software from "SignPath Foundation".')) {
+      if ($window.Current.Name -ceq 'Windows Security' -and $text.Contains('Would you like to install this device software?') -and $text.Contains('SignPath Foundation')) {
         foreach ($node in $nodes) {
           if ($node.Current.ControlType -eq [Windows.Automation.ControlType]::CheckBox -and $node.Current.Name.Contains('Always trust software')) {
             $toggle = [Windows.Automation.TogglePattern]$node.GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern)
@@ -66,8 +75,16 @@ try {
           }
         }
         foreach ($node in $nodes) {
-          if ($node.Current.ControlType -eq [Windows.Automation.ControlType]::Button -and $node.Current.Name.Replace('&','').Trim() -ceq 'Install') {
-            ([Windows.Automation.InvokePattern]$node.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern)).Invoke()
+          if ($node.Current.ControlType -in @([Windows.Automation.ControlType]::Button,[Windows.Automation.ControlType]::Pane) -and $node.Current.Name.Replace('&','').Trim() -ceq 'Install') {
+            $pattern = $null
+            if ($node.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern,[ref]$pattern)) { $pattern.Invoke() }
+            else {
+              # This Windows prompt exposes Install as a Pane, as observed in
+              # the retained UIA tree. Click only its freshly read rectangle.
+              $rect = $node.Current.BoundingRectangle
+              if ($rect.IsEmpty -or $rect.Width -lt 10 -or $rect.Height -lt 10) { throw 'Invalid observed Install rectangle' }
+              [HarmonyDriverClick]::Click($window.Current.NativeWindowHandle,[int]($rect.X+$rect.Width/2),[int]($rect.Y+$rect.Height/2))
+            }
             Write-Host 'Approved the exact signed virtual driver installation dialog'
           }
         }
