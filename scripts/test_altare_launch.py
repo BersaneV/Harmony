@@ -163,6 +163,35 @@ class Boundaries(unittest.TestCase):
 
 
 class OptionalScreenSfu(unittest.TestCase):
+    def test_invite_release_requires_source_pin_and_preserves_rollback(self):
+        original = (launch.VERSION, launch.VERIFIED_PRODUCT, launch.ASSET_URL)
+        try:
+            for pin in ('', 'bad'):
+                with patch.dict(os.environ, {'HARMONY_DEPLOYMENT_VERSION':'0.4.12','HARMONY_BUNDLE_SOURCE_COMMIT':pin}, clear=True), self.assertRaises(RuntimeError):
+                    launch.select_release()
+            with patch.dict(os.environ, {'HARMONY_DEPLOYMENT_VERSION':'0.4.12','HARMONY_BUNDLE_SOURCE_COMMIT':'a'*40}, clear=True):
+                launch.select_release()
+                self.assertEqual(launch.VERSION, '0.4.12')
+                self.assertEqual(launch.VERIFIED_PRODUCT, 'a'*40)
+                self.assertTrue(launch.ASSET_URL.endswith('/v0.4.12/harmony-server-0.4.12-linux-x86_64.tar.gz'))
+            with patch.dict(os.environ, {}, clear=True):
+                launch.select_release()
+                self.assertEqual(launch.VERSION, '0.4.1')
+        finally:
+            launch.VERSION, launch.VERIFIED_PRODUCT, launch.ASSET_URL = original
+
+    def test_invite_release_keeps_optional_screen_sfu_on_existing_port(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); runtime, state = root / 'runtime', root / 'state'
+            (runtime / 'bin').mkdir(parents=True); state.mkdir()
+            (runtime / 'bin/livekit-server').write_bytes(b'fixture')
+            environment = {'LIVEKIT_API_KEY':'fixture-key', 'LIVEKIT_API_SECRET':'x'*40,
+                'HARMONY_MEDIA_TRANSPORT':'p2p','LIVEKIT_API_URL':'http://127.0.0.1:7880',
+                'HARMONY_PUBLIC_API_URL':'https://example.invalid','LIVEKIT_URL':'wss://example.invalid'}
+            with patch.object(launch, 'VERSION', '0.4.12'), patch.dict(os.environ, environment, clear=True):
+                launch.configure_screen_sfu(runtime, state, 25094)
+                self.assertEqual(json.loads((state/'livekit.json').read_text())['rtc']['udp_port'], 25094)
+
     def test_candidate_requires_operator_source_pin_and_rollback_restores_original(self):
         original = (launch.VERSION, launch.VERIFIED_PRODUCT, launch.ASSET_URL)
         try:

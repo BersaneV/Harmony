@@ -6672,6 +6672,25 @@
     ]
   },
   {
+    "package": "cargo:tauri-plugin-deep-link@2.6.3",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://crates.io/crates/tauri-plugin-deep-link/2.6.3",
+    "notices": [
+      {
+        "name": "LICENSE.spdx",
+        "sha256": "9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759"
+      },
+      {
+        "name": "LICENSE_APACHE-2.0",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      {
+        "name": "LICENSE_MIT",
+        "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d"
+      }
+    ]
+  },
+  {
     "package": "cargo:tauri-plugin-global-shortcut@2.4.1",
     "license": "Apache-2.0 OR MIT",
     "source": "https://crates.io/crates/tauri-plugin-global-shortcut/2.4.1",
@@ -6706,6 +6725,25 @@
       {
         "name": "LICENSE_MIT",
         "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d"
+      }
+    ]
+  },
+  {
+    "package": "cargo:tauri-plugin-single-instance@2.5.5",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://crates.io/crates/tauri-plugin-single-instance/2.5.5",
+    "notices": [
+      {
+        "name": "LICENSE.spdx",
+        "sha256": "9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759"
+      },
+      {
+        "name": "LICENSE_APACHE-2.0",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      {
+        "name": "LICENSE_MIT",
+        "sha256": "af76c60594af325c4efdcbcd27f5d34ff441c11f09b46b627b378d04d5aa1f1d"
       }
     ]
   },
@@ -9481,6 +9519,17 @@
       {
         "name": "LICENSE.spdx",
         "sha256": "5e834fe9788c524210deda859c46a550ffa5aa0cba9ea0572f0d81120e97c008"
+      }
+    ]
+  },
+  {
+    "package": "npm:@tauri-apps/plugin-deep-link@2.6.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://www.npmjs.com/package/@tauri-apps/plugin-deep-link/v/2.6.3",
+    "notices": [
+      {
+        "name": "LICENSE.spdx",
+        "sha256": "9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759"
       }
     ]
   },

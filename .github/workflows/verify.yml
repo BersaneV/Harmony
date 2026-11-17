@@ -262,4 +262,4 @@ jobs:
           $notes = "Harmony $version, commit $env:GITHUB_SHA.`n`n" + (Get-Content "docs/releases/$version.md" -Raw)
           $notes | Out-File -Encoding utf8 release-notes.txt
           $files = (Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*).FullName
-          gh release create $tag @files .local/qa-updater/windows-release.json .local/qa-updater/windows-install.json --draft --prerelease --target $env:GITHUB_SHA --title "Harmony $version — Windows" --notes-file release-notes.txt
+          gh release create $tag @files .local/qa-updater/windows-release.json .local/qa-updater/windows-install.json .local/qa-updater/windows-invite.json --draft --prerelease --target $env:GITHUB_SHA --title "Harmony $version — Windows" --notes-file release-notes.txt

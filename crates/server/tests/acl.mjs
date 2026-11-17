@@ -14,6 +14,15 @@ const sessions=[];for(const name of ['owner','member','outsider'])sessions.push(
 const [owner,member,outsider]=sessions;const ot=owner.access_token,mt=member.access_token,xt=outsider.access_token;
 const guild=await call('POST','/guilds',{name:'ACL matrix'},ot);
 const join=await call('POST',`/guilds/${guild.id}/invites`,{max_uses:1},ot);await call('POST','/invites/accept',{token:join.token},mt);
+// Reopening a link is idempotent for a member, including a fully used invite.
+const reopened=await call('POST','/invites/accept',{token:join.token},mt);assert.equal(reopened.id,guild.id);checks++;
+await call('POST','/invites/accept',{token:join.token},xt,[400,403,404,409,410]);
+// The creator can open a fresh invite without spending the recipient's use.
+const inviteGuild=await call('POST','/guilds',{name:'Idempotent invitation'},ot);
+const freshInvite=await call('POST',`/guilds/${inviteGuild.id}/invites`,{max_uses:1},ot);
+await call('POST','/invites/accept',{token:freshInvite.token},ot);
+await call('POST','/invites/accept',{token:freshInvite.token},mt);
+await call('POST','/invites/accept',{token:freshInvite.token},xt,[400,403,404,409,410]);
 const channel=await call('POST',`/guilds/${guild.id}/channels`,{name:'Restricted',kind:'text'},ot);
 const other=await call('POST',`/guilds/${guild.id}/channels`,{name:'Available',kind:'text'},ot);
 const voice=await call('POST',`/guilds/${guild.id}/channels`,{name:'Voice',kind:'voice'},ot);

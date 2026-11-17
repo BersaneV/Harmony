@@ -35,13 +35,13 @@ jobs:
           assert result['status'] == 'completed' and result['conclusion'] == 'success'
           jobs = json.loads(subprocess.check_output(['gh','api',f'repos/BersaneV/Harmony/actions/runs/{run}/jobs']))['jobs']
           assert {'server','desktop'} <= {j['name'] for j in jobs if j['conclusion'] == 'success'}
-          assert json.loads(Path('apps/desktop/src-tauri/tauri.conf.json').read_text())['version'] == '0.4.3'
-          release = json.loads(subprocess.check_output(['gh','release','view','v0.4.3','--json','isDraft,targetCommitish']))
+          assert json.loads(Path('apps/desktop/src-tauri/tauri.conf.json').read_text())['version'] == '0.4.12'
+          release = json.loads(subprocess.check_output(['gh','release','view','v0.4.12','--json','isDraft,targetCommitish']))
           assert release['isDraft'], 'Candidate must remain unpublished until package verification'
           assert release['targetCommitish'] == os.environ['GITHUB_SHA'], 'Desktop and server must share the verified commit'
-          refs = json.loads(subprocess.check_output(['gh','api','repos/BersaneV/Harmony/git/matching-refs/tags/v0.4.3']))
+          refs = json.loads(subprocess.check_output(['gh','api','repos/BersaneV/Harmony/git/matching-refs/tags/v0.4.12']))
           for ref in refs:
-              if ref['ref'] != 'refs/tags/v0.4.3': continue
+              if ref['ref'] != 'refs/tags/v0.4.12': continue
               obj = ref['object']
               for _ in range(8):
                   if obj['type'] == 'commit': break
@@ -77,23 +77,23 @@ jobs:
           from pathlib import Path
           root = Path('.local/server-candidate')
           files = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob('*')) if p.is_file()}
-          manifest = {'version':'0.4.3','platform':'linux-x86_64','source_commit':os.environ['GITHUB_SHA'],'verified_product_commit':os.environ['GITHUB_SHA'],'verify_run':os.environ['VERIFIED_RUN'],'livekit':{'version':'1.13.11','archive_sha256':'1e9ee90ca301e1842b2887fc77cb122759756a9c8aeb4334ee91de3325ec43fb'},'files':files,'scope':'Validated source build; optional screen SFU still requires deployment/network/capacity acceptance.'}
+          manifest = {'version':'0.4.12','platform':'linux-x86_64','source_commit':os.environ['GITHUB_SHA'],'verified_product_commit':os.environ['GITHUB_SHA'],'verify_run':os.environ['VERIFIED_RUN'],'livekit':{'version':'1.13.11','archive_sha256':'1e9ee90ca301e1842b2887fc77cb122759756a9c8aeb4334ee91de3325ec43fb'},'files':files,'scope':'Validated source build; optional screen SFU still requires deployment/network/capacity acceptance.'}
           (root / 'manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
           PY
-          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -czf .local/harmony-server-0.4.3-linux-x86_64.tar.gz -C .local/server-candidate .
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -czf .local/harmony-server-0.4.12-linux-x86_64.tar.gz -C .local/server-candidate .
           cd .local
-          sha256sum harmony-server-0.4.3-linux-x86_64.tar.gz > harmony-server-0.4.3-linux-x86_64.sha256
+          sha256sum harmony-server-0.4.12-linux-x86_64.tar.gz > harmony-server-0.4.12-linux-x86_64.sha256
       - name: Attach the candidate server runtime to the signed draft
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PY'
           import json, os, subprocess
-          release = json.loads(subprocess.check_output(['gh','release','view','v0.4.3','--json','isDraft,targetCommitish']))
+          release = json.loads(subprocess.check_output(['gh','release','view','v0.4.12','--json','isDraft,targetCommitish']))
           assert release['isDraft'] and release['targetCommitish'] == os.environ['GITHUB_SHA']
-          refs = json.loads(subprocess.check_output(['gh','api','repos/BersaneV/Harmony/git/matching-refs/tags/v0.4.3']))
+          refs = json.loads(subprocess.check_output(['gh','api','repos/BersaneV/Harmony/git/matching-refs/tags/v0.4.12']))
           for ref in refs:
-              if ref['ref'] != 'refs/tags/v0.4.3': continue
+              if ref['ref'] != 'refs/tags/v0.4.12': continue
               obj = ref['object']
               for _ in range(8):
                   if obj['type'] == 'commit': break
@@ -103,4 +103,4 @@ jobs:
           head = json.loads(subprocess.check_output(['gh','api','repos/BersaneV/Harmony/git/ref/heads/main']))
           assert head['object']['sha'] == os.environ['GITHUB_SHA'], 'Main changed during candidate packaging'
           PY
-          gh release upload v0.4.3 .local/harmony-server-0.4.3-linux-x86_64.tar.gz .local/harmony-server-0.4.3-linux-x86_64.sha256 --repo BersaneV/Harmony
+          gh release upload v0.4.12 .local/harmony-server-0.4.12-linux-x86_64.tar.gz .local/harmony-server-0.4.12-linux-x86_64.sha256 --repo BersaneV/Harmony

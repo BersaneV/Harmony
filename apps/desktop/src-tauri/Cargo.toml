@@ -1,6 +1,6 @@
 [package]
 name = "harmony-desktop"
-version = "0.4.11"
+version = "0.4.12"
 description = "Comunicação self-hosted para sua comunidade"
 authors = ["Harmony contributors"]
 license = "Apache-2.0"
@@ -16,6 +16,8 @@ tauri-build = { version = "2.6", features = [] }
 tauri = { version = "2.12.5", features = [] }
 tauri-plugin-notification = "2"
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-deep-link = "=2.6.3"
+tauri-plugin-single-instance = { version = "=2.5.5", features = ["deep-link"] }
 url = "2.5"
 open = "5.4.5"
 tauri-plugin-updater = "=2.13.3"

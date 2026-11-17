@@ -50,6 +50,17 @@ import {
   ChannelPermissions,
 } from "./components/Roles";
 import Auth from "./components/Auth";
+import Invite from "./components/Invite";
+import {
+  inviteLink,
+  loadInvite,
+  parseInvite,
+  parseInviteInput,
+  storeInvite,
+} from "./lib/invites";
+import type { CommunityInvite } from "./lib/invites";
+import { observeNativeInvites } from "./lib/invites-native";
+import { openExternal } from "./lib/desktop";
 import Chat from "./components/Chat";
 import Friends from "./components/Friends";
 import { Admin, Settings } from "./components/Settings";
@@ -67,6 +78,63 @@ export default function App() {
   const [session, setSession] = useState(getSession());
   const [restoring, setRestoring] = useState(isTauri());
   const cache = useQueryClient();
+  const [invitation, setInvitation] = useState<CommunityInvite | null>(() =>
+    loadInvite(),
+  );
+  const [inviteError, setInviteError] = useState("");
+  const [joinedGuild, setJoinedGuild] = useState<Guild | null>(null);
+  useEffect(() => {
+    let active = true;
+    let stop: (() => void) | undefined;
+    const receive = (url: string) => {
+      if (!active) return;
+      const next = parseInvite(url);
+      if (next) {
+        storeInvite(next);
+        setInvitation(next);
+        setInviteError("");
+      } else if (url.startsWith("harmony:") || url.includes("#/invite/")) {
+        storeInvite(null);
+        setInvitation(null);
+        setInviteError(
+          "O link de convite é inválido. Peça outro convite ao responsável pela comunidade.",
+        );
+      }
+    };
+    const fromBrowser = () => {
+      if (!window.location.hash.startsWith("#/invite/")) return;
+      receive(window.location.href);
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search,
+      );
+    };
+    fromBrowser();
+    window.addEventListener("hashchange", fromBrowser);
+    if (isTauri())
+      void observeNativeInvites(receive)
+        .then((cleanup) => {
+          if (active) stop = cleanup;
+          else cleanup();
+        })
+        .catch(() => {
+          if (active)
+            setInviteError(
+              "Não foi possível abrir o convite pelo aplicativo. Tente abrir o link novamente.",
+            );
+        });
+    return () => {
+      active = false;
+      stop?.();
+      window.removeEventListener("hashchange", fromBrowser);
+    };
+  }, []);
+  function dismissInvite() {
+    storeInvite(null);
+    setInvitation(null);
+    setInviteError("");
+  }
   const [appearanceWarning, setAppearanceWarning] = useState("");
   const appearance = JSON.stringify(session?.user.preferences?.theme ?? null);
   const appearanceScope = session
@@ -75,7 +143,10 @@ export default function App() {
   useEffect(
     () =>
       onSession((next) => {
-        if (!next) cache.clear();
+        if (!next) {
+          cache.clear();
+          setJoinedGuild(null);
+        }
         setSession(next);
       }),
     [cache],
@@ -108,6 +179,27 @@ export default function App() {
     );
   return (
     <>
+      {inviteError && (
+        <div className="appearance-warning" role="alert">
+          {inviteError}
+          <button onClick={() => setInviteError("")}>Fechar</button>
+        </div>
+      )}
+      {invitation && (
+        <Invite
+          key={inviteLink(invitation)}
+          invite={invitation}
+          desktop={isTauri()}
+          authenticated={!!session}
+          server={getServer()}
+          onDismiss={dismissInvite}
+          onJoined={(guild) => {
+            dismissInvite();
+            setJoinedGuild(guild);
+            void cache.invalidateQueries({ queryKey: ["guilds"] });
+          }}
+        />
+      )}
       {appearanceWarning && session && (
         <div className="appearance-warning" role="status">
           {appearanceWarning}
@@ -115,14 +207,24 @@ export default function App() {
         </div>
       )}
       {session ? (
-        <Workspace key={appearanceScope} session={session} />
+        <Workspace
+          key={appearanceScope}
+          session={session}
+          joinedGuild={joinedGuild}
+        />
       ) : (
         <Auth />
       )}
     </>
   );
 }
-function Workspace({ session }: { session: Session }) {
+function Workspace({
+  session,
+  joinedGuild,
+}: {
+  session: Session;
+  joinedGuild: Guild | null;
+}) {
   const user = session.user;
   const cache = useQueryClient();
   const [guildId, setGuildId] = useState<string | null>(null);
@@ -157,6 +259,18 @@ function Workspace({ session }: { session: Session }) {
   const sidebar = useRef<HTMLElement>(null);
   const closeNavigation = useRef<HTMLButtonElement>(null);
   useEffect(() => {
+    if (!joinedGuild) return;
+    cache.setQueryData<Items<Guild>>(["guilds"], (old) => ({
+      items: [
+        ...(old?.items.filter((g) => g.id !== joinedGuild.id) ?? []),
+        joinedGuild,
+      ],
+    }));
+    setGuildId(joinedGuild.id);
+    setChannel(null);
+    setMobileNav(compactLayout);
+  }, [joinedGuild, cache]);
+  useEffect(() => {
     const media = window.matchMedia("(max-width: 800px)");
     const resize = () => {
       setCompactLayout(media.matches);
@@ -182,7 +296,8 @@ function Workspace({ session }: { session: Session }) {
         opener instanceof HTMLElement &&
         opener.isConnected &&
         sidebar.current?.contains(document.activeElement)
-      ) opener.focus();
+      )
+        opener.focus();
     };
   }, [mobileNav, compactLayout]);
   const { connection, typing, sendTyping } = useRealtime(user.id);
@@ -350,7 +465,7 @@ function Workspace({ session }: { session: Session }) {
     } else if (dialog === "join") {
       const result = await api<Guild>("/api/invites/accept", {
         method: "POST",
-        body: { token: name },
+        body: { token: parseInviteInput(name, getServer()).token },
       });
       await cache.invalidateQueries({ queryKey: ["guilds"] });
       openGuild(result.id);
@@ -362,7 +477,7 @@ function Workspace({ session }: { session: Session }) {
     setInvite(
       await api(`/api/guilds/${guildId}/invites`, {
         method: "POST",
-        body: { expires_hours: 24, max_uses: 1 },
+        body: { expires_hours: 168, max_uses: 100 },
       }),
     );
     setCopied(false);
@@ -611,7 +726,8 @@ function Workspace({ session }: { session: Session }) {
             aria-expanded={mobileNav}
             onClick={() => setMobileNav((v) => !v)}
           >
-            <Menu size={20} /><span>Canais</span>
+            <Menu size={20} />
+            <span>Canais</span>
           </button>
           <div className="channel-title">
             {channel ? (
@@ -873,11 +989,30 @@ function Workspace({ session }: { session: Session }) {
           {dialog === "invite" ? (
             <>
               <p className="muted">
-                Este convite permite uma entrada e é válido por 24 horas.
+                Este link permite até 100 entradas e é válido por 7 dias.
               </p>
               {invite ? (
                 <div className="secret-result">
-                  <code>{invite.token}</code>
+                  <a
+                    className="invite-link"
+                    href={inviteLink({
+                      server: getServer(),
+                      token: invite.token,
+                    })}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void action(() =>
+                        openExternal(
+                          inviteLink({
+                            server: getServer(),
+                            token: invite.token,
+                          }),
+                        ),
+                      );
+                    }}
+                  >
+                    {inviteLink({ server: getServer(), token: invite.token })}
+                  </a>
                   <small>
                     Expira em{" "}
                     {new Date(invite.expires_at).toLocaleString("pt-BR")}
@@ -886,13 +1021,18 @@ function Workspace({ session }: { session: Session }) {
                     className="button primary full"
                     onClick={() =>
                       void navigator.clipboard
-                        .writeText(invite.token)
+                        .writeText(
+                          inviteLink({
+                            server: getServer(),
+                            token: invite.token,
+                          }),
+                        )
                         .then(() => setCopied(true))
                         .catch((e) => setError(errorMessage(e)))
                     }
                   >
                     {copied ? <Check size={16} /> : <Copy size={16} />}{" "}
-                    {copied ? "Copiado" : "Copiar convite"}
+                    {copied ? "Copiado" : "Copiar link de convite"}
                   </button>
                 </div>
               ) : (
@@ -922,7 +1062,7 @@ function Workspace({ session }: { session: Session }) {
               <Field
                 label={
                   dialog === "join"
-                    ? "Código de convite"
+                    ? "Link ou código de convite"
                     : dialog === "guild"
                       ? "Nome da comunidade"
                       : "Nome do canal"

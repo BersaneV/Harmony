@@ -2919,7 +2919,8 @@ strong {
   }
   .server-rail {
     width: var(--navigation-rail-width);
-    padding: max(12px, env(safe-area-inset-top)) 8px max(12px, env(safe-area-inset-bottom));
+    padding: max(12px, env(safe-area-inset-top)) 8px
+      max(12px, env(safe-area-inset-bottom));
     z-index: 14;
     overscroll-behavior: contain;
   }
@@ -2927,7 +2928,10 @@ strong {
     display: none;
     position: absolute;
     inset: 0 auto 0 var(--navigation-rail-width);
-    width: min(max(260px, var(--sidebar-width, 260px)), calc(100vw - var(--navigation-rail-width) - 20px));
+    width: min(
+      max(260px, var(--sidebar-width, 260px)),
+      calc(100vw - var(--navigation-rail-width) - 20px)
+    );
     z-index: 14;
     box-shadow: 25px 0 70px #0007;
     padding-top: env(safe-area-inset-top);
@@ -3129,9 +3133,71 @@ strong {
   }
 }
 
-.p2p-invitations { display: grid; gap: 10px; padding: 12px; min-width: 0; }
-.p2p-invitations > p { margin: 0; font-size: .85rem; }
-.p2p-invitation { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; }
-.p2p-invitation > div { min-width: 0; overflow-wrap: anywhere; }
-.p2p-invitation .button { flex-shrink: 0; min-height: 44px; }
-@media (max-width: 480px) { .p2p-invitation { flex-wrap: wrap; } .p2p-invitation .button { width: 100%; } }
+.p2p-invitations {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  min-width: 0;
+}
+.p2p-invitations > p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.p2p-invitation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.p2p-invitation > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.p2p-invitation .button {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+@media (max-width: 480px) {
+  .p2p-invitation {
+    flex-wrap: wrap;
+  }
+  .p2p-invitation .button {
+    width: 100%;
+  }
+}
+
+.invite-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+.invite-actions a {
+  text-decoration: none;
+}
+.invite-link {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.invite-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(680px, calc(100% - 24px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px #0005;
+}
+.invite-banner button {
+  margin-left: auto;
+  white-space: nowrap;
+}

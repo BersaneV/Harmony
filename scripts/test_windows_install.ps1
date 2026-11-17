@@ -1,11 +1,11 @@
 #requires -Version 7.0
 <#
 Smoke test for the locally built NSIS package on a disposable GitHub Windows runner.
-Never launches Harmony. Tests install, PE ProductVersion and silent removal only.
+Checks silent install without auto-launch, then explicitly tests cold/warm invite links.
 NSIS: https://nsis.sourceforge.io/Docs/Chapter3.html sections 3.2.1/3.2.2.
 Tauri template: https://github.com/tauri-apps/tauri/blob/tauri-v2.12.5/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi
 /D= and _?= are LAST, absolute and deliberately unquoted, including spaces.
-The /R flag that launches the application is deliberately absent.
+The /R flag is absent; the separate invite test owns and closes its two processes.
 #>
 [CmdletBinding()]
 param(
@@ -41,6 +41,14 @@ $uninstaller = Join-Path $installDirectory 'uninstall.exe'
 $mainExecutable = $null
 $uninstalled = $false
 $checks = [Collections.Generic.List[object]]::new()
+$protocolChecks = [Collections.Generic.List[object]]::new()
+$protocolKey = 'HKCU:\Software\Classes\harmony'
+if (Test-Path -LiteralPath $protocolKey) { throw 'Refusing to replace an existing protocol registration.' }
+function Record-ProtocolCheck([string]$Name, [bool]$Passed) {
+    $protocolChecks.Add([ordered]@{ name = $Name; passed = $Passed })
+    if (-not $Passed) { throw "FAIL $Name" }
+    Write-Host "PASS $Name"
+}
 function Record-Check([string]$Name, [bool]$Passed) {
     $checks.Add([ordered]@{ name = $Name; passed = $Passed })
     if (-not $Passed) { throw "FAIL $Name" }
@@ -78,6 +86,15 @@ try {
     Record-Check 'installed ProductVersion matches expected release' ($installedVersion -ceq $Version -or $installedVersion -ceq "$Version.0")
     $running = @(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($mainExecutable)) -ErrorAction SilentlyContinue)
     Record-Check 'application was not launched by silent install' ($running.Count -eq 0)
+    Record-ProtocolCheck 'Harmony URL protocol is installed for the current user' (Test-Path -LiteralPath $protocolKey)
+    $protocol = Get-Item -LiteralPath $protocolKey
+    Record-ProtocolCheck 'URL Protocol marker is present' ($protocol.GetValueNames() -contains 'URL Protocol')
+    $commandKey = Get-Item -LiteralPath ($protocolKey + '\shell\open\command')
+    $expectedCommand = '"' + $mainExecutable + '" "%1"'
+    Record-ProtocolCheck 'protocol command targets this installed executable with one quoted URL' ($commandKey.GetValue('') -ieq $expectedCommand)
+    # Explicit test launch occurs only after the silent-install no-launch check.
+    node scripts/test_windows_invite.mjs $mainExecutable
+    if ($LASTEXITCODE -ne 0) { throw 'Installed app invitation delivery failed.' }
     # _?= prevents the uninstaller from spawning a temporary copy, so waiting on
     # this process observes actual removal. It cannot delete its own running exe.
     $exitCode = Run-Installer $uninstaller "/S _?=$installDirectory"
@@ -85,6 +102,7 @@ try {
     Record-Check 'main executable was removed by uninstaller' (-not (Test-Path -LiteralPath $mainExecutable))
     $remainingKeys = @($uninstallKeys | Where-Object { Test-Path -LiteralPath $_ })
     Record-Check 'uninstall registration was removed' ($remainingKeys.Count -eq 0)
+    Record-ProtocolCheck 'uninstaller removes the Harmony URL protocol' (-not (Test-Path -LiteralPath $protocolKey))
     $uninstalled = $true
 } finally {
     if (-not $uninstalled -and (Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
@@ -100,13 +118,14 @@ try {
     $outputPath = [IO.Path]::GetFullPath($Output)
     $null = New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($outputPath)) -Force
     [ordered]@{
-        scope = 'Windows NSIS silent installation/removal only; app not launched; no UI, updater replacement, media, or device validation'
+        scope = 'Windows NSIS installation/removal and protocol registration; explicit cold/warm link test in windows-invite.json; no media or physical-device validation'
         timestamp = [DateTimeOffset]::UtcNow.ToString('o')
         version = $Version
         artifact_sha256 = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
         commit = $env:GITHUB_SHA
         passed = $uninstalled
         checks = $checks
+        protocol_checks = $protocolChecks
     } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $outputPath -Encoding utf8NoBOM
 }
 if (-not $uninstalled) { throw 'Windows installation smoke did not complete.' }

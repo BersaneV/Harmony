@@ -88,6 +88,14 @@ fn set_push_to_talk(app: tauri::AppHandle, enabled: bool) -> Result<(), String> 
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .manage(updates::UpdateState::default())
         .manage(capture::CaptureState::default())
         .plugin(tauri_plugin_updater::Builder::new().build())

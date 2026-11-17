@@ -7,6 +7,7 @@
   ],
   "permissions": [
     "allow-session-storage",
+    "deep-link:default",
     "allow-open-external",
     "notification:default",
     "allow-push-to-talk",

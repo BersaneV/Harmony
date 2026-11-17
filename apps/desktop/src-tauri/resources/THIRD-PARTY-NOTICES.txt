@@ -2791,6 +2791,13 @@ Source: https://crates.io/crates/tauri-macros/2.7.4
 Notice: LICENSE-APACHE-2.0 — 0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594
 Notice: LICENSE-MIT — 9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d
 
+cargo:tauri-plugin-deep-link@2.6.3
+License: Apache-2.0 OR MIT
+Source: https://crates.io/crates/tauri-plugin-deep-link/2.6.3
+Notice: LICENSE.spdx — 9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759
+Notice: LICENSE_APACHE-2.0 — 0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594
+Notice: LICENSE_MIT — 9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d
+
 cargo:tauri-plugin-global-shortcut@2.4.1
 License: Apache-2.0 OR MIT
 Source: https://crates.io/crates/tauri-plugin-global-shortcut/2.4.1
@@ -2804,6 +2811,13 @@ Source: https://crates.io/crates/tauri-plugin-notification/2.8.1
 Notice: LICENSE.spdx — 9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759
 Notice: LICENSE_APACHE-2.0 — 0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594
 Notice: LICENSE_MIT — 9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d
+
+cargo:tauri-plugin-single-instance@2.5.5
+License: Apache-2.0 OR MIT
+Source: https://crates.io/crates/tauri-plugin-single-instance/2.5.5
+Notice: LICENSE.spdx — 9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759
+Notice: LICENSE_APACHE-2.0 — 0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594
+Notice: LICENSE_MIT — af76c60594af325c4efdcbcd27f5d34ff441c11f09b46b627b378d04d5aa1f1d
 
 cargo:tauri-plugin-updater@2.13.3
 License: Apache-2.0 OR MIT
@@ -3952,6 +3966,11 @@ Source: https://www.npmjs.com/package/@tauri-apps/api/v/2.12.4
 Notice: LICENSE-APACHE-2.0 — 0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594
 Notice: LICENSE-MIT — 9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d
 Notice: LICENSE.spdx — 5e834fe9788c524210deda859c46a550ffa5aa0cba9ea0572f0d81120e97c008
+
+npm:@tauri-apps/plugin-deep-link@2.6.3
+License: MIT OR Apache-2.0
+Source: https://www.npmjs.com/package/@tauri-apps/plugin-deep-link/v/2.6.3
+Notice: LICENSE.spdx — 9c1db6b7e7eb83e1cb2af973b5df2bdc63651ede0f38506ab98dfa0940487759
 
 npm:@tauri-apps/plugin-notification@2.8.1
 License: MIT OR Apache-2.0
@@ -19735,6 +19754,30 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+
+
+===== Notice SHA256 af76c60594af325c4efdcbcd27f5d34ff441c11f09b46b627b378d04d5aa1f1d =====
+MIT License
+
+Copyright (c) 2017 - Present The Tauri Programme in the Commons Conservancy
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 
 ===== Notice SHA256 b16db96b93b1d7cf7bea533f572091ec6bca3234fbe0a83038be772ff391a44c =====

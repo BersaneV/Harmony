@@ -297,6 +297,21 @@ pub async fn accept_invite(
     Json(b): Json<Token>,
 ) -> ApiResult<Json<Value>> {
     let mut tx = s.pool.begin_with("BEGIN IMMEDIATE").await?;
+    // Opening the same link again cannot spend another invitation use or lock
+    // out someone who already belongs to the community.
+    let existing = sqlx::query("SELECT g.id,g.name,g.owner_id FROM invites i JOIN guilds g ON g.id=i.guild_id JOIN guild_members m ON m.guild_id=g.id WHERE i.hash=$1 AND m.user_id=$2")
+        .bind(hash(&b.token))
+        .bind(a.user.id)
+        .fetch_optional(&mut *tx)
+        .await?;
+    if let Some(row) = existing {
+        tx.commit().await?;
+        return Ok(Json(json!(Guild {
+            id: row.get("id"),
+            name: row.get("name"),
+            owner_id: row.get("owner_id"),
+        })));
+    }
     let gid = consume_invite(&mut tx, &b.token)
         .await?
         .ok_or_else(|| Error::Invalid("Este convite é apenas para cadastro".into()))?;
