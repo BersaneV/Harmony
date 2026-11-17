@@ -57,8 +57,10 @@ public static class HarmonyDriverClick {
 '@
 $deadline = [DateTime]::UtcNow.AddSeconds(100)
 $observed = @()
+$approvedDialog = $false
 try {
   while (-not $installer.HasExited -and [DateTime]::UtcNow -lt $deadline) {
+    if ($approvedDialog) { Start-Sleep -Milliseconds 500; continue }
     $windows = [Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Children,[Windows.Automation.Condition]::TrueCondition)
     foreach ($window in $windows) {
       $nodes = $window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
@@ -86,9 +88,12 @@ try {
               [HarmonyDriverClick]::Click($window.Current.NativeWindowHandle,[int]($rect.X+$rect.Width/2),[int]($rect.Y+$rect.Height/2))
             }
             Write-Host 'Approved the exact signed virtual driver installation dialog'
+            $approvedDialog = $true
+            break
           }
         }
       }
+      if ($approvedDialog) { break }
     }
     Start-Sleep -Milliseconds 500
   }

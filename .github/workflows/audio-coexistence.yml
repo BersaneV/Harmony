@@ -30,6 +30,30 @@ jobs:
             if ($samples.Count -ne 10 -or @($samples | Where-Object { $_.external_440 -gt 0.02 }).Count -lt 8) { throw 'External player is not measured in real WASAPI loopback' }
             Write-Host 'PASS baseline external process -> Windows mixer -> real loopback PCM'
           } finally { if (-not $player.HasExited) { Stop-Process -Id $player.Id } }
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: "26.13.0"}
+      - run: npm ci
+      - name: Verify measurement rejection gates
+        run: node --test scripts/audio-coexistence/measurements.test.mjs
+      - name: Extract the exact published Windows app
+        shell: pwsh
+        run: |
+          $folder = Join-Path $env:RUNNER_TEMP 'harmony-audio-app'
+          New-Item -ItemType Directory -Path $folder | Out-Null
+          $setup = Join-Path $folder 'Harmony_0.4.13_x64-setup.exe'
+          Invoke-WebRequest 'https://github.com/BersaneV/Harmony/releases/download/v0.4.13/Harmony_0.4.13_x64-setup.exe' -OutFile $setup
+          if ((Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant() -cne '5494f7576a89625afdaa262b64f5ca5af7d91b7b39d8f2935a9643053981f6d5') { throw 'Published installer differs' }
+          & 'C:\Program Files\7-Zip\7z.exe' e $setup "-o$folder" harmony-desktop.exe -y
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $exe = Join-Path $folder 'harmony-desktop.exe'
+          if ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() -cne '58ea36ebcd72fc63ce9a9e6d2c5b59fa103fea9ee7327b01ae03a7cb71f77de7') { throw 'Published executable differs' }
+          "HARMONY_AUDIO_EXE=$exe" | Out-File -Encoding utf8 -Append $env:GITHUB_ENV
+      - name: Published EXE call and screen with independent Windows audio
+        run: node scripts/audio-coexistence/run.mjs
+      - name: Record the exact resolved probe dependencies
+        if: always()
+        shell: pwsh
+        run: Get-Content tools/windows-audio-lab/packages.lock.json -ErrorAction SilentlyContinue
       - name: Show bounded fixture diagnostics
         if: always()
         shell: pwsh
