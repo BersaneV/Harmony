@@ -77,7 +77,7 @@ try {
   const invite=await api(`/guilds/${guild.id}/invites`,{expires_hours:1,max_uses:1},owner.access_token);mask(invite.token);
   const other=await api('/auth/register',{...users[1],display_name:'Audio lab receiver',invite_token:invite.token});sessions.push(other);mask(other.access_token);mask(other.refresh_token);
   const p1=await port(),p2=await port();
-  const flags=`--remote-debugging-address=127.0.0.1 --remote-debugging-port=${p1} --enable-automation --autoplay-policy=no-user-gesture-required --auto-select-desktop-capture-source=Entire screen`;
+  const flags=`--remote-debugging-address=127.0.0.1 --remote-debugging-port=${p1} --enable-automation --autoplay-policy=no-user-gesture-required`;
   const policy=spawnSync('pwsh',['-NoProfile','-File',resolve('scripts/exe-wan/webview-policy.ps1'),'-ExePath',exe,'-Profile',join(directory,'native')],{encoding:'utf8',env:{...process.env,HARMONY_WAN_BROWSER_ARGUMENTS:flags}});assert.equal(policy.status,0,'Scoped owned EXE WebView policy');
   const app=start(exe,[],{env:{...process.env,WEBVIEW2_USER_DATA_FOLDER:join(directory,'native'),WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:flags}});
   native=await attach(p1,['http://tauri.localhost','https://tauri.localhost']);
@@ -96,7 +96,11 @@ try {
   await until(()=>native.evaluate("__audioCoexist.local.some(t=>t.kind==='audio'&&t.readyState==='live')"),'Actual virtual microphone opens');
   report.microphone=await native.evaluate("__audioCoexist.local.filter(t=>t.kind==='audio').map(t=>({label:t.label,settings:t.getSettings(),state:t.readyState}))");
   await phase('microphone_with_windows_mute_preference',{baseline,diagnostic:true});
-  await click(native,'Dispositivos e voz',true);await click(native,'Manter os outros sons no Windows');
+  await click(native,'Dispositivos e voz',true);
+  const commAlias=await native.evaluate("Array.from(document.querySelectorAll('label.field')).some(l=>l.querySelector('span')?.textContent==='Microfone'&&Array.from(l.querySelectorAll('option')).some(o=>o.value==='communications'))");
+  report.communication_alias_available=commAlias;
+  if(commAlias){const count=await native.evaluate('__audioCoexist.local.length');await select(native,'Microfone','communications');await until(()=>native.evaluate(`__audioCoexist.local.length>${count}&&__audioCoexist.local.some(t=>t.kind==='audio'&&t.readyState==='live'&&t.getSettings().deviceId==='communications')`),'Actual communications microphone alias');await click(native,'Fechar',true);await phase('communications_microphone_with_windows_mute_preference',{baseline,diagnostic:true});await click(native,'Dispositivos e voz',true);}
+  await click(native,'Manter os outros sons no Windows');
   await until(()=>native.evaluate("document.body.innerText.includes('Preferência salva')"),'Production audio preference confirmation');
   check((await native.evaluate("window.__TAURI_INTERNALS__.invoke('windows_audio_status')")).ducking_preference===3,'Production settings action changes the actual Windows preference');
   await click(native,'Fechar',true);await click(native,'Sair da chamada',true);await delay(1500);
@@ -105,6 +109,7 @@ try {
   await phase('call_with_preference_disabled',{baseline,voice:true});
   await click(native,'Compartilhar tela');await select(native,'Resolução','720');await select(native,'Quadros por segundo','30');await select(native,'Bitrate por','manual');await fill(native,'input[aria-label="Bitrate em megabits por segundo"]','2');
   await click(native,'Escolher tela ou janela');
+  const picker=spawnSync('pwsh',['-NoProfile','-File',resolve('scripts/audio-coexistence/pick-screen.ps1'),'-OwnerPid',String(app.pid)],{encoding:'utf8',timeout:45000});report.picker={status:picker.status,output:picker.stdout?.slice(-6000),error:picker.stderr?.slice(-1000)};assert.equal(picker.status,0,'Actual browser system-audio checkbox and screen selection required');
   await until(()=>native.evaluate("__audioCoexist.display.some(t=>t.kind==='video'&&t.readyState==='live')"),'Real screen and system-audio selection',45000);
   const capture=await native.evaluate("__audioCoexist.display.map(t=>({kind:t.kind,label:t.label,settings:t.getSettings(),state:t.readyState}))");report.capture=capture;
   check(capture.some(t=>t.kind==='audio'&&t.state==='live'),'Real system-audio track is captured; silence/video-only capture cannot pass');
