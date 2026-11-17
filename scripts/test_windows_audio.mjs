@@ -52,8 +52,8 @@ try {
   // simulate call membership/media and does not claim physical audio coverage.
   const entry=join(scriptRoot,'entry.tsx');
   await writeFile(entry,`import React from 'react';import{createRoot}from'react-dom/client';import{AudioHelp}from'../../apps/desktop/src/components/AudioHelp';globalThis.mountHarmonyAudioHelp=()=>{document.body.replaceChildren();const root=document.createElement('div');document.body.append(root);createRoot(root).render(React.createElement(AudioHelp));};`);
-  const bundle=await build({configFile:false,plugins:[react()],build:{write:false,minify:false,lib:{entry,name:'HarmonyAudioCheck',formats:['iife']}}});
-  const code=bundle.output.find(item=>item.type==='chunk').code;
+  const bundle=await build({configFile:false,plugins:[react()],define:{"process.env.NODE_ENV":JSON.stringify("production")},build:{write:false,minify:false,lib:{entry,name:'HarmonyAudioCheck',formats:['iife']}}});
+  const code=(Array.isArray(bundle)?bundle:[bundle]).flatMap(result=>result.output).find(item=>item.type==='chunk').code;
   await cdp.evaluate(code);
   await cdp.evaluate('mountHarmonyAudioHelp()');
   await until(()=>cdp.evaluate("document.body.innerText.includes('Manter os outros sons no Windows')"),'Production audio settings button');
