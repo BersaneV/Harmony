@@ -1,6 +1,6 @@
 # Harmony
 
-[Baixar a prévia 0.4.11 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.4.11/Harmony_0.4.11_x64-setup.exe) · [Notas da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.4.11). O servidor já vem configurado: instale, abra e crie sua conta. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
+[Baixar a prévia 0.4.12 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.4.12/Harmony_0.4.12_x64-setup.exe) · [Notas da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.4.12). O servidor já vem configurado: instale, abra e crie sua conta. Convites podem ser abertos por link no aplicativo ou no navegador. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
 
 **Servidor do piloto: https://harmony.go.altare.global**. A instalação nova já usa esse endereço. Para uma instância própria, abra “Usar outro servidor” na tela de acesso; endereços válidos já salvos são preservados. A instância está na Altare Always Free, sem cartão e sem depender do Mac. Contas e comunidades anteriores foram preservadas. [Hospedagem, recursos, operação e limites](docs/HOSTING.md).
 
