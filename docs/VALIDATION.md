@@ -2,7 +2,7 @@
 
 Data: 12/11/2026. A implementação está na `main`. Esta página distingue código entregue, provas executadas e aceite operacional. Os testes locais usam dados descartáveis; senhas, tokens, bancos e pacotes proprietários analisados não estão no Git.
 
-Os primeiros quadros preservam a evidência histórica da implementação inicial. A versão atual é 0.4.1; a implantação externa de 14/11/2026 está registrada ao final desta página e em [HOSTING.md](HOSTING.md).
+Os primeiros quadros preservam a evidência histórica da implementação inicial. A versão atual do piloto é 0.4.13; as atualizações e suas limitações estão registradas ao final desta página e em [HOSTING.md](HOSTING.md).
 
 ## Caminhos executados
 
@@ -310,3 +310,18 @@ O canal HTTPS ofereceu a 0.4.2 para a 0.4.1 com download real, assinatura, vers�
 Foram corrigidos geração e instrumentação da bancada: marcador sempre visível, relógio nativo preciso, contagem direta da fonte, observação de codecs e diagnóstico de runtime. A fonte isolada continuou abaixo de 54 FPS em WebView2 131/156/157 e duas imagens Windows gratuitas. Durante a chamada, o emissor enviou sete fluxos VP8, um por espectador, e a taxa efetiva da fonte também diminuiu. A contribuição exata de cada componente não foi isolada; os contadores não autorizaram atribuir a causa a uma proteção específica de CPU ou à internet. O código do produto, o pacote e o canal 0.4.2 permaneceram iguais. Não foi publicada promessa de 60 FPS sem aprovação.
 
 [Relatório completo e pendência](EXE-WAN-HIGHRES.md) · [Dados 1080p](evidence/exe-wan-1080p60-20261115.json) · [Dados 1440p](evidence/exe-wan-1440p60-20261115.json) · [Calibração e tentativas sem captura](evidence/exe-wan-highres-calibration-20261115.json). A prova anterior de 720p30 permanece separada. Runners standard públicos, sem contratação ou cartão; main pessoal sem PR. A meta de 60 FPS exige fonte e recursos de captura/codificação/reprodução que sustentem nova prova, além da validação em GPU e Windows físico ainda não realizada.
+
+
+## Áudio do PC em chamadas e transmissão — 0.4.13, 17/11/2026
+
+Fonte `f6afec08e7f48b38fac6efe5c4f735524cdbcbe5`, direto na main, sem PR. A preferência de comunicações do Windows é consultada ao abrir as configurações; somente o botão explícito seleciona “Não fazer nada”, avisando que vale de forma permanente para todos os aplicativos do usuário Windows. Nenhum volume individual, dispositivo padrão ou serviço Bluetooth é alterado. Microfone e saída são lembrados neste dispositivo entre chamadas. A captura de tela pede reprodução local sem filtros de voz; o padrão Chromium já era não suprimir, portanto isso não identifica por si só a causa do relato.
+
+Os 367 testes do cliente, typecheck/build, checks/testes Rust e a [CI completa 44124913561](https://github.com/BersaneV/Harmony/actions/runs/44124913561) passaram. A primeira tentativa falhou no limite de dois segundos do reset administrativo, com voz e qualidade PASS; a segunda, na mesma fonte e sem mudar o critério, passou com reset em 993,21 ms. A causa exata dessa variação não foi isolada. As verificações de voz/capacidade dessa CI usam mídias geradas e loopback; não medem o áudio do PC relatado pelos usuários.
+
+No EXE Windows instalado, o componente real AudioHelp e o IPC nativo passaram 11 verificações: leitura de preferências ausente/0/1/2/3, preservação na inicialização/abertura, explicação antes da ação, gravação e confirmação pela interface, mensagem Bluetooth e reabertura sem mudança redundante. O teste restaurou a preferência da VM. Assinatura Tauri/minisign 17 Windows + 17 local, instalação/remoção 9, protocolo 4 e convites nativos 6 PASS. [Instalador 0.4.13](https://github.com/BersaneV/Harmony/releases/download/v0.4.13/Harmony_0.4.13_x64-setup.exe), SHA-256 `5494f7576a89625afdaa262b64f5ca5af7d91b7b39d8f2935a9643053981f6d5`, 4.180.310 bytes; download público conferido. Não é assinatura Windows Authenticode.
+
+O [pacote Linux 44138154317](https://github.com/BersaneV/Harmony/actions/runs/44138154317) da mesma fonte passou e foi implantado na alocação existente. API 0.4.13, health ok, 14 arquivos web conferidos e guard Landlock ABI6/UID987; conta e comunidade anteriores conferidas após o reinício, sem alterar associação, e sessão da verificação encerrada. O canal automático permanece 0.4.2.
+
+**Pendente:** reprodução e confirmação do sintoma em PCs afetados, com fones físicos com fio, Bluetooth clássico e LE. O usuário não pôde testar nessa execução. O ajuste é uma mitigação para atenuação do Windows; não comprova todos os casos resolvidos. Abrir o microfone Bluetooth clássico pode trocar A2DP por HFP, descartando a saída Stereo no Windows 10 ou reduzindo sua qualidade no Windows 11. Um microfone independente evita abrir o microfone do fone, quando disponível. Não houve campanha nova de oito EXEs/WAN ou 60 FPS.
+
+[Evidência sanitizada e limites](evidence/windows-audio-0.4.13-20261117.json) · [Atenuação do Windows](https://learn.microsoft.com/en-us/windows/win32/coreaudio/stream-attenuation) · [Perfis Bluetooth no Windows](https://learn.microsoft.com/en-us/windows-hardware/drivers/bluetooth/bluetooth-classic-audio).

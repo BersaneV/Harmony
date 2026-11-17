@@ -1,0 +1,135 @@
+{
+  "version": "0.4.13",
+  "source_commit": "f6afec08e7f48b38fac6efe5c4f735524cdbcbe5",
+  "full_ci": {
+    "run": 44124913561,
+    "status": "PASS",
+    "successful_attempt": 2,
+    "first_attempt": {
+      "status": "FAIL",
+      "check": "Administrative reset closes target and preserves seven connected peers",
+      "media_functional": "PASS",
+      "media_quality": "PASS",
+      "exact_cause": "NOT_ISOLATED"
+    },
+    "same_source_retry_admin_reset_ms": 993.2126259999932
+  },
+  "windows_audio": {
+    "status": "PASS",
+    "checks": [
+      {
+        "name": "Starting Harmony preserves the existing Windows mute-on-communications preference",
+        "passed": true
+      },
+      {
+        "name": "Native read preserves the existing preference null",
+        "passed": true
+      },
+      {
+        "name": "Native read preserves the existing preference 0",
+        "passed": true
+      },
+      {
+        "name": "Native read preserves the existing preference 1",
+        "passed": true
+      },
+      {
+        "name": "Native read preserves the existing preference 2",
+        "passed": true
+      },
+      {
+        "name": "Native read preserves the existing preference 3",
+        "passed": true
+      },
+      {
+        "name": "Opening the settings does not change the user preference",
+        "passed": true
+      },
+      {
+        "name": "UI explains the persistent Windows-wide effect before the action",
+        "passed": true
+      },
+      {
+        "name": "Production button invokes the native command and confirms Do nothing",
+        "passed": true
+      },
+      {
+        "name": "Bluetooth profile limitation and separate microphone route are explained",
+        "passed": true
+      },
+      {
+        "name": "Already applied preference does not offer a redundant change",
+        "passed": true
+      }
+    ],
+    "preference_restored": true,
+    "scope": "Installed Windows EXE, production AudioHelp UI and real Windows registry/native IPC. Call media, attenuation acoustics, wired and Bluetooth hardware: NOT_RUN; requires an affected physical PC."
+  },
+  "installer": {
+    "url": "https://github.com/BersaneV/Harmony/releases/download/v0.4.13/Harmony_0.4.13_x64-setup.exe",
+    "bytes": 4180310,
+    "sha256": "5494f7576a89625afdaa262b64f5ca5af7d91b7b39d8f2935a9643053981f6d5"
+  },
+  "installed_exe": {
+    "bytes": 15705088,
+    "sha256": "58ea36ebcd72fc63ce9a9e6d2c5b59fa103fea9ee7327b01ae03a7cb71f77de7"
+  },
+  "signatures": {
+    "type": "Tauri updater minisign; not Windows Authenticode",
+    "real_artifact_and_negative_tests": 17,
+    "includes": "signature, version policy, stream limits and cancellation",
+    "status": "PASS"
+  },
+  "install_remove": {
+    "status": "PASS",
+    "checks": 9
+  },
+  "protocol_registration": {
+    "count": 4,
+    "status": "PASS"
+  },
+  "native_invitation": {
+    "count": 6,
+    "status": "PASS"
+  },
+  "frontend_tests": {
+    "status": "PASS",
+    "count": 367
+  },
+  "linux_bundle": {
+    "status": "PASS",
+    "version": "0.4.13",
+    "source_commit": "f6afec08e7f48b38fac6efe5c4f735524cdbcbe5",
+    "verify_run": 44124913561,
+    "linux_run": 44138154317,
+    "archive_sha256": "1e7938f3ca2cd8026ed3a5a8fdda0b9481677c9ad80aa0f012b144f360d9df78",
+    "archive_bytes": 54490887,
+    "files": 29,
+    "expanded_bytes": 145512590,
+    "scope": "Downloaded immutable bundle and every file hash; live host pending"
+  },
+  "deployment": {
+    "version": "0.4.13",
+    "health": "ok",
+    "all_web_files_match_bundle": 14,
+    "guard": {
+      "profile": "altare-single-provider",
+      "version": "0.4.13",
+      "landlock_abi": 6,
+      "uid": 987,
+      "write_outside_private_directories": "DENIED",
+      "execute_from_writable_directory": "DENIED",
+      "parser_sandbox": "REQUIRED_BY_SUPERVISOR",
+      "slot": "state"
+    },
+    "existing_account_and_community": "PRESERVED",
+    "extra_resources": false,
+    "automatic_updater_feed": "UNCHANGED_0.4.2"
+  },
+  "physical_validation": {
+    "wired_headset": "NOT_RUN",
+    "bluetooth_classic": "NOT_RUN",
+    "bluetooth_le": "NOT_RUN",
+    "original_symptom_reproduced": "NOT_VERIFIED"
+  }
+}

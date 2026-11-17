@@ -1,6 +1,6 @@
 # Harmony
 
-[Baixar a prévia 0.4.12 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.4.12/Harmony_0.4.12_x64-setup.exe) · [Notas da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.4.12). O servidor já vem configurado: instale, abra e crie sua conta. Convites podem ser abertos por link no aplicativo ou no navegador. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
+[Baixar a prévia 0.4.13 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.4.13/Harmony_0.4.13_x64-setup.exe) · [Notas da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.4.13). O servidor já vem configurado: instale, abra e crie sua conta. Convites podem ser abertos por link no aplicativo ou no navegador. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
 
 **Servidor do piloto: https://harmony.go.altare.global**. A instalação nova já usa esse endereço. Para uma instância própria, abra “Usar outro servidor” na tela de acesso; endereços válidos já salvos são preservados. A instância está na Altare Always Free, sem cartão e sem depender do Mac. Contas e comunidades anteriores foram preservadas. [Hospedagem, recursos, operação e limites](docs/HOSTING.md).
 
@@ -15,7 +15,7 @@ Comunidades, conversas e compartilhamento de tela em uma plataforma open source,
 - Chat com histórico persistente SQLite, atualização ao vivo, edição, exclusão, busca, reações, leitura e retry sem mensagens duplicadas.
 - Anexos privados com upload/download autorizados e prévia de imagens, GIFs, áudio e vídeo por clique.
 - Voz, câmera, tela e áudio da tela com WebRTC P2P, entrando pelo canal sem códigos. Prévia antes de transmitir, controles de resolução 144p–2160p, FPS 15/24/30/60, bitrate e estatísticas efetivas. Perfis de qualidade dependem da máquina e da rede.
-- Volume individual, dispositivos, push-to-talk, moderação, temas e administração de contas.
+- Volume individual, dispositivos, push-to-talk, moderação, temas e administração de contas. Microfone e saída são lembrados entre chamadas. No Windows, “Dispositivos e voz” oferece o ajuste explícito para manter os sons dos outros aplicativos; limitações de Bluetooth clássico são explicadas na mesma tela.
 - Executável Tauri com credenciais no cofre do sistema, navegação restrita e build NSIS para Windows.
 
 ## Executar
