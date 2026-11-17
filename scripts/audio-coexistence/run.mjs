@@ -103,7 +103,7 @@ try {
   await phase('left_call_after_preference_change',{baseline});
   await call(native);await click(native,'Ligar microfone',true);
   await phase('call_with_preference_disabled',{baseline,voice:true});
-  await click(native,'Compartilhar tela',true);await select(native,'Resolução','720');await select(native,'Quadros por segundo','30');await select(native,'Bitrate por','manual');await fill(native,'input[aria-label="Bitrate em megabits por segundo"]','2');
+  await click(native,'Compartilhar tela');await select(native,'Resolução','720');await select(native,'Quadros por segundo','30');await select(native,'Bitrate por','manual');await fill(native,'input[aria-label="Bitrate em megabits por segundo"]','2');
   await click(native,'Escolher tela ou janela');
   await until(()=>native.evaluate("__audioCoexist.display.some(t=>t.kind==='video'&&t.readyState==='live')"),'Real screen and system-audio selection',45000);
   const capture=await native.evaluate("__audioCoexist.display.map(t=>({kind:t.kind,label:t.label,settings:t.getSettings(),state:t.readyState}))");report.capture=capture;
@@ -130,9 +130,10 @@ try {
 } catch(error) {
   report.status='FAIL';report.error=String(error.message).slice(0,600);
   for(const [name,c]of [['native',native],['peer',peer]])if(c)report[name+'_diagnostic']=await c.evaluate('document.body.innerText.slice(-2500)').catch(()=> 'unavailable');
+  const tree=spawnSync('powershell.exe',['-NoProfile','-File',resolve('scripts/exe-wan/picker.ps1'),'-Title','HarmonyWAN-'+process.env.GITHUB_RUN_ID,'-Action','inspect'],{encoding:'utf8',timeout:20000});report.picker_diagnostic=tree.stdout?.slice(-9000);
   throw error;
 } finally {
-  for(const c of [native,peer])if(c){try{if(await c.evaluate("!!document.querySelector('[aria-label=\"Sair da chamada\"]')"))await click(c,'Sair da chamada',true);await click(c,'Preferências',true);await click(c,'Sair da conta');}catch{}c.close();}
+  for(const c of [native,peer])if(c){try{if(await c.evaluate("!!document.querySelector('[aria-label=\"Sair da chamada\"]')"))await click(c,'Sair da chamada',true);await click(c,'Preferências',true);await click(c,'Sair da conta');await until(()=>c.evaluate("!!document.querySelector('[autocomplete=username]')"),'Own test session logout',5000);}catch{}c.close();}
   for(const s of sessions)try{await api('/auth/logout',{refresh_token:s.refresh_token});}catch{}
   for(const p of children)if(p.exitCode===null)spawnSync('taskkill',['/PID',String(p.pid),'/T','/F'],{stdio:'ignore'});
   spawnSync('pwsh',['-NoProfile','-File',resolve('scripts/exe-wan/webview-policy.ps1'),'-ExePath',exe,'-Remove'],{stdio:'ignore'});
