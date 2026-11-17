@@ -55,10 +55,10 @@ try {
       $nodes = $window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
       $names = @($window.Current.Name) + @($nodes | ForEach-Object { $_.Current.Name })
       $text = $names -join ' '
-      if ($text -match 'Virtual Audio Driver|MikeTheTech|Windows Security') { $observed += $text.Substring(0,[Math]::Min(1600,$text.Length)) }
+      if ($text -match 'Virtual Audio Driver|MikeTheTech|Windows Security') { $observed += $text.Substring(0,[Math]::Min(1600,$text.Length)); $observed += (@{window=$window.Current.Name; controls=@($nodes | Where-Object { $_.Current.Name -match 'Install|SignPath' } | ForEach-Object { @{name=$_.Current.Name; type=$_.Current.ControlType.ProgrammaticName} })} | ConvertTo-Json -Depth 4 -Compress) }
       # Only approve our exact pinned, already verified driver, without checking
       # any Always trust option or altering a driver-signing policy.
-      if ($window.Current.Name -ceq 'Windows Security' -and $text.Contains('Would you like to install this device software?') -and $text.Contains('Always trust software from "SignPath Foundation".')) {
+      if ($text.Contains('Windows Security') -and $text.Contains('Would you like to install this device software?') -and $text.Contains('Always trust software from "SignPath Foundation".')) {
         foreach ($node in $nodes) {
           if ($node.Current.ControlType -eq [Windows.Automation.ControlType]::CheckBox -and $node.Current.Name.Contains('Always trust software')) {
             $toggle = [Windows.Automation.TogglePattern]$node.GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern)
