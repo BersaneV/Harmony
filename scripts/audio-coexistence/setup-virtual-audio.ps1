@@ -58,7 +58,13 @@ try {
       if ($text -match 'Virtual Audio Driver|MikeTheTech|Windows Security') { $observed += $text.Substring(0,[Math]::Min(1600,$text.Length)) }
       # Only approve our exact pinned, already verified driver, without checking
       # any Always trust option or altering a driver-signing policy.
-      if ($text -match 'Virtual Audio Driver' -and $text -match 'MikeTheTech') {
+      if ($window.Current.Name -ceq 'Windows Security' -and $text.Contains('Would you like to install this device software?') -and $text.Contains('Always trust software from "SignPath Foundation".')) {
+        foreach ($node in $nodes) {
+          if ($node.Current.ControlType -eq [Windows.Automation.ControlType]::CheckBox -and $node.Current.Name.Contains('Always trust software')) {
+            $toggle = [Windows.Automation.TogglePattern]$node.GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern)
+            if ($toggle.Current.ToggleState -eq [Windows.Automation.ToggleState]::On) { $toggle.Toggle() }
+          }
+        }
         foreach ($node in $nodes) {
           if ($node.Current.ControlType -eq [Windows.Automation.ControlType]::Button -and $node.Current.Name.Replace('&','').Trim() -ceq 'Install') {
             ([Windows.Automation.InvokePattern]$node.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern)).Invoke()
