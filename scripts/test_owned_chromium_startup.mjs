@@ -11,5 +11,6 @@ let ready = false, cleaned = false;
 try { const entries = await group.launchAll(); await Promise.all(entries.map((r) => r.ready)); ready = true; }
 catch { process.exitCode = 1; }
 finally { cleaned = await group.close(); }
+ready = ready && group.snapshot().every((r) => r.stage === "DEVTOOLS_READY" && r.version_status === "VERIFIED" && r.endpoint_error === null);
 console.log(JSON.stringify({ kind: "OWNED_CHROMIUM_STARTUP", capacity_approval: false, scope: "EIGHT_ABOUT_BLANK_STARTUP_ONLY_NO_BACKEND_MEDIA_OR_CAPACITY", status: ready && cleaned ? "OBSERVED" : "FAIL", deadline_ms: 10000, ready, cleanup_verified: cleaned, chromium_startup: group.snapshot() }));
 if (!ready || !cleaned) process.exitCode = 1;
