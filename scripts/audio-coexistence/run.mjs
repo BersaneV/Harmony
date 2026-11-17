@@ -12,11 +12,13 @@ import {summarize,assertCoexistence} from './measurements.mjs';
 assert.equal(process.platform,'win32');assert.equal(process.env.GITHUB_ACTIONS,'true');
 assert.equal(process.env.GITHUB_REPOSITORY,'BersaneV/Harmony');assert.equal(process.env.RUNNER_ENVIRONMENT,'github-hosted');
 const origin='https://harmony.go.altare.global',area=resolve('.local/qa-audio-coexistence');
+const version=process.env.HARMONY_AUDIO_VERSION||'0.4.13',expectedHash=process.env.HARMONY_AUDIO_EXE_SHA256||'58ea36ebcd72fc63ce9a9e6d2c5b59fa103fea9ee7327b01ae03a7cb71f77de7';
+assert.match(version,/^0\.\d+\.\d+$/);assert.match(expectedHash,/^[a-f0-9]{64}$/);
 const exe=resolve(process.env.HARMONY_AUDIO_EXE),dll=resolve('tools/windows-audio-lab/bin/Release/net8.0-windows/WindowsAudioLab.dll');
 assert.ok(exe.startsWith(resolve(process.env.RUNNER_TEMP)+sep));
-assert.equal(createHash('sha256').update(await readFile(exe)).digest('hex'),'58ea36ebcd72fc63ce9a9e6d2c5b59fa103fea9ee7327b01ae03a7cb71f77de7');
+assert.equal(createHash('sha256').update(await readFile(exe)).digest('hex'),expectedHash);
 const directory=await mkdtemp(join(process.env.RUNNER_TEMP,'harmony-coexist-'));await mkdir(area,{recursive:true});
-const report={status:'RUNNING',version:'0.4.13',scope:'One Windows VM, published EXE, second browser participant, generated voice and actual Windows virtual endpoint/PCM. No physical wired/Bluetooth headset.',physical_wired:'NOT_RUN',physical_bluetooth:'NOT_RUN',phases:[],checks:[]};
+const report={status:'RUNNING',version,scope:'One Windows VM, published EXE, second browser participant, generated voice and actual Windows virtual endpoint/PCM. No physical wired/Bluetooth headset.',physical_wired:'NOT_RUN',physical_bluetooth:'NOT_RUN',phases:[],checks:[]};
 const children=[],sessions=[],intervals=[];let native,peer,player,meter;
 const check=(ok,name)=>{assert.ok(ok,name);report.checks.push({name,passed:true});};
 const mask=v=>console.log('::add-mask::'+v);
@@ -124,6 +126,37 @@ try {
     await new Promise(r=>setTimeout(r,500));
     const rows=entries.map(({a,mid})=>{const v=new Float32Array(a.fftSize);a.getFloatTimeDomainData(v);let re=0,im=0;for(let i=0;i<v.length;i++){const angle=2*Math.PI*440*i/c.sampleRate;re+=v[i]*Math.cos(angle);im+=v[i]*Math.sin(angle);}return{mid,external_440:2*Math.hypot(re,im)/v.length};});await c.close();return rows;`,true);
   check(report.peer_audio.some(r=>r.external_440>0.01),'The remote participant actually decodes the other application audio from the screen stream');
+  if (version!=='0.4.13') {
+    await click(native,'Dispositivos e voz',true);
+    const toneStart=intervals.length;await click(native,'Testar saída de som');
+    await until(()=>native.evaluate("document.body.innerText.includes('O som de teste terminou')"),'Actual local output tone completes');await delay(1500);
+    const tone=intervals.slice(toneStart).filter(r=>r.kind==='loopback_interval');
+    check(tone.some(r=>r.samples>30000&&r.test_660>0.01),'The shipped output test produces a real 660 Hz tone in the Windows mixer');
+    report.output_test={measured_660:Math.max(...tone.map(r=>r.test_660||0)),intervals:tone.length};
+    const microphoneStart=await native.evaluate('__audioCoexist.local.length');await click(native,'Testar microfone');
+    await until(()=>native.evaluate(`__audioCoexist.local.length>${microphoneStart}&&!!document.querySelector('[aria-label="Nível do microfone"]')`),'Local mic test opens actual virtual Windows microphone');
+    await click(native,'Parar teste de áudio');
+    await until(()=>native.evaluate(`__audioCoexist.local.slice(${microphoneStart}).filter(t=>t.kind==='audio').every(t=>t.readyState==='ended')`),'Stopping the local test releases its actual microphone tracks');
+    check(true,'Local microphone test uses real Windows capture and releases it on Stop');
+    async function recordKey(label,code,vk) {
+      await native.evaluate(`(()=>{const l=Array.from(document.querySelectorAll('label.field')).find(l=>l.querySelector('span')?.textContent===${JSON.stringify(label)});l.querySelector('input').focus();return true})()`);
+      await delay(400);await native.send('Input.dispatchKeyEvent',{type:'keyDown',code,key:code,windowsVirtualKeyCode:vk,nativeVirtualKeyCode:vk});await native.send('Input.dispatchKeyEvent',{type:'keyUp',code,key:code,windowsVirtualKeyCode:vk,nativeVirtualKeyCode:vk});await delay(700);
+    }
+    function key(vk) {const result=spawnSync('pwsh',['-NoProfile','-Command',`Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public static class HarmonyAudioKey{[DllImport("user32.dll")]public static extern void keybd_event(byte k,byte s,uint f,UIntPtr e);}';[HarmonyAudioKey]::keybd_event(${vk},0,0,[UIntPtr]::Zero);Start-Sleep -Milliseconds 100;[HarmonyAudioKey]::keybd_event(${vk},0,2,[UIntPtr]::Zero);`],{encoding:'utf8',timeout:20000});assert.equal(result.status,0);}
+    await recordKey('Atalho para ligar/desligar microfone','ScrollLock',145);
+    await recordKey('Atalho para parar/voltar a ouvir','F7',118);
+    await click(native,'Fechar',true);
+    key(145);await until(()=>native.evaluate("!!document.querySelector('[aria-label=\"Desligar microfone\"]')"),'Scroll Lock unmutes actual call microphone');
+    key(145);await until(()=>native.evaluate("!!document.querySelector('[aria-label=\"Ligar microfone\"]')"),'Scroll Lock mutes actual call microphone');
+    key(145);await until(()=>native.evaluate("!!document.querySelector('[aria-label=\"Desligar microfone\"]')"),'Scroll Lock unmutes on a second press');
+    check(true,'User-recorded Scroll Lock toggles the real call microphone in both directions');
+    key(118);await until(()=>native.evaluate("!!document.querySelector('[aria-label=\"Ativar áudio\"]')"),'Configured F7 deafens actual call');
+    const deafened=await phase('configured_key_deafens_call_only',{baseline});
+    check(deafened.voice_mean<0.01,'Deafening removes received Harmony voice while other application audio stays audible');
+    key(118);await until(()=>native.evaluate("!!document.querySelector('[aria-label=\"Silenciar áudio\"]')"),'Configured F7 restores hearing');
+    await phase('configured_key_restores_hearing',{baseline,voice:true});
+    check(await native.evaluate("!!document.querySelector('[aria-label=\"Ligar microfone\"]')"),'Restoring hearing does not automatically open the microphone');
+  }
   player.kill();await delay(1500);const noPlayer=await phase('external_player_stopped_negative_control');
   check(noPlayer.external_mean<baseline.external_mean*0.1&&noPlayer.voice_mean>0.01,'Stopping the other process removes only its tone while Harmony voice remains audible in measured PCM');
   player=start('dotnet',[dll,'play','120']);lines(player,()=>{});

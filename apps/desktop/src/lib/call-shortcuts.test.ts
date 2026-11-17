@@ -19,6 +19,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("custom call keybinds", () => {
+  it("preserves reserved system combinations",()=>{expect(validShortcut("Alt+F4")).toBe(false);expect(validShortcut("Ctrl+Alt+Delete")).toBe(false);});
   it.each([
     "ScrollLock",
     "F9",
@@ -38,6 +39,8 @@ describe("custom call keybinds", () => {
     "F25",
     "Meta+KeyM",
     "anything",
+    "Alt+F4",
+    "Ctrl+Alt+Delete",
   ])("rejects unsupported or typing conflicts %s", (key) =>
     expect(validShortcut(key)).toBe(false),
   );

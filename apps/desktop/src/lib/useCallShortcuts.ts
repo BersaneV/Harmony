@@ -38,6 +38,11 @@ export function useCallShortcuts(options: {
   }, []);
   useEffect(() => {
     if (!options.active || recording) return;
+    if (options.ptt && !keys.ptt) {
+      latest.current.onPtt(false);
+      latest.current.error();
+      return;
+    }
     const mine = ++lease;
     let disposed = false,
       held = false;
