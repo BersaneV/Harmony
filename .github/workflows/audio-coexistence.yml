@@ -14,7 +14,8 @@ jobs:
         shell: pwsh
         run: ./scripts/audio-coexistence/setup-virtual-audio.ps1
       - name: Build Windows loopback and external player probes
-        run: dotnet build tools/windows-audio-lab/WindowsAudioLab.csproj -c Release
+        run: dotnet restore tools/windows-audio-lab/WindowsAudioLab.csproj --locked-mode
+      - run: dotnet build tools/windows-audio-lab/WindowsAudioLab.csproj -c Release --no-restore
       - name: Inventory actual Windows audio endpoints
         shell: pwsh
         run: dotnet tools/windows-audio-lab/bin/Release/net8.0-windows/WindowsAudioLab.dll inventory | Tee-Object .local/qa-audio-coexistence/endpoints.json

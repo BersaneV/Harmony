@@ -20,6 +20,19 @@ Set-Service AudioEndpointBuilder -StartupType Automatic
 Start-Service AudioEndpointBuilder
 Set-Service Audiosrv -StartupType Automatic
 Start-Service Audiosrv
+# The hosted Windows image denies microphone access by default. This fixture
+# has no physical input; grant the virtual endpoint on the disposable VM only.
+$privacy = @()
+foreach ($base in @('HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone','HKLM:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone')) {
+  foreach ($key in @($base,($base+'\NonPackaged'))) {
+    $old = (Get-ItemProperty -LiteralPath $key -Name Value -ErrorAction SilentlyContinue).Value
+    $privacy += @{path=$key;before=$old;after='Allow'}
+    New-Item -Path $key -Force | Out-Null
+    Set-ItemProperty -LiteralPath $key -Name Value -Value Allow -Type String
+  }
+}
+New-Item -ItemType Directory -Force .local/qa-audio-coexistence | Out-Null
+$privacy | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8NoBOM .local/qa-audio-coexistence/microphone-privacy.json
 # Add the exact root-enumerated hardware ID through the documented SetupAPI.
 Add-Type -TypeDefinition @'
 using System; using System.Runtime.InteropServices; using System.Text;
