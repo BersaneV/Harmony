@@ -1,0 +1,28 @@
+name: Diagnose invitation parser in verified Windows host
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  parser:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: "26.13.0"}
+      - run: npm ci
+      - name: Extract known verified 0.4.11 host without modifying an installation
+        shell: pwsh
+        run: |
+          $setup = Join-Path $env:RUNNER_TEMP 'Harmony_0.4.11_x64-setup.exe'
+          Invoke-WebRequest 'https://github.com/BersaneV/Harmony/releases/download/v0.4.11/Harmony_0.4.11_x64-setup.exe' -OutFile $setup
+          if ((Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant() -cne 'de4ec5c4395a72c75fcef5fbda0b13dc1d8e4874a92183597763dfc09745b725') { throw 'Known verified host installer differs' }
+          $folder = Join-Path $env:RUNNER_TEMP 'harmony-known-webview'
+          & 'C:\Program Files\7-Zip\7z.exe' e $setup "-o$folder" harmony-desktop.exe -y
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $exe = Join-Path $folder 'harmony-desktop.exe'
+          if ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() -cne 'ea3c4d3da0a1d063e538d927187afaf304e945f6e0a7a7e055d512cffb1775ab') { throw 'Known verified host executable differs' }
+          node scripts/test_windows_invite_parser.mjs $exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
