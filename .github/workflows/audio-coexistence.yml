@@ -1,0 +1,37 @@
+name: Windows external audio coexistence
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audio:
+    if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - name: Install pinned signed virtual audio fixture on disposable VM
+        shell: pwsh
+        run: ./scripts/audio-coexistence/setup-virtual-audio.ps1
+      - name: Build Windows loopback and external player probes
+        run: dotnet build tools/windows-audio-lab/WindowsAudioLab.csproj -c Release
+      - name: Inventory actual Windows audio endpoints
+        shell: pwsh
+        run: dotnet tools/windows-audio-lab/bin/Release/net8.0-windows/WindowsAudioLab.dll inventory | Tee-Object .local/qa-audio-coexistence/endpoints.json
+      - name: Verify another process renders real PCM through the Windows mixer
+        shell: pwsh
+        run: |
+          $dll = (Resolve-Path tools/windows-audio-lab/bin/Release/net8.0-windows/WindowsAudioLab.dll).Path
+          $player = Start-Process dotnet -ArgumentList @($dll,'play','15') -PassThru -RedirectStandardOutput .local/qa-audio-coexistence/player.jsonl
+          try {
+            dotnet $dll meter 10 | Tee-Object .local/qa-audio-coexistence/baseline.jsonl
+            if ($LASTEXITCODE -ne 0) { throw 'Loopback capture failed' }
+            $samples = @(Get-Content .local/qa-audio-coexistence/baseline.jsonl | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.kind -eq 'loopback_interval' })
+            if ($samples.Count -ne 10 -or @($samples | Where-Object { $_.external_440 -gt 0.02 }).Count -lt 8) { throw 'External player is not measured in real WASAPI loopback' }
+            Write-Host 'PASS baseline external process -> Windows mixer -> real loopback PCM'
+          } finally { if (-not $player.HasExited) { Stop-Process -Id $player.Id } }
+      - name: Show bounded fixture diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          Get-ChildItem .local/qa-audio-coexistence -File -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.Name; Get-Content $_.FullName -Tail 15 }
