@@ -1,8 +1,8 @@
 # Harmony
 
-[Baixar a prévia 0.4.2 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.4.2/Harmony_0.4.2_x64-setup.exe) · [Notas e relatórios da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.4.2). O cliente precisa do endereço de uma instância Harmony. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
+[Baixar a prévia 0.4.11 para Windows x64 (.exe)](https://github.com/BersaneV/Harmony/releases/download/v0.4.11/Harmony_0.4.11_x64-setup.exe) · [Notas da versão](https://github.com/BersaneV/Harmony/releases/tag/v0.4.11). O servidor já vem configurado: instale, abra e crie sua conta. Qualquer pessoa pode criar uma conta com usuário e senha; cada comunidade controla a entrada por seus convites. Consulte os [resultados e limites dos testes](docs/VALIDATION.md).
 
-**Servidor do piloto: https://harmony.go.altare.global**. Informe essa origem no campo de servidor do `.exe`, sem `/api`. A instância está na Altare Always Free, sem cartão e sem depender do Mac. Contas e comunidades anteriores foram preservadas. [Hospedagem, recursos, operação e limites](docs/HOSTING.md).
+**Servidor do piloto: https://harmony.go.altare.global**. A instalação nova já usa esse endereço. Para uma instância própria, abra “Usar outro servidor” na tela de acesso; endereços válidos já salvos são preservados. A instância está na Altare Always Free, sem cartão e sem depender do Mac. Contas e comunidades anteriores foram preservadas. [Hospedagem, recursos, operação e limites](docs/HOSTING.md).
 
 Comunidades, conversas e compartilhamento de tela em uma plataforma open source, hospedada por você. Cliente Windows com Tauri 2, React e TypeScript; servidor Rust com SQLite, arquivos locais privados e chamadas WebRTC P2P; LiveKit opcional.
 
