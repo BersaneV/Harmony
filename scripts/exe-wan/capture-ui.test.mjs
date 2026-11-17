@@ -86,12 +86,12 @@ test('pinned 047 uses the existing consented WGC path and layered fixture for al
  }
  assert.equal(captureMode('0.4.7',{...getProfile('720p30'),fps:0}),'browser');
 });
-test('unpublished 050 is refused for every named request, including fixture selection',()=>{
+test('unpublished 050 and 0411 are refused for every named request, including fixture selection',()=>{
  for(const id of ['720p30','1080p60','1440p60']){
   assert.throws(()=>captureMode('0.5.0',getProfile(id)),/Unsupported pinned/);
   assert.throws(()=>fixtureScript('0.5.0',getProfile(id)),/Unsupported pinned/);
-  assert.throws(()=>captureMode('0.4.10',getProfile(id)),/Unsupported pinned/);
-  assert.throws(()=>fixtureScript('0.4.10',getProfile(id)),/Unsupported pinned/);
+  assert.throws(()=>captureMode('0.4.11',getProfile(id)),/Unsupported pinned/);
+  assert.throws(()=>fixtureScript('0.4.11',getProfile(id)),/Unsupported pinned/);
  }
 });
 
@@ -121,4 +121,17 @@ test('pinned 049 retains the consented WGC path for the three unchanged requests
  }
  assert.equal(captureMode('0.4.9',{...getProfile('720p30'),fps:0}),'browser');
  for(const fps of [15,24,30,60])assert.equal(captureMode('0.4.9',{...getProfile('1440p60'),fps}),'native');
+});
+
+
+test('pinned 0410 retains the consented WGC path for all three unchanged requests',()=>{
+ for(const id of ['720p30','1080p60','1440p60']){
+  const p=getProfile(id);
+  assert.equal(captureMode('0.4.10',p),'native');
+  assert.equal(fixtureScript('0.4.10',p),'window-layered.ps1');
+  assert.equal(fixtureReady(`WINDOW 42 ${p.width}x${p.height} TARGET ${p.fps} SOURCE native-layered-dib LIFETIME_SECONDS 600\r\n`,p,'native'),true);
+ }
+ assert.equal(captureMode('0.4.10',{...getProfile('720p30'),fps:0}),'browser');
+ for(const fps of [15,24,30,60])assert.equal(captureMode('0.4.10',{...getProfile('1440p60'),fps}),'native');
+ for(const version of ['0.4.11','0.5.0','0.4.010'])assert.throws(()=>captureMode(version,getProfile('1440p60')),/Unsupported pinned/);
 });
