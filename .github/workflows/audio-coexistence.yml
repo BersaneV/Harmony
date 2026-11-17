@@ -1,19 +1,6 @@
 name: Windows external audio coexistence
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        type: string
-        default: '0.4.13'
-        required: true
-      installer_sha256:
-        type: string
-        default: '5494f7576a89625afdaa262b64f5ca5af7d91b7b39d8f2935a9643053981f6d5'
-        required: true
-      exe_sha256:
-        type: string
-        default: '58ea36ebcd72fc63ce9a9e6d2c5b59fa103fea9ee7327b01ae03a7cb71f77de7'
-        required: true
 permissions:
   contents: read
 jobs:
@@ -21,10 +8,6 @@ jobs:
     if: github.repository == 'BersaneV/Harmony' && github.ref == 'refs/heads/main' && github.event.repository.private == false
     runs-on: windows-2025
     timeout-minutes: 20
-    env:
-      HARMONY_AUDIO_VERSION: ${{ inputs.version }}
-      HARMONY_AUDIO_INSTALLER_SHA256: ${{ inputs.installer_sha256 }}
-      HARMONY_AUDIO_EXE_SHA256: ${{ inputs.exe_sha256 }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - name: Install pinned signed virtual audio fixture on disposable VM
@@ -53,23 +36,18 @@ jobs:
       - run: npm ci
       - name: Verify measurement rejection gates
         run: node --test scripts/audio-coexistence/measurements.test.mjs
-      - name: Extract the exact versioned Windows app
+      - name: Extract the exact published Windows app
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          if ($env:HARMONY_AUDIO_VERSION -notmatch '^0\.\d+\.\d+$' -or $env:HARMONY_AUDIO_INSTALLER_SHA256 -notmatch '^[a-f0-9]{64}$' -or $env:HARMONY_AUDIO_EXE_SHA256 -notmatch '^[a-f0-9]{64}$') { throw 'A version and both exact SHA256 hashes are required' }
           $folder = Join-Path $env:RUNNER_TEMP 'harmony-audio-app'
           New-Item -ItemType Directory -Path $folder | Out-Null
-          $filename = 'Harmony_' + $env:HARMONY_AUDIO_VERSION + '_x64-setup.exe'
-          $setup = Join-Path $folder $filename
-          gh release download ('v'+$env:HARMONY_AUDIO_VERSION) --repo BersaneV/Harmony --pattern $filename --dir $folder
-          if ($LASTEXITCODE -ne 0) { throw 'Versioned release download failed' }
-          if ((Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:HARMONY_AUDIO_INSTALLER_SHA256) { throw 'Published installer differs' }
+          $setup = Join-Path $folder 'Harmony_0.4.13_x64-setup.exe'
+          Invoke-WebRequest 'https://github.com/BersaneV/Harmony/releases/download/v0.4.13/Harmony_0.4.13_x64-setup.exe' -OutFile $setup
+          if ((Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant() -cne '5494f7576a89625afdaa262b64f5ca5af7d91b7b39d8f2935a9643053981f6d5') { throw 'Published installer differs' }
           & 'C:\Program Files\7-Zip\7z.exe' e $setup "-o$folder" harmony-desktop.exe -y
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $exe = Join-Path $folder 'harmony-desktop.exe'
-          if ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:HARMONY_AUDIO_EXE_SHA256) { throw 'Published executable differs' }
+          if ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() -cne '58ea36ebcd72fc63ce9a9e6d2c5b59fa103fea9ee7327b01ae03a7cb71f77de7') { throw 'Published executable differs' }
           "HARMONY_AUDIO_EXE=$exe" | Out-File -Encoding utf8 -Append $env:GITHUB_ENV
       - name: Published EXE call and screen with independent Windows audio
         run: node scripts/audio-coexistence/run.mjs

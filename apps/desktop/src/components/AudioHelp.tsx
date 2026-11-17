@@ -1,8 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 
-import { AudioDiagnostics } from "./AudioDiagnostics";
-
 interface AudioStatus {
   supported: boolean;
   ducking_preference: number | null;
@@ -86,7 +84,6 @@ export function AudioHelp() {
         dispositivo.
       </p>
       {message && <p role="status">{message}</p>}
-      <AudioDiagnostics />
     </div>
   );
 }

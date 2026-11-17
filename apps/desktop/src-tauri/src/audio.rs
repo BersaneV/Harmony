@@ -6,7 +6,7 @@ use serde::Serialize;
 #[derive(Serialize)]
 pub struct AudioStatus {
     supported: bool,
-    pub(crate) ducking_preference: Option<u32>,
+    ducking_preference: Option<u32>,
 }
 
 #[tauri::command]

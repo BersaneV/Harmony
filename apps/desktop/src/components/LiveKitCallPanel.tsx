@@ -1,11 +1,3 @@
-import {
-  audioTrack,
-  audioRoute,
-  audioDeviceReference,
-  audioDiagnostics,
-  audioErrorCode,
-} from "../lib/audio-diagnostics";
-import { useAudioDiagnostics } from "../lib/useAudioDiagnostics";
 import { AudioHelp } from "./AudioHelp";
 import { readAudioDevices, saveAudioDevice } from "../lib/audio-devices";
 import { isTauri } from "@tauri-apps/api/core";
@@ -69,11 +61,6 @@ interface Measured {
   fps: number;
   bitrate: number;
 }
-function recordAudioFailure(error: unknown) {
-  audioDiagnostics.add("capture-error", { code: audioErrorCode(error) });
-  return errorMessage(error);
-}
-
 function VideoSurface({
   track,
   local = false,
@@ -355,41 +342,6 @@ export default function CallPanel({
     Record<string, { voice: number; screen: number }>
   >({});
   const [status, setStatus] = useState("Conectando");
-  useAudioDiagnostics(
-    () => ({
-      engine: "livekit",
-      state: room?.state ?? "connecting",
-      deafened,
-      inputDevice: audioDeviceReference(room?.getActiveDevice("audioinput")),
-      outputDevice: audioDeviceReference(room?.getActiveDevice("audiooutput")),
-      playbackAllowed: room?.canPlaybackAudio ?? null,
-      input: audioRoute(room?.getActiveDevice("audioinput")),
-      output: audioRoute(room?.getActiveDevice("audiooutput")),
-      microphone: audioTrack(
-        room?.localParticipant.getTrackPublication(Track.Source.Microphone)
-          ?.track?.mediaStreamTrack,
-      ),
-      screenAudio: audioTrack(
-        room?.localParticipant.getTrackPublication(
-          Track.Source.ScreenShareAudio,
-        )?.track?.mediaStreamTrack,
-      ),
-      peers: room
-        ? [...room.remoteParticipants.values()].slice(0, 32).map((p) => ({
-            audioLevel: p.audioLevel,
-            microphoneEnabled: p.isMicrophoneEnabled,
-            tracks: [...p.audioTrackPublications.values()]
-              .slice(0, 8)
-              .map((t) => ({
-                muted: t.isMuted,
-                subscribed: t.isSubscribed,
-                track: audioTrack(t.track?.mediaStreamTrack),
-              })),
-          }))
-        : [],
-    }),
-    "livekit",
-  );
   useEffect(() => {
     if (!can(channel, Permission.Connect)) {
       setError("Você não tem permissão para entrar nesta chamada.");
@@ -491,7 +443,7 @@ export default function CallPanel({
         setStatus("Conectado");
         await next.startAudio();
       } catch (e) {
-        if (!stopped) setError(recordAudioFailure(e));
+        if (!stopped) setError(errorMessage(e));
       } finally {
         if (!stopped) setConnecting(false);
       }
@@ -536,7 +488,7 @@ export default function CallPanel({
           else cleanupGlobal = cleanup;
         })
         .catch((e) => {
-          setError(recordAudioFailure(e));
+          setError(errorMessage(e));
           setPtt(false);
         });
       return () => {
@@ -635,7 +587,7 @@ export default function CallPanel({
       await work();
       setTick((v) => v + 1);
     } catch (e) {
-      setError(recordAudioFailure(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -760,7 +712,7 @@ export default function CallPanel({
     try {
       setDevices(await Room.getLocalDevices(undefined, false));
     } catch (e) {
-      setError(recordAudioFailure(e));
+      setError(errorMessage(e));
     }
   }
   return (

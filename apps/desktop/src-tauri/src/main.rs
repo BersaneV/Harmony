@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod audio;
-mod audio_diagnostics;
 mod capture;
 mod updates;
 
@@ -100,7 +99,6 @@ fn main() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(updates::UpdateState::default())
         .manage(capture::CaptureState::default())
-        .manage(audio_diagnostics::AudioDiagnosticState::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(
@@ -121,8 +119,6 @@ fn main() {
             load_refresh_token,
             open_external_url,
             set_push_to_talk,
-            audio_diagnostics::audio_diagnostic_snapshot,
-            audio_diagnostics::save_audio_diagnostics,
             audio::windows_audio_status,
             audio::disable_windows_audio_ducking,
             capture::native_capture_available,

@@ -15,12 +15,6 @@ import {
   Volume2,
   Maximize2,
 } from "lucide-react";
-import {
-  audioDiagnostics,
-  audioErrorCode,
-  p2pAudioSnapshot,
-} from "../lib/audio-diagnostics";
-import { useAudioDiagnostics } from "../lib/useAudioDiagnostics";
 import { AudioHelp } from "./AudioHelp";
 import { readAudioDevices, saveAudioDevice } from "../lib/audio-devices";
 import { P2PCall } from "../lib/call";
@@ -59,11 +53,6 @@ import {
   Loading,
   Modal,
 } from "./ui";
-
-function recordAudioFailure(error: unknown) {
-  audioDiagnostics.add("capture-error", { code: audioErrorCode(error) });
-  return errorMessage(error);
-}
 
 function VideoSurface({
   track,
@@ -112,10 +101,7 @@ function AudioSurface({
     if (!element) return;
     element.srcObject = new MediaStream([track]);
     element.volume = currentVolume.current;
-    void element.play().catch((e) => {
-      audioDiagnostics.add("playback-error", { code: audioErrorCode(e) });
-      blocked();
-    });
+    void element.play().catch(blocked);
     return () => {
       element.srcObject = null;
     };
@@ -126,10 +112,7 @@ function AudioSurface({
   useEffect(() => {
     const element = ref.current;
     if (element && "setSinkId" in element)
-      void element.setSinkId(output).catch((e) => {
-        audioDiagnostics.add("output-error", { code: audioErrorCode(e) });
-        blocked();
-      });
+      void element.setSinkId(output).catch(blocked);
   }, [output, blocked]);
   return <audio ref={ref} autoPlay />;
 }
@@ -335,16 +318,6 @@ export default function P2PCallPanel({
     can(channel, Permission.Publish) &&
     state.self?.can_publish === true &&
     state.state === "connected";
-  useAudioDiagnostics(
-    () =>
-      p2pAudioSnapshot(
-        engine.snapshot,
-        deafened,
-        selectedDevices.audioinput,
-        selectedDevices.audiooutput,
-      ),
-    "p2p",
-  );
   const allowed = useRef(canPublish);
   allowed.current = canPublish;
   const screenTrack = state.localTracks.screen;
@@ -393,7 +366,7 @@ export default function P2PCallPanel({
     const timer = setTimeout(
       () =>
         void engine.connect().catch((e) => {
-          if (mounted.current) setError(recordAudioFailure(e));
+          if (mounted.current) setError(errorMessage(e));
         }),
       0,
     );
@@ -434,7 +407,7 @@ export default function P2PCallPanel({
     try {
       await work();
     } catch (e) {
-      if (mounted.current) setError(recordAudioFailure(e));
+      if (mounted.current) setError(errorMessage(e));
     } finally {
       if (mounted.current) setBusy(false);
     }
@@ -540,7 +513,7 @@ export default function P2PCallPanel({
         })
         .catch((e) => {
           if (!stopped) {
-            setError(recordAudioFailure(e));
+            setError(errorMessage(e));
             setPtt(false);
             mute();
           }

@@ -2,7 +2,7 @@
 // disposable Windows VM. No microphone, speakers or Bluetooth hardware is faked.
 import assert from 'node:assert/strict';
 import {spawn, spawnSync} from 'node:child_process';
-import {mkdtemp, writeFile, mkdir, readFile, unlink} from 'node:fs/promises';
+import {mkdtemp, writeFile, mkdir} from 'node:fs/promises';
 import {join, resolve, sep} from 'node:path';
 import {createServer} from 'node:net';
 import {build} from 'vite';
@@ -58,21 +58,6 @@ try {
   await cdp.evaluate('mountHarmonyAudioHelp()');
   await until(()=>cdp.evaluate("document.body.innerText.includes('Manter os outros sons no Windows')"),'Production audio settings button');
   check((await status()).ducking_preference===0,'Opening the settings does not change the user preference');
-  const diagnostic = await cdp.evaluate("window.__TAURI_INTERNALS__.invoke('audio_diagnostic_snapshot',{includeNames:false})");
-  check(diagnostic.supported && ['ok','unavailable'].includes(diagnostic.status),'Native diagnostic explicitly reports availability without requiring audio hardware');
-  check(!JSON.stringify(diagnostic).includes('endpointId') && (diagnostic.endpoints||[]).every(e=>e.name===null),'Diagnostic omits device names by default and does not return raw endpoint identifiers');
-  check((await status()).ducking_preference===0,'Read-only diagnostic preserves the Windows preference');
-  const saveName = await cdp.evaluate(`(async()=>{const core=window.__TAURI_INTERNALS__;const original=core.invoke;window.__audioSavedName=null;core.invoke=async function(cmd,args,options){const result=await original.call(this,cmd,args,options);if(cmd==='save_audio_diagnostics')window.__audioSavedName=result;return result;};const button=Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Salvar diagnóstico de áudio');if(!button)throw Error('Production export button absent');button.click();return true;})()`,true);
-  check(saveName===true,'Production diagnostic export is accessible from audio settings');
-  await until(()=>cdp.evaluate("!!window.__audioSavedName"),'Real diagnostic file saved through production UI');
-  const basename=await cdp.evaluate('window.__audioSavedName');
-  check(/^Harmony-audio-[0-9]+\.json$/.test(basename),'Native export uses a generated fixed basename');
-  const downloads=ps("$s=New-Object -ComObject Shell.Application;$s.Namespace('shell:Downloads').Self.Path");
-  const savedPath=join(downloads,basename), saved=JSON.parse(await readFile(savedPath,'utf8'));
-  check(saved.format==='harmony.audio-diagnostic.v1' && saved.privacy.audio_recorded===false && saved.privacy.automatic_upload===false,'Exported Downloads file contains the production diagnostic schema and privacy policy');
-  check(saved.windows.supported && saved.device_names_requested===false,'Default exported report does not request personal device names');
-  await unlink(savedPath);
-
   check(await cdp.evaluate("document.body.innerText.includes('permanente') && document.body.innerText.includes('todos os aplicativos')"),'UI explains the persistent Windows-wide effect before the action');
   await cdp.evaluate("Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Manter os outros sons no Windows').click()",true);
   await until(async()=> (await status()).ducking_preference===3,'Windows preference readback after explicit action');
