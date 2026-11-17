@@ -38,25 +38,25 @@ test("eight exact-flag spawns and bounded private stderr survive exit until clos
   const entries = await f.group.launchAll(); await Promise.all(entries.map((r) => r.ready));
   const payload = "private-path=/secret TOKEN_VALUE No usable sand";
   f.children[0].stderr.write(payload); f.children[0].stderr.write("box! DevTools listening on ws://private\n");
-  f.children[0].stderr.write(Buffer.alloc(110_000, 120));
+  f.children[0].stderr.write(Buffer.alloc(120_000, 120));
   const before = f.group.snapshot()[0]; assert.equal(before.stage, "DEVTOOLS_READY"); assert.ok(Number.isFinite(before.startup_elapsed_ms));
   f.setNow(50_000); assert.equal(f.group.snapshot()[0].startup_elapsed_ms, before.startup_elapsed_ms);
   let done = false; const closing = f.group.close().then((v) => { done = true; return v; });
   await new Promise((resolve) => setImmediate(resolve)); assert.equal(done, false); assert.equal(f.removed.includes(entries[0].profile), false);
   flush(); assert.equal(await closing, true);
   const r = f.group.snapshot()[0]; assert.deepEqual(r.stderr_classes, ["DEVTOOLS_LISTENING", "NO_USABLE_SANDBOX"]);
-  assert.equal(r.stderr_retained_bytes, 100_000); assert.ok(r.stderr_bytes > 110_000); assert.equal(r.log_flush_verified, true);
+  assert.equal(r.stderr_retained_bytes, 100_000); assert.ok(r.stderr_bytes > 120_000); assert.equal(r.log_flush_verified, true);
   assert.equal(f.writes[0].mode.mode, 0o600); assert.equal(f.removed.length, 8);
-  const expected = Buffer.concat([Buffer.from(payload),Buffer.from("box! DevTools listening on ws://private\n"),Buffer.alloc(110_000,120),Buffer.from("trailing-private-value")]);
+  const expected = Buffer.concat([Buffer.from(payload),Buffer.from("box! DevTools listening on ws://private\n"),Buffer.alloc(120_000,120),Buffer.from("trailing-private-value")]);
   assert.equal(entries[0].stderrHash.copy().digest("hex"), createHash("sha256").update(expected).digest("hex"));
   assert.equal("stderr_sha256" in r, false);
   assert.doesNotMatch(JSON.stringify(f.group.snapshot()), /TOKEN_VALUE|\/private|\/secret|ws:\/\//);
 });
-test("port resolving after the original 10s deadline is rejected, not accepted late", async () => {
+test("port resolving after the bounded startup deadline is rejected, not accepted late", async () => {
   const resolvers = []; const f = fixture({ read: () => new Promise((resolve) => resolvers.push(resolve)) });
-  const entries = await f.group.launchAll(); f.setNow(10_001); resolvers.forEach((resolve) => resolve("41234\n"));
+  const entries = await f.group.launchAll(); f.setNow(20_001); resolvers.forEach((resolve) => resolve("41234\n"));
   assert.ok((await Promise.allSettled(entries.map((r) => r.ready))).every((r) => r.status === "rejected"));
-  assert.ok(f.group.snapshot().every((r) => r.stage === "DEADLINE")); assert.equal(STARTUP_TIMEOUT_MS,10_000); assert.ok(f.deadlines.includes(10_000));
+  assert.ok(f.group.snapshot().every((r) => r.stage === "DEADLINE")); assert.equal(STARTUP_TIMEOUT_MS,20_000); assert.ok(f.deadlines.includes(20_000));
   await f.group.close();
 });
 test("process exit during a port read cannot become ready", async () => {
@@ -121,9 +121,9 @@ test("nonloopback/malformed/ambiguous/conflicting announcements cannot establish
   }
   for(const conflict of [false,true]){const f=fixture({read:conflict?()=>Promise.resolve("41235\n"):absent});const entries=await f.group.launchAll();announce(f);if(!conflict)announce(f,endpoint.replace("abcdef","abcdee"));assert.ok((await Promise.allSettled(entries.map((r)=>r.ready))).every((r)=>r.status==="rejected"));assert.ok(f.group.snapshot().some((r)=>r.endpoint_error===(conflict?"FILE_STDERR_CONFLICT":"ANNOUNCEMENT_AMBIGUOUS")));await f.group.close();}
 });
-test("late announcement and late HTTP result never receive an extra10s",async()=>{
-  const f=fixture({read:absent});const entries=await f.group.launchAll();f.setNow(10001);announce(f);assert.ok((await Promise.allSettled(entries.map((r)=>r.ready))).every((r)=>r.status==="rejected"));assert.ok(f.group.snapshot().some((r)=>r.endpoint_error==="ANNOUNCEMENT_LATE"));await f.group.close();
-  const responses=[];const h=fixture({read:absent,fetch:()=>new Promise((resolve)=>responses.push(resolve))});const list=await h.group.launchAll();announce(h);await new Promise((r)=>setImmediate(r));h.setNow(10001);responses.forEach((resolve)=>resolve({status:200,json:async()=>({webSocketDebuggerUrl:endpoint})}));assert.ok((await Promise.allSettled(list.map((r)=>r.ready))).every((r)=>r.status==="rejected"));assert.ok(h.group.snapshot().every((r)=>r.stage==="DEADLINE"));await h.group.close();
+test("late announcement and late HTTP result never receive an extended deadline",async()=>{
+  const f=fixture({read:absent});const entries=await f.group.launchAll();f.setNow(20001);announce(f);assert.ok((await Promise.allSettled(entries.map((r)=>r.ready))).every((r)=>r.status==="rejected"));assert.ok(f.group.snapshot().some((r)=>r.endpoint_error==="ANNOUNCEMENT_LATE"));await f.group.close();
+  const responses=[];const h=fixture({read:absent,fetch:()=>new Promise((resolve)=>responses.push(resolve))});const list=await h.group.launchAll();announce(h);await new Promise((r)=>setImmediate(r));h.setNow(20001);responses.forEach((resolve)=>resolve({status:200,json:async()=>({webSocketDebuggerUrl:endpoint})}));assert.ok((await Promise.allSettled(list.map((r)=>r.ready))).every((r)=>r.status==="rejected"));assert.ok(h.group.snapshot().every((r)=>r.stage==="DEADLINE"));await h.group.close();
 });
 test("version HTTP404/redirect failure/endpoint mismatch remain classified failures",async()=>{
   for(const mode of ["404","redirect","mismatch"]){const f=fixture({read:absent,fetch:async()=>{if(mode==="redirect")throw new Error("PRIVATE_REDIRECT_TOKEN");return{status:mode==="404"?404:200,json:async()=>({webSocketDebuggerUrl:endpoint.replace(":41234",":41235")})};}});const entries=await f.group.launchAll();announce(f);assert.ok((await Promise.allSettled(entries.map((r)=>r.ready))).every((r)=>r.status==="rejected" && r.reason.message === "Owned Chromium startup"));assert.ok(f.group.snapshot().every((r)=>r.version_status===({"404":"HTTP_STATUS_404",redirect:"REQUEST_FAILED",mismatch:"ENDPOINT_MISMATCH"}[mode])));assert.doesNotMatch(JSON.stringify(f.group.snapshot()),/PRIVATE_REDIRECT_TOKEN/);await f.group.close();}
@@ -142,20 +142,20 @@ test("raw fetch/json error messages cannot escape via the real fullharness publi
   for(const json of [false,true]){const f=fixture({read:absent,fetch:async()=>{if(!json)throw new Error("PRIVATE_REDIRECT_TOKEN http://private/path");return{status:200,json:async()=>{throw new Error("PRIVATE_BODY_FRAGMENT");}};}});const entries=await f.group.launchAll();announce(f);const settled=await Promise.allSettled(entries.map((r)=>r.ready));for(const outcome of settled){assert.equal(outcome.status,"rejected");const publicError=String(outcome.reason.message).replace(/eyJ[A-Za-z0-9_.-]+/g,"<token>");assert.equal(publicError,"Owned Chromium startup");}await f.group.close();}
 });
 
-test("sequential launch preserves original per-child10s and keeps all eight owned processes alive",async()=>{
+test("sequential launch preserves original per-child20s and keeps all eight owned processes alive",async()=>{
  const f=fixture({sequential:true});const entries=await f.group.launchAll({order:"sequential"});await Promise.all(entries.map((r)=>r.ready));
- assert.equal(f.children.length,8);assert.ok(f.children.every((c)=>c.signals.length===0));assert.ok(f.group.snapshot().every((r)=>r.stage==="DEVTOOLS_READY"&&r.startup_elapsed_ms<10000));assert.equal(f.deadlines.filter((ms)=>ms===10000).length,8);await f.group.close();
+ assert.equal(f.children.length,8);assert.ok(f.children.every((c)=>c.signals.length===0));assert.ok(f.group.snapshot().every((r)=>r.stage==="DEVTOOLS_READY"&&r.startup_elapsed_ms<20000));assert.equal(f.deadlines.filter((ms)=>ms===20000).length,8);await f.group.close();
 });
 
 test("sequential cohort cannot complete if an earlier READY browser exits while next waits",async()=>{
  let calls=0,resolveSecond;const f=fixture({sequential:true,fetch:async()=>{calls++;if(calls===2)return new Promise((resolve)=>resolveSecond=resolve);return{status:200,json:async()=>({webSocketDebuggerUrl:endpoint})};}});
  const launch=f.group.launchAll({order:"sequential"});const rejected=assert.rejects(launch,/Owned Chromium startup/);await new Promise((r)=>setImmediate(r));assert.equal(f.children.length,2);f.children[0].emit("exit",1,null);resolveSecond({status:200,json:async()=>({webSocketDebuggerUrl:endpoint})});await rejected;assert.equal(f.children.length,2);assert.equal(f.group.snapshot()[0].stage,"PROCESS_ENDED_AFTER_READY");await f.group.close();
 });
-test("real CLI does not start B after unverified physical cleanup but permits physically clean failed A",async()=>{
+test("real cold CLI uses one cohort, requires eight alive, and preserves physical cleanup failure",async()=>{
  const source=await readFile(new URL("./test_owned_chromium_startup.mjs",import.meta.url),"utf8");const body=source.slice(source.indexOf("const phases = [];"));
  for(const physical of [false,true]){let groups=0;const output=[];const process={env:{},exitCode:0};
- const group=()=>{const n=groups++;const b=n===1;return{async launchAll(){if(!b)throw new Error("Owned Chromium startup");return Array.from({length:8},(_,i)=>({ready:Promise.resolve(),spawned:true,closed:false,exit_code:null,signal:null,verified_endpoint:{host:"127.0.0.1",port:4000+i,path:"private"+i}}));},async close(){return b;},snapshot(){return Array.from({length:8},()=>({spawned:true,stage:b?"DEVTOOLS_READY":"DEADLINE",version_status:b?"VERIFIED":"NOT_RUN",endpoint_error:b?null:"ANNOUNCEMENT_LATE",cleanup:physical?"CLOSED_AND_FLUSHED":"CLOSE_UNVERIFIED",stdio_closed:physical,log_flush_verified:physical}));}};};
- await vm.runInNewContext(`(async()=>{${body}})()`,{ownedChromiumGroup:group,output:"private",root:"private",mkdtemp:async()=>"private",process,console:{log:(v)=>output.push(JSON.parse(v))},Set});
- assert.equal(groups,physical?2:1);const summary=output.at(-1);assert.equal(summary.status,physical?"OBSERVED":"FAIL");assert.equal(summary.phases.length,physical?2:1);if(!physical)assert.equal(summary.sequential_status,"NOT_RUN");else assert.equal(summary.phases[1].alive_at_cohort_ready,8);
+ const group=()=>{groups++;return{async launchAll({order}){assert.equal(order,"sequential");return Array.from({length:8},(_,i)=>({ready:Promise.resolve(),spawned:true,closed:false,exit_code:null,signal:null,verified_endpoint:{host:"127.0.0.1",port:4000+i,path:"private"+i}}));},async close(){return physical;},snapshot(){return Array.from({length:8},()=>({spawned:true,stage:"DEVTOOLS_READY",version_status:"VERIFIED",endpoint_error:null,cleanup:physical?"CLOSED_AND_FLUSHED":"CLOSE_UNVERIFIED",stdio_closed:physical,log_flush_verified:physical}));}};};
+ await vm.runInNewContext(`(async()=>{${body}})()`,{ownedChromiumGroup:group,output:"private",root:"private",mkdtemp:async()=>"private",process,console:{log:(v)=>output.push(JSON.parse(v))},Set,STARTUP_TIMEOUT_MS});
+ assert.equal(groups,1);const summary=output.at(-1);assert.equal(summary.status,physical?"OBSERVED":"FAIL");assert.equal(summary.phases.length,1);assert.equal(summary.phases[0].alive_at_cohort_ready,8);assert.equal(summary.deadline_ms,20000);
  }
 });

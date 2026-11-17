@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
-export const STARTUP_TIMEOUT_MS = 10_000;
+// Bounded harness readiness; media/capture/voice quality windows are unchanged.
+export const STARTUP_TIMEOUT_MS = 20_000;
 export const CHROMIUM_FLAGS = Object.freeze([
   "--headless=new", "--no-first-run", "--no-default-browser-check",
   "--autoplay-policy=no-user-gesture-required", "--disable-audio-output",
@@ -12,6 +13,10 @@ const ERRNOS = new Set(["ENOENT", "EACCES", "EPERM", "EIO", "EMFILE", "ENFILE", 
 const SIGNALS = new Set(["SIGINT", "SIGKILL", "SIGTERM", "SIGABRT", "SIGTRAP", "SIGSEGV"]);
 const errno = (code) => ERRNOS.has(code) ? code : "OTHER";
 const patterns = [
+  ["DBUS_CONNECTION_MENTION", /Failed to connect to the bus|Failed to connect to socket.*dbus/i],
+  ["PROCESS_SINGLETON_MENTION", /process_singleton|SingletonLock/],
+  ["MISSING_DISPLAY_MENTION", /Missing X server|no display|DISPLAY.*not set/i],
+  ["CHROMIUM_FATAL_MENTION", /FATAL:/],
   ["NO_USABLE_SANDBOX", /No usable sandbox/i],
   ["ROOT_SANDBOX_REFUSAL", /Running as root without --no-sandbox is not supported/i],
   ["USER_NAMESPACE_FAILURE", /Failed to move to new namespace|Failed to unshare/i],
