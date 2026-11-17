@@ -49,6 +49,7 @@ import {
   MemberRoles,
   ChannelPermissions,
 } from "./components/Roles";
+import { audioDiagnostics } from "./lib/audio-diagnostics";
 import Auth from "./components/Auth";
 import Invite from "./components/Invite";
 import {
@@ -144,6 +145,7 @@ export default function App() {
     () =>
       onSession((next) => {
         if (!next) {
+          audioDiagnostics.clear();
           cache.clear();
           setJoinedGuild(null);
         }
