@@ -25,7 +25,7 @@ function fixture(options = {}) {
     setTimeout: (fn, ms) => { deadlines.push(ms); return setTimeout(fn, Math.min(ms, 35)); }, clearTimeout,
     mkdtemp: async (prefix) => prefix + "owned",
     spawn: (_binary, args) => { const child = new Child(); children.push(child); assert.equal(group.entries.length, 8); assert.deepEqual(args.slice(0, -2), CHROMIUM_FLAGS); queueMicrotask(() => child.emit("spawn")); return child; },
-    readFile: (...args) => { assert.equal(children.length, 8); return options.read ? options.read(...args) : Promise.resolve("41234\n/private/socket"); },
+    readFile: (...args) => { if (!options.sequential) assert.equal(children.length, 8); return options.read ? options.read(...args) : Promise.resolve("41234\n/private/socket"); },
     writeFile: async (path, bytes, mode) => { writes.push({ path, bytes: Buffer.from(bytes), mode }); if (options.write) await options.write(path); },
     rm: async (path) => { removed.push(path); },
   } });
@@ -140,4 +140,22 @@ test("endpoint conflict after READY or during cleanup fails the unchanged fullha
 });
 test("raw fetch/json error messages cannot escape via the real fullharness public error projection",async()=>{
   for(const json of [false,true]){const f=fixture({read:absent,fetch:async()=>{if(!json)throw new Error("PRIVATE_REDIRECT_TOKEN http://private/path");return{status:200,json:async()=>{throw new Error("PRIVATE_BODY_FRAGMENT");}};}});const entries=await f.group.launchAll();announce(f);const settled=await Promise.allSettled(entries.map((r)=>r.ready));for(const outcome of settled){assert.equal(outcome.status,"rejected");const publicError=String(outcome.reason.message).replace(/eyJ[A-Za-z0-9_.-]+/g,"<token>");assert.equal(publicError,"Owned Chromium startup");}await f.group.close();}
+});
+
+test("sequential launch preserves original per-child10s and keeps all eight owned processes alive",async()=>{
+ const f=fixture({sequential:true});const entries=await f.group.launchAll({order:"sequential"});await Promise.all(entries.map((r)=>r.ready));
+ assert.equal(f.children.length,8);assert.ok(f.children.every((c)=>c.signals.length===0));assert.ok(f.group.snapshot().every((r)=>r.stage==="DEVTOOLS_READY"&&r.startup_elapsed_ms<10000));assert.equal(f.deadlines.filter((ms)=>ms===10000).length,8);await f.group.close();
+});
+
+test("sequential cohort cannot complete if an earlier READY browser exits while next waits",async()=>{
+ let calls=0,resolveSecond;const f=fixture({sequential:true,fetch:async()=>{calls++;if(calls===2)return new Promise((resolve)=>resolveSecond=resolve);return{status:200,json:async()=>({webSocketDebuggerUrl:endpoint})};}});
+ const launch=f.group.launchAll({order:"sequential"});const rejected=assert.rejects(launch,/Owned Chromium startup/);await new Promise((r)=>setImmediate(r));assert.equal(f.children.length,2);f.children[0].emit("exit",1,null);resolveSecond({status:200,json:async()=>({webSocketDebuggerUrl:endpoint})});await rejected;assert.equal(f.children.length,2);assert.equal(f.group.snapshot()[0].stage,"PROCESS_ENDED_AFTER_READY");await f.group.close();
+});
+test("real CLI does not start B after unverified physical cleanup but permits physically clean failed A",async()=>{
+ const source=await readFile(new URL("./test_owned_chromium_startup.mjs",import.meta.url),"utf8");const body=source.slice(source.indexOf("const phases = [];"));
+ for(const physical of [false,true]){let groups=0;const output=[];const process={env:{},exitCode:0};
+ const group=()=>{const n=groups++;const b=n===1;return{async launchAll(){if(!b)throw new Error("Owned Chromium startup");return Array.from({length:8},(_,i)=>({ready:Promise.resolve(),spawned:true,closed:false,exit_code:null,signal:null,verified_endpoint:{host:"127.0.0.1",port:4000+i,path:"private"+i}}));},async close(){return b;},snapshot(){return Array.from({length:8},()=>({spawned:true,stage:b?"DEVTOOLS_READY":"DEADLINE",version_status:b?"VERIFIED":"NOT_RUN",endpoint_error:b?null:"ANNOUNCEMENT_LATE",cleanup:physical?"CLOSED_AND_FLUSHED":"CLOSE_UNVERIFIED",stdio_closed:physical,log_flush_verified:physical}));}};};
+ await vm.runInNewContext(`(async()=>{${body}})()`,{ownedChromiumGroup:group,output:"private",root:"private",mkdtemp:async()=>"private",process,console:{log:(v)=>output.push(JSON.parse(v))},Set});
+ assert.equal(groups,physical?2:1);const summary=output.at(-1);assert.equal(summary.status,physical?"OBSERVED":"FAIL");assert.equal(summary.phases.length,physical?2:1);if(!physical)assert.equal(summary.sequential_status,"NOT_RUN");else assert.equal(summary.phases[1].alive_at_cohort_ready,8);
+ }
 });

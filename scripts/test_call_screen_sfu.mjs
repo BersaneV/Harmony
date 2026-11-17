@@ -357,7 +357,7 @@ try {
   });
   for (const account of accounts.slice(1))
     await api("POST", "/invites/accept", account, { token: invite.token });
-  await chrome.launchAll();
+  await chrome.launchAll({ order: "sequential" });
   startupJobs = browsers.map((b) => browser(b.index));
   await Promise.all(startupJobs);
   await Promise.all(

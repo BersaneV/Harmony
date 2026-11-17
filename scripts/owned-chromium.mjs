@@ -48,7 +48,7 @@ export function ownedChromiumGroup({ directory, binary, env, cwd, io = {} }) {
     stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), stderr_bytes: 0, stdout_bytes: 0,
     stderrHash: createHash("sha256"), classes: new Set(), closed: false, flushed: false, cleanup: "NOT_RUN",
   }));
-  const guard = () => { if (closing || entries.some((r) => r.endpoint_error)) throw failure(); };
+  const guard = () => { if (closing || entries.some((r) => r.endpoint_error || r.version_status === "VERIFIED" && (r.closed || r.exit_code !== null || r.signal !== null))) throw failure(); };
   const within = (promise, ms) => new Promise((resolve) => {
     const timer = (deps.setTimeout ?? setTimeout)(() => resolve(false), Math.max(0, ms));
     Promise.resolve(promise).then(() => { (deps.clearTimeout ?? clearTimeout)(timer); resolve(true); }, () => { (deps.clearTimeout ?? clearTimeout)(timer); resolve(false); });
@@ -124,7 +124,7 @@ export function ownedChromiumGroup({ directory, binary, env, cwd, io = {} }) {
       });
       r.child.once("spawn", () => { r.spawned = true; });
       r.child.once("error", (error) => { r.spawn_errno = errno(error.code); });
-      r.child.once("exit", (code, signal) => { r.exit_code = Number.isInteger(code) ? code : null; r.signal = signal ? SIGNALS.has(signal) ? signal : "OTHER" : null; });
+      r.child.once("exit", (code, signal) => { r.exit_code = Number.isInteger(code) ? code : null; r.signal = signal ? SIGNALS.has(signal) ? signal : "OTHER" : null; if (!closing && r.stage === "DEVTOOLS_READY") r.stage = "PROCESS_ENDED_AFTER_READY"; });
       r.child.stdout.on("error", () => { r.classes.add("STDIO_ERROR"); });
       r.child.stderr.on("error", () => { r.classes.add("STDIO_ERROR"); });
       r.child.stdout.on("data", (data) => { r.stdout_bytes += data.length; r.stdout = bound(r.stdout, data); });
@@ -160,13 +160,16 @@ export function ownedChromiumGroup({ directory, binary, env, cwd, io = {} }) {
   }
   return {
     entries, signal: abort.signal, guard,
-    async launchAll() {
-      if (launchTask) throw failure();
+    async launchAll({ order = "parallel" } = {}) {
+      if (launchTask || !["parallel", "sequential"].includes(order)) throw failure();
       launchTask = (async () => {
         const profiles = await Promise.allSettled(entries.map(async (r) => { try { r.profile = await deps.mkdtemp(`${directory}/browser-${r.index}-`); } finally { r.prepared = true; } }));
         guard(); if (profiles.some((r) => r.status === "rejected")) throw failure();
         // All eight spawn attempts are registered before awaiting any readiness.
-        entries.forEach(launch); entries.forEach(startReady); return entries;
+        if (order === "parallel") { entries.forEach(launch); entries.forEach(startReady); }
+        else { for (const r of entries) { guard(); launch(r); startReady(r); await r.ready; } }
+        guard();
+        return entries;
       })(); return launchTask;
     },
     cancel() { closing = true; abort.abort(); },
