@@ -114,28 +114,12 @@ export default function Auth() {
           </h2>
           <p className="muted">
             {mode === "login"
-              ? "Conecte-se à sua instância e encontre sua comunidade."
+              ? "Entre na sua conta e encontre sua comunidade."
               : mode === "register"
                 ? "Escolha seu nome de usuário e senha. Não precisa de convite."
                 : "Peça um código de recuperação ao administrador da instância."}
           </p>
           <form onSubmit={submit}>
-            <Field
-              label="Servidor"
-              hint="O endereço fornecido pelo responsável pela sua comunidade."
-            >
-              <div className="input-icon">
-                <Server size={17} />
-                <input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  required
-                  type="url"
-                  placeholder="https://harmony.exemplo.org"
-                  autoComplete="url"
-                />
-              </div>
-            </Field>
             {mode !== "reset" && (
               <Field
                 label="Nome de usuário"
@@ -200,6 +184,25 @@ export default function Auth() {
                 />
               </div>
             </Field>
+            <details className="auth-server">
+              <summary>Usar outro servidor</summary>
+              <Field
+                label="Servidor"
+                hint="O Harmony já está configurado. Altere apenas para usar outra instância."
+              >
+                <div className="input-icon">
+                  <Server size={17} />
+                  <input
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    required
+                    type="url"
+                    placeholder="https://harmony.exemplo.org"
+                    autoComplete="url"
+                  />
+                </div>
+              </Field>
+            </details>
             <ErrorBanner message={error} />
             {done && (
               <p className="success-note" role="status">

@@ -26,15 +26,15 @@ export function normalizeServer(input: string): string {
   return url.origin;
 }
 function initialServer() {
+  const fallback = isTauri()
+    ? "https://harmony.go.altare.global"
+    : typeof window !== "undefined" && window.location.protocol === "https:"
+      ? window.location.origin
+      : "http://127.0.0.1:8080";
   try {
-    return normalizeServer(
-      localStorage.getItem("harmony.server") ||
-        (!isTauri() && window.location.protocol === "https:"
-          ? window.location.origin
-          : "http://127.0.0.1:8080"),
-    );
+    return normalizeServer(localStorage.getItem("harmony.server") || fallback);
   } catch {
-    return "http://127.0.0.1:8080";
+    return fallback;
   }
 }
 let server = initialServer();

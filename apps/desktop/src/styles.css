@@ -608,6 +608,17 @@ strong {
 .auth-form-wrap .button {
   height: 44px;
 }
+.auth-server {
+  margin-bottom: 18px;
+}
+.auth-server summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.auth-server[open] summary {
+  margin-bottom: 14px;
+}
 .auth-links {
   display: flex;
   justify-content: space-between;
