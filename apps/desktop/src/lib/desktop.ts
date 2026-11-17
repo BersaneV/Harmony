@@ -28,3 +28,24 @@ export async function notifyMessage(title: string, body: string) {
   } else if ("Notification" in window && Notification.permission === "granted")
     new Notification(title, { body, icon: "/harmony.svg" });
 }
+
+let pttLease = 0;
+export async function registerGlobalPtt(handler: (pressed: boolean) => void) {
+  const lease = ++pttLease;
+  const { listen } = await import("@tauri-apps/api/event");
+  const unlisten = await listen<boolean>("ptt-state", (event) =>
+    handler(event.payload === true),
+  );
+  try {
+    await invoke("set_push_to_talk", { enabled: true });
+  } catch (error) {
+    unlisten();
+    throw error;
+  }
+  return async () => {
+    unlisten();
+    handler(false);
+    if (lease === pttLease)
+      await invoke("set_push_to_talk", { enabled: false });
+  };
+}

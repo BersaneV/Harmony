@@ -65,6 +65,6 @@ for (int i=0;i<seconds;i++) {
     }
     Emit(new { kind="loopback_interval", at_ms=clock.Elapsed.TotalMilliseconds, samples=samples.Length,
         rms=samples.Length==0?0:Math.Sqrt(samples.Sum(x=>(double)x*x)/samples.Length),
-        external_440=Amplitude(440), voice_880=Amplitude(880), test_660=Amplitude(660), clipping_samples=samples.Count(x=>Math.Abs(x)>=0.999) });
+        external_440=Amplitude(440), voice_880=Amplitude(880), clipping_samples=samples.Count(x=>Math.Abs(x)>=0.999) });
 }
 capture.StopRecording();

@@ -4,14 +4,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import P2PDiagnostics from "./P2PDiagnostics";
 import { useP2PDiscovery } from "../lib/useP2PDiscovery";
 import type { AvailableProbe } from "../lib/useP2PDiscovery";
-import { useCallShortcuts } from "../lib/useCallShortcuts";
-import {
-  registerAudioCheckMute,
-  microphoneCheckActive,
-  stopAudioChecks,
-} from "../lib/audio-check";
-import { AudioTests } from "./AudioTests";
-import { CallKeysSettings } from "./CallKeys";
+import { registerGlobalPtt } from "../lib/desktop";
 import { useEffect, useRef, useState } from "react";
 import {
   Room,
@@ -327,7 +320,6 @@ export default function CallPanel({
   const [busy, setBusy] = useState(false);
   const [deafened, setDeafened] = useState(false);
   const [ptt, setPtt] = useState(false);
-  const pttHeld = useRef(false);
   const [settings, setSettings] = useState(false);
   const [p2pDiagnostics, setP2pDiagnostics] = useState(false);
   const [p2pInvitation, setP2pInvitation] = useState<AvailableProbe | null>(
@@ -469,66 +461,68 @@ export default function CallPanel({
     previewRef.current = preview;
   }, [preview]);
   useEffect(() => {
-    if (!room) return;
-    return registerAudioCheckMute(async () => {
-      pttHeld.current = false;
-      await room.localParticipant.setMicrophoneEnabled(false);
-    });
-  }, [room]);
-  const callKeys = useCallShortcuts({
-    active: !!room && room.state === ConnectionState.Connected,
-    ptt,
-    canTalk: canPublish && !deafened,
-    onPtt: (held) => {
-      pttHeld.current = held;
-      if (!room) return;
-      const open =
-        held && publishAllowed.current && !microphoneCheckActive() && !deafened;
+    if (!room || !ptt || deafened || !canPublish) return;
+    let held = false;
+    let stopped = false;
+    let cleanupGlobal: (() => Promise<void>) | undefined;
+    const mute = () => {
+      held = false;
+      void room.localParticipant.setMicrophoneEnabled(false);
+    };
+    const press = () => {
+      if (held || !publishAllowed.current) return;
+      held = true;
       void room.localParticipant
-        .setMicrophoneEnabled(open)
+        .setMicrophoneEnabled(true)
         .then(() => {
-          if (
-            open &&
-            (!pttHeld.current ||
-              !publishAllowed.current ||
-              microphoneCheckActive())
-          )
+          if (!held || stopped || !publishAllowed.current)
             void room.localParticipant.setMicrophoneEnabled(false);
         })
         .catch((e) => setError(errorMessage(e)));
-    },
-    microphone: () => void toggleMicrophone(),
-    deafen: toggleDeafen,
-    error: () => {
-      setError(
-        "Atalho indisponível. Escolha outra combinação em Dispositivos e voz.",
-      );
-      setPtt(false);
-    },
-  });
-  async function toggleMicrophone() {
-    if (
-      !room ||
-      busy ||
-      ptt ||
-      !publishAllowed.current ||
-      deafened ||
-      microphoneCheckActive()
-    )
-      return;
-    await action(async () => {
-      const open = !room.localParticipant.isMicrophoneEnabled;
-      await room.localParticipant.setMicrophoneEnabled(open);
-      if (open && microphoneCheckActive())
-        await room.localParticipant.setMicrophoneEnabled(false);
-    });
-  }
-  function toggleDeafen() {
-    setDeafened(!deafened);
-    if (!deafened && room)
-      void action(() => room.localParticipant.setMicrophoneEnabled(false));
-  }
-
+    };
+    mute();
+    if (isTauri()) {
+      void registerGlobalPtt((pressed) => (pressed ? press() : mute()))
+        .then((cleanup) => {
+          if (stopped) void cleanup();
+          else cleanupGlobal = cleanup;
+        })
+        .catch((e) => {
+          setError(errorMessage(e));
+          setPtt(false);
+        });
+      return () => {
+        stopped = true;
+        mute();
+        void cleanupGlobal?.();
+      };
+    }
+    const down = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        event.code === "Space" &&
+        !event.repeat &&
+        !["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName) &&
+        !target.isContentEditable
+      ) {
+        event.preventDefault();
+        press();
+      }
+    };
+    const up = (event: KeyboardEvent) => {
+      if (event.code === "Space") mute();
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", mute);
+    return () => {
+      stopped = true;
+      mute();
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", mute);
+    };
+  }, [room, ptt, deafened, canPublish]);
   useEffect(() => {
     if (!room || canPublish) return;
     setPtt(false);
@@ -739,9 +733,7 @@ export default function CallPanel({
           <strong>{channel.name}</strong>
           <small>
             {status} · {participants.length + 1} na chamada
-            {ptt
-              ? ` · segure ${callKeys.ptt || "um atalho configurado"} para falar`
-              : ""}
+            {ptt ? ` · segure ${isTauri() ? "F9" : "Espaço"} para falar` : ""}
           </small>
         </div>
         <div className="call-heading-actions">
@@ -916,7 +908,11 @@ export default function CallPanel({
                       : "Ligar microfone"
                 }
                 disabled={busy || ptt || !canPublish}
-                onClick={() => void toggleMicrophone()}
+                onClick={() =>
+                  void action(() =>
+                    local!.setMicrophoneEnabled(!local!.isMicrophoneEnabled),
+                  )
+                }
               >
                 {local?.isMicrophoneEnabled ? (
                   <Mic size={20} />
@@ -927,7 +923,11 @@ export default function CallPanel({
               <button
                 className={`call-button ${deafened ? "muted-control" : ""}`}
                 title={deafened ? "Ativar áudio" : "Silenciar áudio"}
-                onClick={toggleDeafen}
+                onClick={() => {
+                  setDeafened((v) => !v);
+                  if (!deafened)
+                    void action(() => local!.setMicrophoneEnabled(false));
+                }}
               >
                 {deafened ? (
                   <HeadphoneOff size={20} />
@@ -1192,32 +1192,21 @@ export default function CallPanel({
       )}
       {settings && (
         <Modal title="Dispositivos e voz" onClose={() => setSettings(false)}>
-          <AudioTests
-            input={room?.getActiveDevice("audioinput")}
-            output={room?.getActiveDevice("audiooutput")}
-          />
-          <CallKeysSettings />
           <AudioHelp />
           <label className="check-field">
             <input
               type="checkbox"
               checked={ptt}
               disabled={!canPublish}
-              onChange={(e) => {
-                if (e.target.checked && !callKeys.ptt) {
-                  setError("Configure o atalho de push-to-talk primeiro.");
-                  return;
-                }
-                stopAudioChecks();
-                setPtt(e.target.checked);
-              }}
+              onChange={(e) => setPtt(e.target.checked)}
             />
-            Push-to-talk: segure {callKeys.ptt || "configure um atalho"}
+            Push-to-talk: segure{" "}
+            {isTauri() ? "F9 (global)" : "Espaço (janela em foco)"}
           </label>
           <p className="small-note">
             {isTauri()
-              ? "O atalho escolhido funciona fora da janela e é liberado ao desativar ou sair da chamada."
-              : "No navegador, ao mudar de janela o microfone fecha. No aplicativo, o atalho funciona fora da janela."}
+              ? "F9 funciona fora da janela. O atalho é liberado ao desativar ou sair da chamada."
+              : "No navegador, ao mudar de janela o microfone fecha. O aplicativo oferece F9 global."}
           </p>
           {(["audioinput", "audiooutput", "videoinput"] as const).map(
             (kind) => (
@@ -1234,7 +1223,6 @@ export default function CallPanel({
                 <select
                   defaultValue={room?.getActiveDevice(kind) || "default"}
                   onChange={(e) => {
-                    stopAudioChecks();
                     const value = e.target.value;
                     void action(async () => {
                       const applied = await room!.switchActiveDevice(

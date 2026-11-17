@@ -22,8 +22,6 @@ import { normalizeTheme } from "../lib/theme";
 import { activateTheme } from "../lib/themeRuntime";
 import { themeScope } from "../lib/themeAssets";
 import Appearance from "./Appearance";
-import { AudioTests } from "./AudioTests";
-import { CallKeysSettings } from "./CallKeys";
 import { Updates } from "./Updates";
 import type { AuditEvent, Items, Theme, User } from "../lib/types";
 import { Avatar, ErrorBanner, Field, Loading, Modal } from "./ui";
@@ -138,8 +136,6 @@ export function Settings({
       >
         Ativar notificações neste dispositivo
       </button>
-      <AudioTests />
-      <CallKeysSettings />
       <Updates />
       <ErrorBanner message={error} />
       <div className="modal-actions">
