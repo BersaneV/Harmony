@@ -1,6 +1,6 @@
 # Coexistência de áudio no Windows
 
-O workflow manual [`audio-coexistence.yml`](../../.github/workflows/audio-coexistence.yml) executa o Harmony 0.4.13 publicado em uma VM descartável Windows Server 2025 do GitHub Actions. Usa um segundo participante no Edge, voz gerada e um processo .NET independente reproduzindo um tom de 440 Hz. O EXE usa os dispositivos reais de entrada/saída do Windows da VM, sem flags de áudio falso, mute ou desativação de áudio.
+O workflow manual [`audio-coexistence.yml`](../../.github/workflows/audio-coexistence.yml) executa o EXE versionado do Harmony (0.4.13 por padrão) em uma VM descartável Windows Server 2025 do GitHub Actions. Usa um segundo participante no Edge, voz gerada e um processo .NET independente reproduzindo um tom de 440 Hz. A execução exige versão e SHA-256 exatos do instalador e do EXE; o download vem somente do repositório pessoal, incluindo rascunhos acessíveis ao token de leitura do próprio workflow. O EXE usa os dispositivos reais de entrada/saída do Windows da VM, sem flags de áudio falso, mute ou desativação de áudio.
 
 O medidor WASAPI loopback lê PCM do mixer do Windows e separa o tom externo de 440 Hz da voz recebida de 880 Hz. A automação opera a interface publicada e o seletor nativo de compartilhamento. O cenário exige faixa de áudio do sistema e confirma que o outro participante decodifica o tom externo transmitido. Interromper o player deve remover somente seu tom; retomá-lo deve restaurar esse áudio durante a chamada.
 
@@ -31,3 +31,5 @@ O cenário cria duas contas e uma comunidade privadas de teste no piloto; as ses
 ## Limites obrigatórios do resultado
 
 Uma aprovação comprova coexistência digital no endpoint virtual dessa VM e nessa versão do EXE. Fone com fio, Bluetooth físico, mudança A2DP/HFP, drivers de fabricantes, áudio exclusivo e o defeito no computador afetado continuam sem validação física. Não atribuir PASS a esses casos. O resultado também não certifica oito participantes, qualidade acústica ou desempenho de vídeo em 1080p/1440p.
+
+Para versões com diagnóstico exportável, o cenário também salva o arquivo pela interface real durante voz e transmissão, lê o JSON de Downloads, verifica a presença das faixas ativas e dos endpoints reais e exige ausência dos dados conhecidos das contas/comunidade/tokens/IDs de dispositivo do teste. O arquivo de teste é removido ao final dessa conferência.
