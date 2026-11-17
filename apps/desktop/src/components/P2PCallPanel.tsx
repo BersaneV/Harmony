@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { isTauri } from "@tauri-apps/api/core";
 import {
   ChevronDown,
   Expand,
@@ -20,7 +19,14 @@ import { readAudioDevices, saveAudioDevice } from "../lib/audio-devices";
 import { P2PCall } from "../lib/call";
 import type { CallSource, CallPeerSnapshot } from "../lib/call";
 import { api, errorMessage } from "../lib/api";
-import { registerGlobalPtt } from "../lib/desktop";
+import { useCallShortcuts } from "../lib/useCallShortcuts";
+import {
+  registerAudioCheckMute,
+  microphoneCheckActive,
+  stopAudioChecks,
+} from "../lib/audio-check";
+import { AudioTests } from "./AudioTests";
+import { CallKeysSettings } from "./CallKeys";
 import { can, Permission } from "../lib/permissions";
 import {
   defaultProfile,
@@ -274,6 +280,8 @@ export default function P2PCallPanel({
   const deafenedRef = useRef(false);
   const pendingMicrophones = useRef(new Set<MediaStreamTrack>());
   const [ptt, setPtt] = useState(false);
+  const pttMode = useRef(ptt);
+  pttMode.current = ptt;
   const [settings, setSettings] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -460,7 +468,9 @@ export default function P2PCallPanel({
       throw new Error("O dispositivo não forneceu mídia.");
     }
     track.enabled =
-      enabled && (source !== "microphone" || !deafenedRef.current);
+      enabled &&
+      (source !== "microphone" ||
+        (!deafenedRef.current && !microphoneCheckActive()));
     if (source === "microphone") pendingMicrophones.current.add(track);
     try {
       await engine.setTrack(source, track);
@@ -470,7 +480,11 @@ export default function P2PCallPanel({
     } finally {
       pendingMicrophones.current.delete(track);
     }
-    if (source === "microphone" && deafenedRef.current) track.enabled = false;
+    if (
+      source === "microphone" &&
+      (deafenedRef.current || microphoneCheckActive())
+    )
+      track.enabled = false;
     if (
       !mounted.current ||
       !allowed.current ||
@@ -487,6 +501,9 @@ export default function P2PCallPanel({
     await engine.setTrack(source, null);
   }
   async function setPushToTalk(enabled: boolean) {
+    if (enabled && !callKeys.ptt)
+      throw new Error("Configure o atalho de push-to-talk primeiro.");
+    stopAudioChecks();
     if (enabled) {
       await captureDevice("microphone", selectedDevices.audioinput, false);
       if (allowed.current) setPtt(true);
@@ -495,61 +512,61 @@ export default function P2PCallPanel({
       await stopDevice("microphone");
     }
   }
-  useEffect(() => {
-    if (!ptt || !canPublish || deafened) return;
-    let stopped = false;
-    let cleanupGlobal: (() => Promise<void>) | undefined;
-    const mute = () => engine.setTrackEnabled("microphone", false);
-    const press = () => {
-      if (!stopped && allowed.current && !deafenedRef.current)
-        engine.setTrackEnabled("microphone", true);
-    };
-    mute();
-    if (isTauri()) {
-      void registerGlobalPtt((pressed) => (pressed ? press() : mute()))
-        .then((cleanup) => {
-          if (stopped) void cleanup();
-          else cleanupGlobal = cleanup;
-        })
-        .catch((e) => {
-          if (!stopped) {
-            setError(errorMessage(e));
-            setPtt(false);
-            mute();
-          }
-        });
+  useEffect(
+    () =>
+      registerAudioCheckMute(async () => {
+        generations.current.microphone++;
+        for (const track of pendingMicrophones.current) track.enabled = false;
+        engine.setTrackEnabled("microphone", false);
+        if (!pttMode.current) await engine.setTrack("microphone", null);
+      }),
+    [engine],
+  );
+  const callKeys = useCallShortcuts({
+    active: state.state === "connected",
+    ptt,
+    canTalk: canPublish && !deafened,
+    onPtt: (held) =>
+      engine.setTrackEnabled(
+        "microphone",
+        held &&
+          !microphoneCheckActive() &&
+          allowed.current &&
+          !deafenedRef.current,
+      ),
+    microphone: () => void toggleMicrophone(),
+    deafen: toggleDeafen,
+    error: () => {
+      setError(
+        "Atalho indisponível. Escolha outra combinação em Dispositivos e voz.",
+      );
+      setPtt(false);
+    },
+  });
+  function toggleDeafen() {
+    deafenedRef.current = !deafenedRef.current;
+    setDeafened(deafenedRef.current);
+    if (deafenedRef.current) {
+      for (const track of pendingMicrophones.current) track.enabled = false;
+      engine.setTrackEnabled("microphone", false);
     }
-    const down = (event: KeyboardEvent) => {
-      const target = event.target;
-      if (
-        !isTauri() &&
-        event.code === "Space" &&
-        !event.repeat &&
-        !(
-          target instanceof HTMLElement &&
-          (target.isContentEditable ||
-            ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName))
-        )
-      ) {
-        event.preventDefault();
-        press();
-      }
-    };
-    const up = (event: KeyboardEvent) => {
-      if (!isTauri() && event.code === "Space") mute();
-    };
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-    window.addEventListener("blur", mute);
-    return () => {
-      stopped = true;
-      mute();
-      void cleanupGlobal?.();
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
-      window.removeEventListener("blur", mute);
-    };
-  }, [engine, ptt, canPublish, deafened]);
+  }
+  async function toggleMicrophone() {
+    if (
+      busy ||
+      ptt ||
+      deafenedRef.current ||
+      !allowed.current ||
+      microphoneCheckActive()
+    )
+      return;
+    await action(async () => {
+      const track = engine.snapshot.localTracks.microphone;
+      if (track?.enabled) await stopDevice("microphone");
+      else if (track) engine.setTrackEnabled("microphone", true);
+      else await captureDevice("microphone");
+    });
+  }
 
   async function captureScreen() {
     if (!allowed.current) return;
@@ -724,6 +741,7 @@ export default function P2PCallPanel({
     kind: "audioinput" | "audiooutput" | "videoinput",
     value: string,
   ) {
+    stopAudioChecks();
     if (kind === "audioinput" && microphone)
       await captureDevice("microphone", value, microphone.enabled);
     if (kind === "videoinput" && camera) await captureDevice("camera", value);
@@ -769,7 +787,9 @@ export default function P2PCallPanel({
           <small>
             {status} · {state.participants.length + (state.self ? 1 : 0)} na
             chamada
-            {ptt ? ` · segure ${isTauri() ? "F9" : "Espaço"} para falar` : ""}
+            {ptt
+              ? ` · segure ${callKeys.ptt || "um atalho configurado"} para falar`
+              : ""}
           </small>
         </div>
         <div className="call-heading-actions">
@@ -942,28 +962,13 @@ export default function P2PCallPanel({
                   microphone?.enabled ? "Desligar microfone" : "Ligar microfone"
                 }
                 disabled={busy || ptt || deafened || !canPublish}
-                onClick={() =>
-                  void action(async () => {
-                    if (microphone?.enabled) await stopDevice("microphone");
-                    else if (microphone)
-                      engine.setTrackEnabled("microphone", true);
-                    else await captureDevice("microphone");
-                  })
-                }
+                onClick={() => void toggleMicrophone()}
               >
                 {microphone?.enabled ? <Mic size={20} /> : <MicOff size={20} />}
               </IconButton>
               <IconButton
                 label={deafened ? "Ativar áudio" : "Silenciar áudio"}
-                onClick={() => {
-                  deafenedRef.current = !deafenedRef.current;
-                  setDeafened(deafenedRef.current);
-                  if (deafenedRef.current) {
-                    for (const track of pendingMicrophones.current)
-                      track.enabled = false;
-                    engine.setTrackEnabled("microphone", false);
-                  }
-                }}
+                onClick={toggleDeafen}
               >
                 {deafened ? (
                   <HeadphoneOff size={20} />
@@ -1277,6 +1282,11 @@ export default function P2PCallPanel({
       )}
       {settings && (
         <Modal title="Dispositivos e voz" onClose={() => setSettings(false)}>
+          <AudioTests
+            input={selectedDevices.audioinput}
+            output={selectedDevices.audiooutput}
+          />
+          <CallKeysSettings />
           <AudioHelp />
           <label className="check-field">
             <input
@@ -1287,8 +1297,7 @@ export default function P2PCallPanel({
                 void action(() => setPushToTalk(e.target.checked))
               }
             />
-            Push-to-talk: segure{" "}
-            {isTauri() ? "F9 (global)" : "Espaço (janela em foco)"}
+            Push-to-talk: segure {callKeys.ptt || "configure um atalho"}
           </label>
           <p className="small-note">
             O microfone só transmite enquanto a tecla está pressionada. Ao sair

@@ -1,11 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod audio;
+mod call_keys;
 mod capture;
 mod updates;
 
-use tauri::{Emitter, Manager};
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri::Manager;
 
 fn credential_origin(value: &str) -> Result<String, String> {
     let parsed = url::Url::parse(value).map_err(|_| "Endereço inválido.")?;
@@ -68,25 +68,6 @@ fn open_external_url(url: String) -> Result<(), String> {
     open::that(parsed.as_str()).map_err(|_| "Não foi possível abrir o navegador.".into())
 }
 
-#[tauri::command]
-fn set_push_to_talk(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
-    let key = Shortcut::new(None, Code::F9);
-    if enabled {
-        if !app.global_shortcut().is_registered(key) {
-            app.global_shortcut().register(key).map_err(|_| {
-                "Não foi possível registrar F9. Outro aplicativo pode estar usando este atalho."
-                    .to_string()
-            })?;
-        }
-    } else {
-        app.global_shortcut()
-            .unregister(key)
-            .map_err(|_| "Não foi possível liberar o atalho F9.".to_string())?;
-        let _ = app.emit_to("main", "ptt-state", false);
-    }
-    Ok(())
-}
-
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
@@ -99,18 +80,13 @@ fn main() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(updates::UpdateState::default())
         .manage(capture::CaptureState::default())
+        .manage(call_keys::CallKeyState::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
-                    if shortcut == &Shortcut::new(None, Code::F9) {
-                        let _ = app.emit_to(
-                            "main",
-                            "ptt-state",
-                            event.state() == ShortcutState::Pressed,
-                        );
-                    }
+                    call_keys::handle(app, shortcut, event.state());
                 })
                 .build(),
         )
@@ -118,7 +94,7 @@ fn main() {
             store_refresh_token,
             load_refresh_token,
             open_external_url,
-            set_push_to_talk,
+            call_keys::set_call_shortcuts,
             audio::windows_audio_status,
             audio::disable_windows_audio_ducking,
             capture::native_capture_available,
