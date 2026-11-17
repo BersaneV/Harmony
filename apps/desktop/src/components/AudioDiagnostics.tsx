@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { audioDiagnostics, playbackSnapshot } from "../lib/audio-diagnostics";
+import {
+  audioDiagnostics,
+  playbackSnapshot,
+  browserAudioInventory,
+} from "../lib/audio-diagnostics";
 import { sampleWindowsAudio } from "../lib/useAudioDiagnostics";
 
 export function AudioDiagnostics() {
@@ -16,9 +20,30 @@ export function AudioDiagnostics() {
       audioDiagnostics.add("export", {
         playback: playbackSnapshot(document.querySelectorAll("audio")),
       });
+      let browserDevices: ReturnType<typeof browserAudioInventory> = [];
+      let microphonePermission = "unavailable";
+      try {
+        browserDevices = browserAudioInventory(
+          await navigator.mediaDevices.enumerateDevices(),
+          names,
+        );
+      } catch {
+        /* Do not request access. */
+      }
+      try {
+        microphonePermission = (
+          await navigator.permissions.query({
+            name: "microphone" as PermissionName,
+          })
+        ).state;
+      } catch {
+        /* Unsupported. */
+      }
       const report = {
         ...audioDiagnostics.report(await getVersion()),
         windows,
+        browserDevices,
+        microphonePermission,
         device_names_requested: names,
       };
       const name = await invoke<string>("save_audio_diagnostics", {

@@ -32,6 +32,33 @@ export function audioRoute(id: string | undefined): string {
       ? "default"
       : "custom";
 }
+const deviceAliases = new Map<string, string>();
+export function audioDeviceReference(id?: string): string {
+  if (!id || id === "default") return "browser-default";
+  if (id === "communications") return "browser-communications";
+  const existing = deviceAliases.get(id);
+  if (existing) return existing;
+  if (deviceAliases.size >= 128) return "browser-other";
+  const ref = `browser-device-${deviceAliases.size + 1}`;
+  deviceAliases.set(id, ref);
+  return ref;
+}
+export function browserAudioInventory(
+  devices: MediaDeviceInfo[],
+  names: boolean,
+) {
+  return devices
+    .filter((d) => d.kind === "audioinput" || d.kind === "audiooutput")
+    .slice(0, 64)
+    .map((d) => ({
+      device: audioDeviceReference(d.deviceId),
+      kind: d.kind,
+      name: names
+        ? d.label.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 120)
+        : null,
+    }));
+}
+
 export function audioTrack(track: MediaStreamTrack | undefined | null) {
   if (!track) return null;
   let settings: MediaTrackSettings = {};
@@ -47,6 +74,7 @@ export function audioTrack(track: MediaStreamTrack | undefined | null) {
     enabled: track.enabled,
     muted: track.muted,
     state: track.readyState === "live" ? "live" : "ended",
+    device: audioDeviceReference(settings.deviceId),
     sampleRate: numeric(settings.sampleRate),
     channelCount: numeric(settings.channelCount),
     echoCancellation:
@@ -93,6 +121,8 @@ export function p2pAudioSnapshot(
     engine: "p2p",
     state: s.state,
     deafened,
+    inputDevice: audioDeviceReference(input),
+    outputDevice: audioDeviceReference(output),
     input: audioRoute(input),
     output: audioRoute(output),
     microphone: audioTrack(s.localTracks.microphone),
@@ -118,6 +148,9 @@ export function playbackSnapshot(elements: ArrayLike<HTMLMediaElement>) {
       volume: e.volume,
       readyState: e.readyState,
       errorCode: e.error?.code ?? null,
+      device: audioDeviceReference(
+        (e as HTMLMediaElement & { sinkId?: string }).sinkId,
+      ),
       output: audioRoute((e as HTMLMediaElement & { sinkId?: string }).sinkId),
     }));
 }
@@ -143,6 +176,7 @@ export class AudioDiagnosticLog {
   }
   clear() {
     this.entries = [];
+    deviceAliases.clear();
   }
   report(version: string) {
     const time = this.now();

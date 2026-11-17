@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   AudioDiagnosticLog,
+  audioDeviceReference,
+  browserAudioInventory,
   audioErrorCode,
   audioTrack,
   p2pAudioSnapshot,
@@ -104,6 +106,27 @@ describe("audio report privacy and bounds", () => {
     log.add("call-end", {});
     log.clear();
     expect(log.report("test").entries).toHaveLength(0);
+  });
+  it("correlates custom selections to browser inventory without persistent IDs or names by default", () => {
+    const devices = [
+      {
+        deviceId: secret,
+        groupId: secret,
+        kind: "audiooutput",
+        label: "Fone de teste",
+      },
+    ] as MediaDeviceInfo[];
+    const ref = audioDeviceReference(secret);
+    const inventory = browserAudioInventory(devices, false);
+    expect(inventory[0]).toEqual({
+      device: ref,
+      kind: "audiooutput",
+      name: null,
+    });
+    expect(JSON.stringify(inventory)).not.toContain(secret);
+    expect(browserAudioInventory(devices, true)[0].name).toBe("Fone de teste");
+    for (let i = 0; i < 140; i++) audioDeviceReference(`unique-${i}`);
+    expect(audioDeviceReference("beyond-bound")).toBe("browser-other");
   });
   it("handles missing/ended tracks without opening a microphone", () => {
     expect(audioTrack(undefined)).toBe(null);

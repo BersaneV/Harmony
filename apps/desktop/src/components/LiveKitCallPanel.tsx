@@ -1,6 +1,7 @@
 import {
   audioTrack,
   audioRoute,
+  audioDeviceReference,
   audioDiagnostics,
   audioErrorCode,
 } from "../lib/audio-diagnostics";
@@ -359,6 +360,8 @@ export default function CallPanel({
       engine: "livekit",
       state: room?.state ?? "connecting",
       deafened,
+      inputDevice: audioDeviceReference(room?.getActiveDevice("audioinput")),
+      outputDevice: audioDeviceReference(room?.getActiveDevice("audiooutput")),
       playbackAllowed: room?.canPlaybackAudio ?? null,
       input: audioRoute(room?.getActiveDevice("audioinput")),
       output: audioRoute(room?.getActiveDevice("audiooutput")),
