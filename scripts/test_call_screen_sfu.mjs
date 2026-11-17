@@ -224,6 +224,12 @@ async function relayDiagnostic(browser) {
         const relay=rtcCall.relay, room=relay?.room;
         const finite=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0?v:null;
         const candidates=[...(relay?.candidates?.values()??[])].slice(0,7);
+        const requests=performance.getEntriesByType('resource').flatMap(e=>{
+          try { const u=new URL(e.name);if(u.origin!==new URL(callApi.getServer()).origin||!new RegExp('^/api/channels/[a-f0-9-]{36}/(call|screen-token)$').test(u.pathname))return[];
+            return [{kind:u.pathname.endsWith('/call')?'CALL_CONFIG':'SCREEN_TOKEN',duration_ms:finite(e.duration),
+              http_status:Number.isInteger(e.responseStatus)&&e.responseStatus>=100&&e.responseStatus<=599?e.responseStatus:null}];
+          } catch { return []; }
+        }).slice(-16);
         const rows=await Promise.all(candidates.map(async c=>{
           const video=await c.video.track?.sample().catch(()=>null);
           const audio=await c.audio?.track?.sample().catch(()=>null);
@@ -238,7 +244,9 @@ async function relayDiagnostic(browser) {
         }));
         const publications=(room?.participants()??[]).flatMap(p=>p.publications);
         const sent=await relay?.screen?.publication.sampleStats?.().catch(()=>null);
-        return {relay_present:!!relay,relay_ready:rtcCall.relayReady===true,room_connected:room?.connected()===true,
+        return {sfu_enabled:rtcCall.screenSfuEnabled===true,sfu_advertised:rtcCall.screenSfuAdvertised===true,
+          self_capability:rtcCall.snapshot.self?.screen_sfu===true,peer_capabilities:[...rtcCall.peers.values()].filter(p=>p.member.screen_sfu===true).length,requests,
+          relay_present:!!relay,relay_ready:rtcCall.relayReady===true,room_connected:room?.connected()===true,
           local_video:!!relay?.screen,local_audio:!!relay?.audio,local_ref:!!rtcCall.relayLocalRef,
           sent_frames:finite(sent?.frames),sent_bytes:finite(sent?.bytes),
           video_publications:publications.filter(p=>p.source==='screen').length,

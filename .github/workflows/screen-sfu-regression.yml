@@ -17,7 +17,9 @@ jobs:
         with: {node-version: '26.13.0'}
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
         with: {toolchain: '1.99.1'}
+      - run: python3 scripts/configure.py --media-transport livekit
       - run: npm ci
+      - run: npm run build
       - run: cargo build -p harmony-server --locked
       - name: Install the same pinned screen SFU
         run: |
@@ -28,4 +30,10 @@ jobs:
       - name: Run the unchanged hybrid routing and voice gates
         env:
           HARMONY_CHROME: /usr/bin/google-chrome
-        run: node scripts/test_call_screen_sfu.mjs
+          HARMONY_TRUST_PROXY: "true"
+          HARMONY_TEST_STORAGE: "1"
+          HARMONY_TEST_MEDIA: "1"
+        run: |
+          node scripts/test_screen_sfu.mjs
+          node scripts/test_screen_sfu_livekit.mjs
+          node scripts/test_call_screen_sfu.mjs
