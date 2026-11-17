@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   inviteLink,
   nativeInviteLink,
@@ -11,8 +11,51 @@ import {
 const server = "https://community.example.org";
 const token = "a1".repeat(32);
 const invite = { server, token };
+afterEach(() => vi.unstubAllGlobals());
+
+function webViewOpaqueUrls() {
+  const StandardURL = globalThis.URL;
+  vi.stubGlobal(
+    "URL",
+    class extends StandardURL {
+      get hostname() {
+        return this.protocol === "harmony:" ? "" : super.hostname;
+      }
+      get pathname() {
+        return this.protocol === "harmony:"
+          ? super.href.slice("harmony:".length).split(/[?#]/)[0]
+          : super.pathname;
+      }
+      get username() {
+        return this.protocol === "harmony:" ? "" : super.username;
+      }
+      get password() {
+        return this.protocol === "harmony:" ? "" : super.password;
+      }
+      get port() {
+        return this.protocol === "harmony:" ? "" : super.port;
+      }
+    },
+  );
+}
 
 describe("convites clicáveis", () => {
+  it("aceita o formato opaco observado no WebView2 Windows", () => {
+    webViewOpaqueUrls();
+    const link = nativeInviteLink(invite);
+    expect(new URL(link).hostname).toBe("");
+    expect(new URL(link).pathname).toBe("//invite");
+    expect(parseInvite(link)).toEqual(invite);
+  });
+  it.each([
+    "harmony://user:password@invite",
+    "harmony://invite:99",
+    "harmony://evil",
+    "harmony:///invite",
+  ])("recusa outras rotas no formato opaco: %s", (prefix) => {
+    webViewOpaqueUrls();
+    expect(parseInvite(`${prefix}?server=${server}&code=${token}`)).toBeNull();
+  });
   it("gera link HTTPS com o código no fragmento, sem enviar na requisição", () => {
     const link = inviteLink(invite);
     expect(link).toBe(`${server}/#/invite/${token}`);

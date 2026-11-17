@@ -27,13 +27,12 @@ export function parseInvite(input: string): CommunityInvite | null {
     const url = new URL(input);
     if (url.username || url.password) return null;
     if (url.protocol === "harmony:") {
-      if (
-        url.hostname !== "invite" ||
-        url.port ||
-        !["", "/"].includes(url.pathname) ||
-        url.hash
-      )
-        return null;
+      // WebView2 can represent a custom scheme as an opaque path (//invite)
+      // instead of an authority. Accept only this exact equivalent route.
+      const route =
+        (url.hostname === "invite" && ["", "/"].includes(url.pathname)) ||
+        (!url.hostname && ["//invite", "//invite/"].includes(url.pathname));
+      if (!route || url.port || url.hash) return null;
       const keys = [...url.searchParams.keys()];
       if (
         keys.length !== 2 ||
