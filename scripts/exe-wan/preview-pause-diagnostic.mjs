@@ -35,7 +35,7 @@ export async function measurePreviewPhases(app,selection,request,result,{checkOw
  try{
   await app.cdp.evaluate(`(${installPreviewPause.toString()})(${JSON.stringify(index)},${JSON.stringify(operationToken)})`,false,3000);
   for(const name of ['play_before','paused','play_after']){
-   app.cdp.setStage('preview.'+name);
+   app.cdp.setStage('capture.measure');
    same(await app.cdp.evaluate(`window.__exeWan.captureSnapshots()[${index}]`,false,3000));
    if(name==='paused')await operation('pause');
    if(name==='play_after')await operation('resume');
@@ -46,7 +46,7 @@ export async function measurePreviewPhases(app,selection,request,result,{checkOw
    result.phases.push({name,capacity_approval:false,before,after,capture:projectCapture(capture),original_quality_gate:quality});
   }
  }finally{
-  app.cdp.setStage('preview.restore');
+  app.cdp.setStage('capture.snapshot');
   try{result.restoration=await operation('finish');}catch{result.restoration={status:'NOT_VERIFIED'};}
  }
  assert.equal(result.restoration.status,'RESTORED');
@@ -58,6 +58,13 @@ export async function measurePreviewPhases(app,selection,request,result,{checkOw
 export function assertContext(env,platform,request){
  assert.equal(platform,'win32');for(const[k,v]of Object.entries({GITHUB_ACTIONS:'true',GITHUB_REPOSITORY:'BersaneV/Harmony',GITHUB_REF:'refs/heads/main',RUNNER_ENVIRONMENT:'github-hosted',HARMONY_PREVIEW_PAUSE_PUBLIC_REPOSITORY:'true',HARMONY_EXE_RELEASE:VERSION}))assert.equal(env[k],v);
  assert.equal(request.id,'1080p60');assert.equal(request.fps,60);
+}
+export function projectFailure(error){
+ const message=typeof error?.message==='string'?error.message:'';
+ const known=[['Unknown CDP trace stage','CDP_STAGE_REJECTED'],['Owned fixture HWND required','OWNED_HWND_UNVERIFIED'],['Only the owned native capture item is accepted','OWNED_LABEL_MISMATCH'],['Only the real WGC bridge is accepted','NATIVE_BACKEND_MISMATCH']];
+ const code=known.find(([text])=>message.startsWith(text))?.[1]??(error?.code==='ERR_ASSERTION'?'ASSERTION_FAILED':'DIAGNOSTIC_UNVERIFIED');
+ const scalar=v=>Number.isSafeInteger(v)&&v>=0&&v<=16384?v:null;
+ return{failure_code:code,...(error?.code==='ERR_ASSERTION'?{assert_actual_number:scalar(error.actual),assert_expected_number:scalar(error.expected),assert_actual_boolean:typeof error.actual==='boolean'?error.actual:null,assert_expected_boolean:typeof error.expected==='boolean'?error.expected:null}:{})};
 }
 async function main(){
  const{session}=await import('./session.mjs'),{requestedProfile}=await import('./profiles.mjs');
@@ -79,7 +86,7 @@ async function main(){
   await app.click('Compartilhar tela');await app.select('Resolução',request.height);await app.select('Quadros por segundo',request.fps);await app.select('Bitrate por','manual');await app.fill('input[aria-label="Bitrate em megabits por segundo"]',String(request.bitrate_mbps));await app.select('Conteúdo','text');
   await app.cdp.evaluate(`(()=>{const c=document.querySelector('.check-field input[type="checkbox"]');if(c?.checked)c.click();return true})()`,true);
   const selection=await app.chooseScreen();await measurePreviewPhases(app,selection,request,result,{checkOwned:assertOwnedCapture,checkQuality:assertCaptureMeasurement});result.completion='COMPLETE';
- }catch{result.completion='NOT_VERIFIED';result.failure_code='DIAGNOSTIC_UNVERIFIED';result.failure_stage=app?.cdp.stage??'setup';}
+ }catch(error){result.completion='NOT_VERIFIED';Object.assign(result,projectFailure(error));result.failure_stage=app?.cdp.stage??'setup';}
  finally{if(app){try{app.close();result.cleanup='REQUESTED';}catch{result.cleanup='NOT_VERIFIED';result.completion='NOT_VERIFIED';}await writeFile(join(app.root,'preview-pause.json'),JSON.stringify(result,null,2)+'\n');}console.log('HARMONY_EXE_PREVIEW_PAUSE '+JSON.stringify(result));}
  if(result.completion!=='COMPLETE')process.exitCode=1;
 }
